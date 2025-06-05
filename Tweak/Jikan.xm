@@ -181,7 +181,6 @@ static void loadPrefs(void) {
     });
 }
 
-
 %hook _UIBatteryView
 
 - (void)setChargingState:(NSInteger)arg1 {
