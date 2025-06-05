@@ -1,0 +1,9 @@
+Package: moe.waru.jikan
+Name: Jikan
+Version: 1.0
+Architecture: iphoneos-arm
+Description: Show estimate time left on charging battery
+Maintainer: waruhachi
+Author: waruhachi
+Section: Tweaks
+Depends: mobilesubstrate (>= 0.9.5000)
