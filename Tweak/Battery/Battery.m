@@ -1,10 +1,4 @@
-@interface BatteryChargerEstimator : NSObject
-
-/// Estimates time (in seconds) until full charge, based on the provided batteryInfo dictionary.
-/// Returns -1 if any required data is missing or if charging is infeasible.
-+ (NSTimeInterval)estimatedSecondsToFullWithBatteryInfo:(NSDictionary *)batteryInfo;
-
-@end
+#include "Battery.h"
 
 @implementation BatteryChargerEstimator
 
@@ -86,7 +80,7 @@
     // 3) Adjust for battery temperature.
     //    iOS reports “Temperature” as an integer. Commonly, that integer is in “0.1 °C” units.
     //    E.g. 3229 → 322.9 °C is impossible, so assume 3229 actually means 32.29 °C (i.e. divide by 100).
-    //    We’ll compute tempC = [Temperature] / 100.0. 
+    //    We’ll compute tempC = [Temperature] / 100.0.
     //    If tempC is outside [0 °C, 45 °C], we scale down current by 0.5 (i.e. 50% slower).
     //
     NSNumber *tempNum = batteryInfo[@"Temperature"];

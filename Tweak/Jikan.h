@@ -4,7 +4,7 @@
 #include <Foundation/Foundation.h>
 #include <SpringBoard/SpringBoard.h>
 
-#include "Battery/Battery.m"
+#include "Battery/Battery.h"
 
 @interface _UIBatteryView : UIView
 @end
