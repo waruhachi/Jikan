@@ -1,5 +1,14 @@
 #include "Jikan.h"
-#import "Battery/Battery.m"
+
+BOOL isCharging = NO;
+NSString *chargingstate = nil;
+
+static UIImageView *boltImageView = nil;
+static UILabel *chargingDetailLabel = nil;
+static UIView *chargingContainerView = nil;
+static UIStackView *chargingStackView = nil;
+static dispatch_source_t _updateTimer = nil;
+static UILabel *chargingRemainingLabel = nil;
 
 static NSDictionary* fetchBatteryInfo(void) {
     mach_port_t masterPort;
@@ -40,7 +49,7 @@ static NSDictionary* fetchBatteryInfo(void) {
 static void computeTimeToFullCharge(NSDictionary *batteryInfo, int *outHours, int *outMinutes) {
     *outHours = 0;
     *outMinutes = 0;
-    
+
     NSTimeInterval seconds = [BatteryChargerEstimator estimatedSecondsToFullWithBatteryInfo:batteryInfo];
     if (seconds < 0) {
         return;
@@ -84,23 +93,6 @@ static void asyncGetChargingTime(void (^completion)(NSString *timeString, int ho
         dispatch_async(dispatch_get_main_queue(), ^{
             completion(finalString, hours, minutes);
         });
-    });
-}
-
-BOOL isCharging = NO;
-NSString *chargingstate = nil;
-
-static UILabel      *chargingDetailLabel    = nil;
-static UILabel      *chargingRemainingLabel = nil;
-static UIView       *chargingContainerView  = nil;
-static UIStackView  *chargingStackView      = nil;
-static UIImageView  *boltImageView          = nil;
-
-void loadPrefs(void) {
-    asyncGetChargingTime(^(NSString *timeString, int hours, int minutes) {
-        chargingstate = timeString ?: @"<error>";
-        isCharging = ![timeString isEqualToString:@"Not charging"] && !(hours == 0 && minutes == 0);
-        [[NSNotificationCenter defaultCenter] postNotificationName:@"JikanChargingStateChanged" object:nil];
     });
 }
 
@@ -181,16 +173,28 @@ static void setupChargingLabels(UIView *parentView) {
     [boltImageView.heightAnchor constraintEqualToAnchor:labelsStack.heightAnchor].active = YES;
 }
 
+static void loadPrefs(void) {
+    asyncGetChargingTime(^(NSString *timeString, int hours, int minutes) {
+        chargingstate = timeString ?: @"<error>";
+        isCharging = ![timeString isEqualToString:@"Not charging"] && !(hours == 0 && minutes == 0);
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"JikanChargingStateChanged" object:nil];
+    });
+}
+
+
 %hook _UIBatteryView
+
 - (void)setChargingState:(NSInteger)arg1 {
     isCharging = (arg1 == 1);
     loadPrefs();
     [[NSNotificationCenter defaultCenter] postNotificationName:@"JikanChargingStateChanged" object:nil];
     return %orig;
 }
+
 %end
 
 %hook CSCoverSheetView
+
 - (void)didMoveToSuperview {
     loadPrefs();
     UIView *parent = (UIView *)self;
@@ -201,7 +205,7 @@ static void setupChargingLabels(UIView *parentView) {
         chargingDetailLabel.text = @"until fully charged";
         chargingContainerView.hidden = !isCharging;
     }
-	
+
     %orig;
 
     [[NSNotificationCenter defaultCenter] addObserverForName:@"JikanChargingStateChanged" object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
@@ -210,7 +214,7 @@ static void setupChargingLabels(UIView *parentView) {
 			chargingDetailLabel.text = @"until fully charged";
 			chargingContainerView.hidden = !isCharging;
 		}
-		
+
 		[self setNeedsLayout];
 		[self setNeedsDisplay];
 	}];
@@ -220,16 +224,17 @@ static void setupChargingLabels(UIView *parentView) {
     [[NSNotificationCenter defaultCenter] removeObserver:self name:@"JikanChargingStateChanged" object:nil];
     %orig;
 }
+
 %end
 
 %hook NCNotificationListCountIndicatorView
+
 - (void)didMoveToWindow {
     self.hidden = YES;
     %orig;
 }
-%end
 
-static dispatch_source_t _updateTimer = nil;
+%end
 
 %ctor {
     NSDictionary *batteryInfo = fetchBatteryInfo();
