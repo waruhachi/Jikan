@@ -1,27 +1,32 @@
-#include <spawn.h>
-#include <UIKit/UIKit.h>
-#include <IOKit/IOKitLib.h>
-#include <Foundation/Foundation.h>
-#include <SpringBoard/SpringBoard.h>
+#import <spawn.h>
+#import <UIKit/UIKit.h>
+#import <IOKit/IOKitLib.h>
+#import <Foundation/Foundation.h>
+#import <SpringBoard/SpringBoard.h>
 
-#include "Battery/Battery.h"
-
-@interface _UIBatteryView : UIView
-@end
-
-@interface CSCoverSheetView : UIView
-@end
+#import "TT100/TT100.h"
+#import "JikanPlatterView/JikanPlatterView.h"
 
 @interface NCNotificationListCountIndicatorView : UIView
 @end
 
-@interface MTMaterialView : UIView
-	@property (nonatomic, assign, readwrite) BOOL captureOnly;
+@interface CSQuickActionsButton : UIControl
+@end
 
-	- (void)setRecipe:(NSInteger)recipe;
-	+ (MTMaterialView *)materialViewWithRecipe:(NSInteger)recipe options:(NSUInteger)options;
-	+ (MTMaterialView *)materialViewWithRecipe:(NSInteger)recipe configuration:(NSInteger)configuration;
+@interface CSQuickActionsView : UIView
+	@property (nonatomic,retain) CSQuickActionsButton *cameraButton;
+	@property (nonatomic,retain) CSQuickActionsButton *flashlightButton;
+	
+	- (void)refreshSupportedButtons;
+	- (UIEdgeInsets)_buttonOutsets;
+	- (BOOL)_prototypingAllowsButtons;
+@end
+
+@interface CSQuickActionsView (JikanPlatterView)
+	@property (nonatomic, strong) JikanPlatterView *remainingTimePlatter;
+	
+	- (void)_configureRemainingTimePlatterConstraints;
+	- (void)_addOrRemoveRemainingTimePlatterIfNecessary;
 @end
 
 extern BOOL isCharging;
-extern NSString *chargingstate;
