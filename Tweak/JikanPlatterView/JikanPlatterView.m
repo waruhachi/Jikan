@@ -11,8 +11,8 @@
 
 		[self _setupSubviews];
 
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_tt100BatteryInfoUpdated:) name:@"TT100BatteryInfoUpdated" object:nil];
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_chargingStateChanged:) name:@"JikanChargingStateChanged" object:nil];
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_tt100BatteryInfoUpdated:) name:TT100BatteryInfoUpdatedNotification object:nil];
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_chargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
 
 		if (isCharging) {
 			[self _startRefreshTimer];
@@ -26,6 +26,22 @@
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[self _stopRefreshTimer];
+#if !__has_feature(objc_arc)
+	[super dealloc];
+#endif
+}
+
+- (void)didMoveToWindow {
+	[super didMoveToWindow];
+
+	if (!self.window) {
+		[self _stopRefreshTimer];
+		return;
+	}
+
+	if (isCharging) {
+		[self _startRefreshTimer];
+	}
 }
 
 - (void)_tt100BatteryInfoUpdated:(NSNotification *)notification {
@@ -95,7 +111,7 @@
 		[_backgroundView.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
 		[_backgroundView.topAnchor constraintEqualToAnchor:self.topAnchor],
 		[_backgroundView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
-		
+
 		[_containerView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
 		[_containerView.bottomAnchor constraintEqualToAnchor:self.centerYAnchor constant:-8],
 
@@ -131,7 +147,8 @@
 
 - (void)_startRefreshTimer {
 	if (!_refreshTimer) {
-		_refreshTimer = [NSTimer scheduledTimerWithTimeInterval:5.0 target:self selector:@selector(_triggerBatteryRefresh) userInfo:nil repeats:YES];
+		_refreshTimer = [NSTimer scheduledTimerWithTimeInterval:15.0 target:self selector:@selector(_triggerBatteryRefresh) userInfo:nil repeats:YES];
+		_refreshTimer.tolerance = 3.0;
 	}
 }
 
@@ -141,7 +158,6 @@
 }
 
 - (void)_triggerBatteryRefresh {
-	NSLog(@"[Jikan] _triggerBatteryRefresh");
 	[[TT100 sharedInstance] _refreshBatteryInfo];
 }
 

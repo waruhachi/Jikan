@@ -1,0 +1,69 @@
+BasedOnStyle: Chromium
+TabWidth: 4
+UseTab: Always
+ColumnLimit: 0
+MaxEmptyLinesToKeep: 1
+PointerAlignment: Right
+AlignAfterOpenBracket: DontAlign
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: DontAlign
+AlignOperands: false
+AlignTrailingComments: false
+AllowShortBlocksOnASingleLine : Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Always
+AllowShortLoopsOnASingleLine: true
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: false
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: false
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: false
+SpacesInContainerLiterals: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+IndentWidth: 4
+IndentWrappedFunctionNames: true
+ContinuationIndentWidth: 4
+IndentCaseLabels: true
+IndentPPDirectives: BeforeHash
+AccessModifierOffset: 0
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: true
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterObjCDeclaration: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: true
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: true
+  SplitEmptyFunction: false
+ObjCBlockIndentWidth: 4
+ObjCBreakBeforeNestedBlockParam: false
+ObjCSpaceAfterProperty: true
+ObjCSpaceBeforeProtocolList: true
+SortIncludes: true
+IncludeCategories:
+  - Regex: '^<.*>'
+    Priority: 1
+  - Regex: '^".*"'
+    Priority: 2
+IncludeBlocks: Regroup
+IncludeIsMainRegex: '$.'

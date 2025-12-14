@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>items</key>
+    <array>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>enabled</string>
+			<key>label</key>
+			<string>Enable</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>hideQuickActionButtons</string>
+			<key>label</key>
+			<string>Hide Quick Action Buttons</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>showRemainingBatteryTime</string>
+			<key>label</key>
+			<string>Show Remaining Battery Time</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSGroupCell</string>
+            <key>label</key>
+            <string>Apply</string>
+        </dict>
+        <dict>
+            <key>cell</key>
+            <string>PSButtonCell</string>
+            <key>label</key>
+            <string>Respring</string>
+            <key>action</key>
+            <string>respring</string>
+            <key>confirmation</key>
+            <dict>
+                <key>prompt</key>
+                <string>Are you sure you want to continue?</string>
+                <key>title</key>
+                <string>Respring</string>
+                <key>cancelTitle</key>
+                <string>Cancel</string>
+            </dict>
+        </dict>
+    </array>
+    <key>title</key>
+    <string>Jikan</string>
+</dict>
+</plist>

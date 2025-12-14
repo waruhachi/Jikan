@@ -1,6 +1,6 @@
 Package: moe.waru.jikan
 Name: Jikan
-Version: 1.0
+Version: 2.2
 Architecture: iphoneos-arm
 Description: Show estimate time left to full charge on your lock screen
 Maintainer: waruhachi

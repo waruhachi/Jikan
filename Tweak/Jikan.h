@@ -1,11 +1,22 @@
-#import <spawn.h>
-#import <UIKit/UIKit.h>
-#import <IOKit/IOKitLib.h>
 #import <Foundation/Foundation.h>
+#import <IOKit/IOKitLib.h>
 #import <SpringBoard/SpringBoard.h>
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+#import <spawn.h>
 
-#import "TT100/TT100.h"
 #import "JikanPlatterView/JikanPlatterView.h"
+#import "TT100/TT100.h"
+#import "TT100/TT100Database.h"
+
+static BOOL enabled;
+static BOOL hideQuickActionButtons;
+static BOOL showRemainingBatteryTime;
+
+extern BOOL isCharging;
+
+static const void *kTTManagedKey = &kTTManagedKey;
+static const void *kTTBaseTextKey = &kTTBaseTextKey;
 
 @interface NCNotificationListCountIndicatorView : UIView
 @end
@@ -14,19 +25,31 @@
 @end
 
 @interface CSQuickActionsView : UIView
-	@property (nonatomic,retain) CSQuickActionsButton *cameraButton;
-	@property (nonatomic,retain) CSQuickActionsButton *flashlightButton;
-	
-	- (void)refreshSupportedButtons;
-	- (UIEdgeInsets)_buttonOutsets;
-	- (BOOL)_prototypingAllowsButtons;
+@property (nonatomic, retain) CSQuickActionsButton *cameraButton;
+@property (nonatomic, retain) CSQuickActionsButton *flashlightButton;
+
+- (void)refreshSupportedButtons;
+- (UIEdgeInsets)_buttonOutsets;
+- (BOOL)_prototypingAllowsButtons;
 @end
 
-@interface CSQuickActionsView (JikanPlatterView)
-	@property (nonatomic, strong) JikanPlatterView *remainingTimePlatter;
-	
-	- (void)_configureRemainingTimePlatterConstraints;
-	- (void)_addOrRemoveRemainingTimePlatterIfNecessary;
+@interface CSCoverSheetView : UIView
 @end
 
-extern BOOL isCharging;
+@interface CSCoverSheetView (JikanPlatterView)
+@property (nonatomic, strong) JikanPlatterView *remainingTimePlatter;
+
+- (void)_configureRemainingTimePlatterConstraints;
+- (void)_addOrRemoveRemainingTimePlatterIfNecessary;
+- (void)_setRemainingTimePlatterVisible:(BOOL)visible;
+@end
+
+@interface CSProminentSubtitleDateView : UIView
+@end
+
+@interface _UIAnimatingLabel : UILabel
+@end
+
+@interface _UIAnimatingLabel (Jikan)
+- (void)_updateBatteryTime:(NSNotification *)notification;
+@end

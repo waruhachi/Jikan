@@ -1,0 +1,26 @@
+CompileFlags:
+  Add:
+    [
+      -include,
+      /Users/waruhachi/theos/Prefix.pch,
+      -isysroot,
+      "/Users/waruhachi/theos/sdks/iPhoneOS16.5.sdk/",
+      -I/Users/waruhachi/theos/vendor/headers,
+      -I/Users/waruhachi/theos/vendor/include,
+      -F/Users/waruhachi/theos/vendor/lib,
+      -F/Users/waruhachi/theos/sdks/iPhoneOS16.5.sdk/System/Library/PrivateFrameworks,
+      -target,
+      arm64-apple-ios14.5,
+      -fmodules,
+      -fcxx-modules,
+    ]
+
+Diagnostics:
+  Suppress: [
+    undeclared_var_use,
+    atimport,
+    undef_superclass,
+    unexpected_at,
+    modules_import_nested_redundant,
+    cxx_modules_disabled
+  ]
