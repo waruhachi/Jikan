@@ -46,6 +46,20 @@
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>autoResizeRemainingBatteryTime</string>
+			<key>label</key>
+			<string>Auto Resize Battery Time</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
 
         <dict>
             <key>cell</key>

@@ -235,8 +235,7 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 
 		objc_setAssociatedObject(label, kTTManagedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
-		label.numberOfLines = 1;
-		label.adjustsFontSizeToFitWidth = NO;
+		label.adjustsFontSizeToFitWidth = autoResizeRemainingBatteryTime;
 
 		NSString *current = label.text ?: @"";
 		NSRange sep = [current rangeOfString:@" • " options:NSBackwardsSearch];
@@ -377,7 +376,7 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 		objc_setAssociatedObject(self, kTTBaseTextKey, storedBase, OBJC_ASSOCIATION_COPY_NONATOMIC);
 	}
 
-	self.adjustsFontSizeToFitWidth = NO;
+	self.adjustsFontSizeToFitWidth = autoResizeRemainingBatteryTime;
 	self.text = (storedBase.length > 0)
 		? [NSString stringWithFormat:@"%@ • %@", storedBase, timeString]
 		: timeString;
@@ -391,6 +390,7 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
 	showRemainingBatteryTime = [preferences objectForKey:@"showRemainingBatteryTime"] ? [preferences boolForKey:@"showRemainingBatteryTime"] : NO;
+	autoResizeRemainingBatteryTime = [preferences objectForKey:@"autoResizeRemainingBatteryTime"] ? [preferences boolForKey:@"autoResizeRemainingBatteryTime"] : NO;
 
 	if (!enabled) {
 		return;

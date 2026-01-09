@@ -12,6 +12,7 @@
 static BOOL enabled;
 static BOOL hideQuickActionButtons;
 static BOOL showRemainingBatteryTime;
+static BOOL autoResizeRemainingBatteryTime;
 
 extern BOOL isCharging;
 
