@@ -55,10 +55,12 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 }
 
 - (void)close {
-	if (_db) {
-		sqlite3_close(_db);
-		_db = NULL;
-	}
+	dispatch_sync(_queue, ^{
+		if (_db) {
+			sqlite3_close(_db);
+			_db = NULL;
+		}
+	});
 }
 
 - (BOOL)_exec:(NSString *)sql {
@@ -90,7 +92,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (v == 0) {
 		NSString *schema =
 			@"CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);"
-			 "INSERT OR IGNORE INTO meta(key,value) VALUES ('schema_version','1');"
+			 "INSERT OR IGNORE INTO meta(key,value) VALUES ('schema_version','2');"
 			 "CREATE TABLE IF NOT EXISTS sessions ("
 			 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
 			 "start_ts REAL NOT NULL,"
@@ -131,10 +133,27 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 			 "percent INTEGER NOT NULL,"
 			 "median_seconds REAL,"
 			 "iqr_seconds REAL,"
+			 "mean_seconds REAL,"
+			 "m2_seconds REAL,"
 			 "sample_count INTEGER DEFAULT 0,"
 			 "last_updated_ts REAL,"
 			 "PRIMARY KEY (charger_class, percent));";
 		return [self _exec:schema];
+	}
+
+	if (v < 2) {
+		if (![self _exec:@"ALTER TABLE percent_stats ADD COLUMN mean_seconds REAL;"]) {
+			return NO;
+		}
+		if (![self _exec:@"ALTER TABLE percent_stats ADD COLUMN m2_seconds REAL;"]) {
+			return NO;
+		}
+		if (![self _exec:@"UPDATE percent_stats SET mean_seconds=COALESCE(mean_seconds, median_seconds), m2_seconds=COALESCE(m2_seconds, 0.0);"]) {
+			return NO;
+		}
+		if (![self _exec:@"UPDATE meta SET value='2' WHERE key='schema_version';"]) {
+			return NO;
+		}
 	}
 	return YES;
 }
@@ -262,53 +281,100 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 - (void)updatePercentStatsForChargerClass:(NSString *)chargerClass withDurationsSec:(NSDictionary<NSNumber *, NSArray<NSNumber *> *> *)durationsByPercent {
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
-		const char *upsert = "INSERT INTO percent_stats(charger_class,percent,median_seconds,iqr_seconds,sample_count,last_updated_ts) VALUES(?,?,?,?,?,?) ON CONFLICT(charger_class,percent) DO UPDATE SET median_seconds=excluded.median_seconds, iqr_seconds=excluded.iqr_seconds, sample_count=percent_stats.sample_count + excluded.sample_count, last_updated_ts=excluded.last_updated_ts;";
+		const char *upsert = "INSERT INTO percent_stats(charger_class,percent,median_seconds,iqr_seconds,mean_seconds,m2_seconds,sample_count,last_updated_ts) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(charger_class,percent) DO UPDATE SET median_seconds=excluded.median_seconds, iqr_seconds=excluded.iqr_seconds, mean_seconds=((percent_stats.mean_seconds*percent_stats.sample_count)+(excluded.mean_seconds*excluded.sample_count))/NULLIF(percent_stats.sample_count+excluded.sample_count,0), m2_seconds=(percent_stats.m2_seconds + excluded.m2_seconds + ((excluded.mean_seconds-percent_stats.mean_seconds)*(excluded.mean_seconds-percent_stats.mean_seconds))*percent_stats.sample_count*excluded.sample_count/NULLIF(percent_stats.sample_count+excluded.sample_count,0)), sample_count=percent_stats.sample_count + excluded.sample_count, last_updated_ts=excluded.last_updated_ts;";
 		sqlite3_stmt *stmt;
 		if (sqlite3_prepare_v2(_db, upsert, -1, &stmt, NULL) != SQLITE_OK) return;
 		double now = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
 		[durationsByPercent enumerateKeysAndObjectsUsingBlock:^(NSNumber *_Nonnull key, NSArray<NSNumber *> *_Nonnull samples, BOOL *_Nonnull stop) {
 			if (samples.count == 0) return;
-			NSArray<NSNumber *> *sorted = [samples sortedArrayUsingSelector:@selector(compare:)];
+			NSMutableArray<NSNumber *> *clean = [NSMutableArray arrayWithCapacity:samples.count];
+			for (NSNumber *n in samples) {
+				double v = n.doubleValue;
+				if (!isfinite(v)) continue;
+				if (v <= 0.5 || v > 3600.0) continue;
+				[clean addObject:@(v)];
+			}
+			if (clean.count == 0) return;
+
+			NSArray<NSNumber *> *sorted = [clean sortedArrayUsingSelector:@selector(compare:)];
 			NSUInteger c = sorted.count;
+			if (c == 0) return;
 			double median = (c % 2 ? sorted[c / 2].doubleValue : 0.5 * (sorted[c / 2 - 1].doubleValue + sorted[c / 2].doubleValue));
 			double q1 = sorted[(NSUInteger)floor(0.25 * (c - 1))].doubleValue;
 			double q3 = sorted[(NSUInteger)floor(0.75 * (c - 1))].doubleValue;
 			double iqr = q3 - q1;
+			double lowFence = q1 - 1.5 * iqr;
+			double highFence = q3 + 1.5 * iqr;
+			if (!isfinite(lowFence)) lowFence = 0.5;
+			if (!isfinite(highFence)) highFence = 3600.0;
+
+			double mean = 0;
+			double m2 = 0;
+			int n = 0;
+			for (NSNumber *nObj in sorted) {
+				double x = nObj.doubleValue;
+				x = MIN(MAX(x, lowFence), highFence);
+				n += 1;
+				double delta = x - mean;
+				mean += delta / n;
+				double delta2 = x - mean;
+				m2 += delta * delta2;
+			}
+			if (n <= 0) return;
+
 			sqlite3_reset(stmt);
 			sqlite3_clear_bindings(stmt);
 			sqlite3_bind_text(stmt, 1, chargerClass.UTF8String, -1, SQLITE_TRANSIENT);
 			sqlite3_bind_int(stmt, 2, key.intValue);
 			sqlite3_bind_double(stmt, 3, median);
 			sqlite3_bind_double(stmt, 4, iqr);
-			sqlite3_bind_int(stmt, 5, (int)c);
-			sqlite3_bind_double(stmt, 6, now);
+			sqlite3_bind_double(stmt, 5, mean);
+			sqlite3_bind_double(stmt, 6, m2);
+			sqlite3_bind_int(stmt, 7, n);
+			sqlite3_bind_double(stmt, 8, now);
 			sqlite3_step(stmt);
 		}];
 		sqlite3_finalize(stmt);
 	});
 }
 
-- (BOOL)fetchPercentStatsForChargerClass:(NSString *)chargerClass intoMedian:(double *)median iqr:(double *)iqr sampleCounts:(int *)sampleCounts {
+- (BOOL)fetchPercentStatsForChargerClass:(NSString *)chargerClass intoEstimate:(double *)estimate uncertainty:(double *)uncertainty sampleCounts:(int *)sampleCounts lastUpdated:(double *)lastUpdated {
 	if (![self openIfNeeded]) return NO;
-	for (int i = 0; i < 100; i++) {
-		median[i] = NAN;
-		iqr[i] = NAN;
-		sampleCounts[i] = 0;
-	}
-	const char *q = "SELECT percent, median_seconds, iqr_seconds, sample_count FROM percent_stats WHERE charger_class=?";
-	sqlite3_stmt *stmt;
-	if (sqlite3_prepare_v2(_db, q, -1, &stmt, NULL) != SQLITE_OK) return NO;
-	sqlite3_bind_text(stmt, 1, chargerClass.UTF8String, -1, SQLITE_TRANSIENT);
-	BOOL foundAny = NO;
-	while (sqlite3_step(stmt) == SQLITE_ROW) {
-		int p = sqlite3_column_int(stmt, 0);
-		if (p < 0 || p > 99) continue;
-		foundAny = YES;
-		median[p] = sqlite3_column_double(stmt, 1);
-		iqr[p] = sqlite3_column_double(stmt, 2);
-		sampleCounts[p] = sqlite3_column_int(stmt, 3);
-	}
-	sqlite3_finalize(stmt);
+	__block BOOL foundAny = NO;
+	dispatch_sync(_queue, ^{
+		for (int i = 0; i < 100; i++) {
+			estimate[i] = NAN;
+			uncertainty[i] = NAN;
+			sampleCounts[i] = 0;
+			lastUpdated[i] = 0;
+		}
+		const char *q = "SELECT percent, mean_seconds, m2_seconds, sample_count, median_seconds, iqr_seconds, last_updated_ts FROM percent_stats WHERE charger_class=?";
+		sqlite3_stmt *stmt;
+		if (sqlite3_prepare_v2(_db, q, -1, &stmt, NULL) != SQLITE_OK) return;
+		sqlite3_bind_text(stmt, 1, chargerClass.UTF8String, -1, SQLITE_TRANSIENT);
+		while (sqlite3_step(stmt) == SQLITE_ROW) {
+			int p = sqlite3_column_int(stmt, 0);
+			if (p < 0 || p > 99) continue;
+			foundAny = YES;
+			double mean = sqlite3_column_double(stmt, 1);
+			double m2 = sqlite3_column_double(stmt, 2);
+			int n = sqlite3_column_int(stmt, 3);
+			double median = sqlite3_column_double(stmt, 4);
+			double iqr = sqlite3_column_double(stmt, 5);
+			double updated = sqlite3_column_double(stmt, 6);
+
+			double est = isfinite(mean) && n > 0 ? mean : median;
+			double var = (n > 1 && isfinite(m2)) ? (m2 / (double)(n - 1)) : NAN;
+			double sd = isfinite(var) && var > 0 ? sqrt(var) : NAN;
+			double u = isfinite(sd) ? sd : iqr;
+
+			estimate[p] = est;
+			uncertainty[p] = u;
+			sampleCounts[p] = n;
+			lastUpdated[p] = updated;
+		}
+		sqlite3_finalize(stmt);
+	});
 	return foundAny;
 }
 

@@ -24,9 +24,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)updatePercentStatsForChargerClass:(NSString *)chargerClass
 						 withDurationsSec:(NSDictionary<NSNumber *, NSArray<NSNumber *> *> *)durationsByPercent;
 - (BOOL)fetchPercentStatsForChargerClass:(NSString *)chargerClass
-							  intoMedian:(double *)median
-									 iqr:(double *)iqr
-							sampleCounts:(int *)sampleCounts;
+							intoEstimate:(double *)estimate
+							 uncertainty:(double *)uncertainty
+							sampleCounts:(int *)sampleCounts
+							 lastUpdated:(double *)lastUpdated;
 - (void)insertUnlockEventAt:(NSTimeInterval)ts wasCharging:(BOOL)charging soc:(NSInteger)soc;
 - (void)pruneOldTickDataKeepingRecentSessions:(NSUInteger)recentCount;
 

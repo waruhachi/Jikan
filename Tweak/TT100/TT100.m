@@ -381,24 +381,56 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	if (upper > 99) upper = 99;
 
 	double median[100];
-	double iqr[100];
+	double spread[100];
 	int sampleCounts[100];
+	double lastUpdated[100];
 	BOOL isWireless = NO;
 	NSString *chargerClass = [self chargerClassWithBatteryInfo:batteryInfo outIsWireless:&isWireless];
 	BOOL haveDB = NO;
 	if (chargerClass.length && ![chargerClass isEqualToString:@"unknown"]) {
-		haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:chargerClass intoMedian:median iqr:iqr sampleCounts:sampleCounts];
+		haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:chargerClass intoEstimate:median uncertainty:spread sampleCounts:sampleCounts lastUpdated:lastUpdated];
 	}
 	if (!haveDB) {
-		haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:@"unknown" intoMedian:median iqr:iqr sampleCounts:sampleCounts];
+		haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:@"unknown" intoEstimate:median uncertainty:spread sampleCounts:sampleCounts lastUpdated:lastUpdated];
 	}
 	NSDictionary<NSString *, NSNumber *> *buckets = haveDB ? nil : [self cachedHistoryBuckets];
 	double logEstimate = 0;
+	double totalBucketWeight = 0;
+	NSInteger weightedBucketCount = 0;
 	BOOL usedBuckets = NO;
 	BOOL missingBucket = NO;
 
 	double *medianPtr = median;
-	__unused double *iqrPtr = iqr;
+	double *spreadPtr = spread;
+	int *sampleCountsPtr = sampleCounts;
+	double *updatedPtr = lastUpdated;
+	double nowEpoch = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
+	double (^bucketWeight)(NSInteger) = ^double(NSInteger percent) {
+		if (!haveDB) return 1.0;
+		if (percent < 0 || percent >= 100) return 0.0;
+		int n = sampleCountsPtr[percent];
+		double confidenceFromN = log1p(MAX(0, n)) / log1p(20.0);
+		if (confidenceFromN < 0.0) confidenceFromN = 0.0;
+		if (confidenceFromN > 1.0) confidenceFromN = 1.0;
+
+		double s = spreadPtr[percent];
+		double uncertaintyFactor = 0.6;
+		if (isfinite(s) && s > 0) {
+			uncertaintyFactor = 1.0 - (s / 180.0);
+			if (uncertaintyFactor < 0.2) uncertaintyFactor = 0.2;
+			if (uncertaintyFactor > 1.0) uncertaintyFactor = 1.0;
+		}
+
+		double ageSeconds = nowEpoch - updatedPtr[percent];
+		if (!isfinite(ageSeconds) || ageSeconds < 0) ageSeconds = 0;
+		double ageFactor = exp(-ageSeconds / (14.0 * 24.0 * 3600.0));
+		if (ageFactor < 0.3) ageFactor = 0.3;
+
+		double w = confidenceFromN * uncertaintyFactor * ageFactor;
+		if (w < 0.05) w = 0.05;
+		if (w > 1.0) w = 1.0;
+		return w;
+	};
 	double (^bucketSeconds)(NSInteger) = ^double(NSInteger percent) {
 		if (percent < 0 || percent >= 100) return NAN;
 		if (haveDB) {
@@ -414,18 +446,29 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	double lowerSec = bucketSeconds(lower);
 	double upperSec = bucketSeconds(upper);
 	if (!isnan(lowerSec) && !isnan(upperSec)) {
+		double lw = bucketWeight(lower);
+		double uw = bucketWeight(upper);
+		double wsum = MAX(0.0001, lw + uw);
 		interpolated = lowerSec * (1.0 - frac) + upperSec * frac;
 		usedBuckets = YES;
 		logEstimate += interpolated;
+		totalBucketWeight += (wsum * 0.5);
+		weightedBucketCount += 1;
 	} else if (!isnan(lowerSec)) {
 		interpolated = lowerSec;
 		usedBuckets = YES;
+		double w = bucketWeight(lower);
 		logEstimate += interpolated;
+		totalBucketWeight += w;
+		weightedBucketCount += 1;
 		missingBucket = YES;
 	} else if (!isnan(upperSec)) {
 		interpolated = upperSec;
 		usedBuckets = YES;
+		double w = bucketWeight(upper);
 		logEstimate += interpolated;
+		totalBucketWeight += w;
+		weightedBucketCount += 1;
 		missingBucket = YES;
 	} else {
 		missingBucket = YES;
@@ -434,7 +477,10 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	for (NSInteger pct = upper + 1; pct < 100; pct++) {
 		double sec = bucketSeconds(pct);
 		if (!isnan(sec)) {
+			double w = bucketWeight(pct);
 			logEstimate += sec;
+			totalBucketWeight += w;
+			weightedBucketCount += 1;
 		} else {
 			missingBucket = YES;
 			break;
@@ -450,10 +496,16 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	}
 
 	double remainingSeconds = 0;
+	double dbConfidence = (weightedBucketCount > 0) ? (totalBucketWeight / (double)weightedBucketCount) : 0;
+	if (dbConfidence < 0) dbConfidence = 0;
+	if (dbConfidence > 1) dbConfidence = 1;
 	if (usedBuckets && logEstimate > 0 && !missingBucket) {
 		remainingSeconds = logEstimate;
 	} else if (usedBuckets && logEstimate > 0 && liveEstimate > 0) {
-		remainingSeconds = 0.7 * logEstimate + 0.3 * liveEstimate;
+		double alpha = 0.35 + (0.55 * dbConfidence);
+		if (alpha < 0.25) alpha = 0.25;
+		if (alpha > 0.90) alpha = 0.90;
+		remainingSeconds = alpha * logEstimate + (1.0 - alpha) * liveEstimate;
 	} else if (liveEstimate > 0) {
 		remainingSeconds = liveEstimate;
 	} else {
