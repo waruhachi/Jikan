@@ -13,6 +13,7 @@ static BOOL enabled;
 static BOOL hideQuickActionButtons;
 static BOOL showRemainingBatteryTime;
 static BOOL autoResizeRemainingBatteryTime;
+static CGFloat platterYOffset;
 
 extern BOOL isCharging;
 

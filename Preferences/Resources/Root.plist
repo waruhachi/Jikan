@@ -2,8 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>items</key>
-    <array>
+	<key>items</key>
+	<array>
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -17,6 +17,42 @@
 			<string>Enable</string>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Position</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>platterYOffsetSlider</string>
+			<key>default</key>
+			<real>0</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>platterYOffset</string>
+			<key>label</key>
+			<string>Platter Y Offset</string>
+			<key>min</key>
+			<real>-50</real>
+			<key>max</key>
+			<real>50</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<false/>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Display Options</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -61,31 +97,31 @@
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
 
-        <dict>
-            <key>cell</key>
-            <string>PSGroupCell</string>
-            <key>label</key>
-            <string>Apply</string>
-        </dict>
-        <dict>
-            <key>cell</key>
-            <string>PSButtonCell</string>
-            <key>label</key>
-            <string>Respring</string>
-            <key>action</key>
-            <string>respring</string>
-            <key>confirmation</key>
-            <dict>
-                <key>prompt</key>
-                <string>Are you sure you want to continue?</string>
-                <key>title</key>
-                <string>Respring</string>
-                <key>cancelTitle</key>
-                <string>Cancel</string>
-            </dict>
-        </dict>
-    </array>
-    <key>title</key>
-    <string>Jikan</string>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Apply</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Respring</string>
+			<key>action</key>
+			<string>respring</string>
+			<key>confirmation</key>
+			<dict>
+				<key>prompt</key>
+				<string>Are you sure you want to continue?</string>
+				<key>title</key>
+				<string>Respring</string>
+				<key>cancelTitle</key>
+				<string>Cancel</string>
+			</dict>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>Jikan</string>
 </dict>
 </plist>
