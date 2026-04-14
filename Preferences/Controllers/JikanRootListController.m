@@ -16,9 +16,11 @@
 
 - (void)respring {
 	pid_t pid;
-
 	const char *args[] = {"killall", "SpringBoard", NULL};
-	posix_spawn(&pid, jbroot("/usr/bin/killall"), NULL, NULL, (char *const *)args, NULL);
+	int result = posix_spawn(&pid, jbroot("/usr/bin/killall"), NULL, NULL, (char *const *)args, NULL);
+	if (result != 0) {
+		NSLog(@"[JikanPreferences] Failed to respring SpringBoard: %d", result);
+	}
 }
 
 @end
