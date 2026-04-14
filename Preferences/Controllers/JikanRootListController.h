@@ -6,6 +6,3 @@
 
 @interface JikanRootListController : PSListController
 @end
-
-@interface NSDistributedNotificationCenter : NSNotificationCenter
-@end

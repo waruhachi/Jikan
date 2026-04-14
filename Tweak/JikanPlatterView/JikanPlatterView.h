@@ -8,11 +8,15 @@
 	UILabel *_timeRemainingLabel;
 	UIView *_containerView;
 	UIView *_backgroundView;
+	UIView *_styleOverlayView;
+	UIView *_contentTintReplicaView;
 	NSTimer *_refreshTimer;
 	UIImageView *_boltImageView;
 }
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;
+- (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect;
+- (void)applyQuickActionBackgroundStyleFromView:(UIView *)sourceView;
 @end
 
 @interface MTMaterialView : UIView
