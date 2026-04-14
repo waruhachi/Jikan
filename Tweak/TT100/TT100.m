@@ -9,8 +9,8 @@ NSString *TT100PLSQLPath(void) {
 	static NSString *cachedPath = nil;
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
-		NSString *baseDir = jbroot(@"/var/containers/Shared/SystemGroup/");
-		NSString *suffix = jbroot(@"/Library/BatteryLife/CurrentPowerlog.PLSQL");
+		NSString *baseDir = jbroot(@"/var/containers/Shared/SystemGroup");
+		NSString *relativeSuffix = @"Library/BatteryLife/CurrentPowerlog.PLSQL";
 		DIR *dir = opendir([baseDir UTF8String]);
 		if (!dir) return;
 		struct dirent *entry;
@@ -19,9 +19,9 @@ NSString *TT100PLSQLPath(void) {
 				NSString *name = [NSString stringWithUTF8String:entry->d_name];
 				if ([name hasPrefix:@"."]) continue;
 				NSString *candidate = [baseDir stringByAppendingPathComponent:name];
-				candidate = [candidate stringByAppendingString:suffix];
+				candidate = [candidate stringByAppendingPathComponent:relativeSuffix];
 				if ([[NSFileManager defaultManager] fileExistsAtPath:candidate]) {
-					cachedPath = jbroot(candidate);
+					cachedPath = candidate;
 					break;
 				}
 			}
