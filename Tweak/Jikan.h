@@ -44,9 +44,16 @@ static const void *kTTBaseTextKey = &kTTBaseTextKey;
 - (void)_configureRemainingTimePlatterConstraints;
 - (void)_addOrRemoveRemainingTimePlatterIfNecessary;
 - (void)_setRemainingTimePlatterVisible:(BOOL)visible;
+- (void)_jikanChargingStateChanged:(NSNotification *)notification;
 @end
 
 @interface CSProminentSubtitleDateView : UIView
+@end
+
+@interface SBFLockScreenDateSubtitleDateView : UIView
+@property (nonatomic, copy) NSString *string;
+
+- (void)setString:(NSString *)string;
 @end
 
 @interface _UIAnimatingLabel : UILabel
