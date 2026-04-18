@@ -3,4 +3,5 @@
 #include <UIKit/UIKit.h>
 
 @interface JikanRootListController : PSListController
+- (void)resetPreferences;
 @end
