@@ -2,6 +2,7 @@
 #import <IOKit/IOKitLib.h>
 #import <SpringBoard/SpringBoard.h>
 #import <UIKit/UIKit.h>
+#import <objc/message.h>
 #import <objc/runtime.h>
 #import <spawn.h>
 
@@ -45,6 +46,17 @@ static const void *kTTBaseTextKey = &kTTBaseTextKey;
 - (void)_addOrRemoveRemainingTimePlatterIfNecessary;
 - (void)_setRemainingTimePlatterVisible:(BOOL)visible;
 - (void)_jikanChargingStateChanged:(NSNotification *)notification;
+- (void)_jikanStartChargingBootstrap;
+- (void)_jikanStopChargingBootstrap;
+- (void)_jikanBootstrapTick:(NSTimer *)timer;
+@end
+
+@interface CSCoverSheetViewController : UIViewController
+@end
+
+@interface SBUIController : NSObject
++ (id)sharedInstance;
+- (BOOL)isOnAC;
 @end
 
 @interface CSProminentSubtitleDateView : UIView

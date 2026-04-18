@@ -17,7 +17,11 @@ static const void *kTTPlatterConstraintsInstalledKey = &kTTPlatterConstraintsIns
 static const void *kTTPlatterStyleCapturedKey = &kTTPlatterStyleCapturedKey;
 static const void *kTTPlatterAlignmentLoggedKey = &kTTPlatterAlignmentLoggedKey;
 static const void *kTTCoverSheetObserverInstalledKey = &kTTCoverSheetObserverInstalledKey;
+static const void *kTTCoverSheetBootstrapTimerKey = &kTTCoverSheetBootstrapTimerKey;
+static const void *kTTCoverSheetBootstrapStartTimeKey = &kTTCoverSheetBootstrapStartTimeKey;
 static BOOL _ttDidLogQuickActionHierarchy = NO;
+static BOOL _ttLastResolvedChargingValid = NO;
+static BOOL _ttAllowSBUIControllerFallback = NO;
 
 static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
@@ -341,6 +345,20 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 	}
 }
 
+static BOOL TTReadIsOnACFromSBUIController(BOOL *outHasValue) {
+	if (outHasValue) *outHasValue = NO;
+	@try {
+		Class cls = NSClassFromString(@"SBUIController");
+		if (!cls || ![cls respondsToSelector:@selector(sharedInstance)]) return NO;
+		id controller = [cls sharedInstance];
+		if (!controller || ![controller respondsToSelector:@selector(isOnAC)]) return NO;
+		if (outHasValue) *outHasValue = YES;
+		return ((BOOL(*)(id, SEL))objc_msgSend)(controller, @selector(isOnAC));
+	} @catch (__unused NSException *exception) {
+		return NO;
+	}
+}
+
 static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
 	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NO;
 
@@ -374,9 +392,30 @@ static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
 	return NO;
 }
 
+static BOOL TTResolveChargingState(void) {
+	BOOL hasAC = NO;
+	if (_ttAllowSBUIControllerFallback) {
+		BOOL onAC = TTReadIsOnACFromSBUIController(&hasAC);
+		if (hasAC) {
+			_ttLastResolvedChargingValid = YES;
+			return onAC;
+		}
+	}
+
+	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
+	if (batteryInfo.count > 0) {
+		BOOL inferred = TTInferChargingStateFromBatteryInfo(batteryInfo);
+		_ttLastResolvedChargingValid = YES;
+		return inferred;
+	}
+
+	if (_ttLastResolvedChargingValid) return isCharging;
+	return NO;
+}
+
 static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-	BOOL newCharging = TTInferChargingStateFromBatteryInfo(batteryInfo);
+	BOOL newCharging = TTResolveChargingState();
 	BOOL changed = (newCharging != isCharging);
 	isCharging = newCharging;
 
@@ -406,6 +445,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 - (void)setChargingState:(NSInteger)arg1 {
 	BOOL wasCharging = isCharging;
 	isCharging = (arg1 == 1);
+	_ttLastResolvedChargingValid = YES;
 	if (wasCharging != isCharging) {
 		NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
 		if (isCharging) {
@@ -443,15 +483,18 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 	BOOL installed = [objc_getAssociatedObject(self, kTTCoverSheetObserverInstalledKey) boolValue];
 	if (self.window) {
+		_ttAllowSBUIControllerFallback = YES;
 		if (!installed) {
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanChargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
 			objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		}
 		TTSyncChargingStateFromBatteryInfoAndNotify(NO);
+		[self _jikanStartChargingBootstrap];
 		[self _jikanChargingStateChanged:nil];
 	} else if (installed) {
 		[[NSNotificationCenter defaultCenter] removeObserver:self name:JikanChargingStateChangedNotification object:nil];
 		objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		[self _jikanStopChargingBootstrap];
 	}
 }
 
@@ -460,6 +503,47 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 	[self _addOrRemoveRemainingTimePlatterIfNecessary];
 	[self _configureRemainingTimePlatterConstraints];
+}
+
+%new
+- (void)_jikanStartChargingBootstrap {
+	[self _jikanStopChargingBootstrap];
+	objc_setAssociatedObject(self, kTTCoverSheetBootstrapStartTimeKey, @([NSDate date].timeIntervalSince1970), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.25 target:self selector:@selector(_jikanBootstrapTick:) userInfo:nil repeats:YES];
+	timer.tolerance = 0.05;
+	objc_setAssociatedObject(self, kTTCoverSheetBootstrapTimerKey, timer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+%new
+- (void)_jikanStopChargingBootstrap {
+	NSTimer *timer = (NSTimer *)objc_getAssociatedObject(self, kTTCoverSheetBootstrapTimerKey);
+	if (timer) {
+		[timer invalidate];
+	}
+	objc_setAssociatedObject(self, kTTCoverSheetBootstrapTimerKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	objc_setAssociatedObject(self, kTTCoverSheetBootstrapStartTimeKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+%new
+- (void)_jikanBootstrapTick:(NSTimer *)timer {
+	#pragma unused(timer)
+	if (!self.window) {
+		[self _jikanStopChargingBootstrap];
+		return;
+	}
+
+	BOOL previous = isCharging;
+	TTSyncChargingStateFromBatteryInfoAndNotify(NO);
+	BOOL changed = (previous != isCharging);
+	if (changed) {
+		[self _jikanChargingStateChanged:nil];
+	}
+
+	NSNumber *startObj = (NSNumber *)objc_getAssociatedObject(self, kTTCoverSheetBootstrapStartTimeKey);
+	NSTimeInterval elapsed = [NSDate date].timeIntervalSince1970 - startObj.doubleValue;
+	if (elapsed >= 3.0) {
+		[self _jikanStopChargingBootstrap];
+	}
 }
 
 %new
@@ -576,6 +660,26 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		TTGetConstraint(self, kTTPlatterWidthConstraintKey).constant = platterWidth;
 		TTGetConstraint(self, kTTPlatterCenterXConstraintKey).constant = centerXOffset;
 		TTGetConstraint(self, kTTPlatterBottomConstraintKey).constant = bottomOffset;
+	}
+}
+
+%end
+
+%hook CSCoverSheetViewController
+
+- (void)viewWillAppear:(BOOL)animated {
+	%orig;
+	_ttAllowSBUIControllerFallback = YES;
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+	%orig;
+	UIView *view = self.view;
+	if ([view isKindOfClass:NSClassFromString(@"CSCoverSheetView")]) {
+		CSCoverSheetView *coverSheet = (CSCoverSheetView *)view;
+		TTSyncChargingStateFromBatteryInfoAndNotify(NO);
+		[coverSheet _jikanChargingStateChanged:nil];
+		[coverSheet _jikanStartChargingBootstrap];
 	}
 }
 
