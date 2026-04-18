@@ -40,7 +40,7 @@
 			<key>min</key>
 			<real>-50</real>
 			<key>max</key>
-			<real>200</real>
+			<real>800</real>
 			<key>showValue</key>
 			<true/>
 			<key>isContinuous</key>
