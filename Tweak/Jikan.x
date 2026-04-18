@@ -341,6 +341,58 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 	}
 }
 
+static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NO;
+
+	id external = batteryInfo[@"ExternalConnected"];
+	if ([external respondsToSelector:@selector(boolValue)] && [external boolValue]) {
+		return YES;
+	}
+
+	id charging = batteryInfo[@"IsCharging"];
+	if ([charging respondsToSelector:@selector(boolValue)]) {
+		return [charging boolValue];
+	}
+
+	id fullyCharged = batteryInfo[@"FullyCharged"];
+	if ([fullyCharged respondsToSelector:@selector(boolValue)] && [fullyCharged boolValue]) {
+		return YES;
+	}
+
+	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
+	if (adapter.count > 0) {
+		id current = adapter[@"Current"];
+		if ([current respondsToSelector:@selector(doubleValue)] && fabs([current doubleValue]) > 0.0) {
+			return YES;
+		}
+		id voltage = adapter[@"Voltage"];
+		if ([voltage respondsToSelector:@selector(doubleValue)] && fabs([voltage doubleValue]) > 0.0) {
+			return YES;
+		}
+	}
+
+	return NO;
+}
+
+static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
+	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
+	BOOL newCharging = TTInferChargingStateFromBatteryInfo(batteryInfo);
+	BOOL changed = (newCharging != isCharging);
+	isCharging = newCharging;
+
+	if (isCharging) {
+		TT100SessionMaybeStart(batteryInfo);
+	} else if (changed) {
+		TT100SessionMaybeEnd(batteryInfo);
+	}
+
+	if (shouldNotify) {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
+		});
+	}
+}
+
 %hook NCNotificationListCountIndicatorView
 
 - (void)didMoveToWindow {
@@ -395,6 +447,7 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanChargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
 			objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		}
+		TTSyncChargingStateFromBatteryInfoAndNotify(NO);
 		[self _jikanChargingStateChanged:nil];
 	} else if (installed) {
 		[[NSNotificationCenter defaultCenter] removeObserver:self name:JikanChargingStateChangedNotification object:nil];
@@ -709,6 +762,8 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 	if (!enabled) {
 		return;
 	}
+
+	TTSyncChargingStateFromBatteryInfoAndNotify(NO);
 
 	[TT100 startMonitoring];
 	[[NSNotificationCenter defaultCenter] addObserverForName:TT100InternalDidRefreshBatteryInfoNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
