@@ -17,6 +17,8 @@ static BOOL autoResizeRemainingBatteryTime;
 static BOOL tapToShowWattage;
 static BOOL previewPlatter;
 static BOOL showAfterFullCharge;
+static BOOL lockPreviewXAxis;
+static BOOL lockPreviewYAxis;
 static CGFloat platterPosXNorm;
 static CGFloat platterPosYNorm;
 static BOOL platterHasCustomPosition;

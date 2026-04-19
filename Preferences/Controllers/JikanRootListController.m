@@ -31,7 +31,9 @@ static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferen
 		@"autoResizeRemainingBatteryTime",
 		@"tapToShowWattage",
 		@"previewPlatter",
-		@"showAfterFullCharge"
+		@"showAfterFullCharge",
+		@"lockPreviewXAxis",
+		@"lockPreviewYAxis"
 	];
 
 	for (NSString *key in keys) {

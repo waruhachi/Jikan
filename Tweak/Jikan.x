@@ -38,6 +38,8 @@ static void TTLoadPreferences(void) {
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
 	previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
 	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
+	lockPreviewXAxis = [preferences objectForKey:@"lockPreviewXAxis"] ? [preferences boolForKey:@"lockPreviewXAxis"] : NO;
+	lockPreviewYAxis = [preferences objectForKey:@"lockPreviewYAxis"] ? [preferences boolForKey:@"lockPreviewYAxis"] : NO;
 	platterHasCustomPosition = ([preferences objectForKey:@"platterPosXNorm"] != nil && [preferences objectForKey:@"platterPosYNorm"] != nil);
 	platterPosXNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosXNorm"] : 0.5;
 	platterPosYNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosYNorm"] : 0.84;
@@ -602,6 +604,8 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		CGPoint startCenter = centerValue.CGPointValue;
 		CGPoint startTouch = touchValue.CGPointValue;
 		CGPoint candidate = CGPointMake(startCenter.x + (location.x - startTouch.x), startCenter.y + (location.y - startTouch.y));
+		if (lockPreviewXAxis) candidate.x = startCenter.x;
+		if (lockPreviewYAxis) candidate.y = startCenter.y;
 		candidate.x = MAX(minX, MIN(maxX, candidate.x));
 		candidate.y = MAX(minY, MIN(maxY, candidate.y));
 
