@@ -62,6 +62,12 @@ static BOOL TTTapToShowWattageEnabled(void) {
 	return [prefs boolForKey:@"tapToShowWattage"];
 }
 
+static BOOL TTShowAfterFullChargeEnabled(void) {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	if (![prefs objectForKey:@"showAfterFullCharge"]) return NO;
+	return [prefs boolForKey:@"showAfterFullCharge"];
+}
+
 static CGFloat TTWiggleRandomOffset(void) {
 	return ((arc4random_uniform(1000) / 1000.0) - 0.5) * 0.03;
 }
@@ -120,8 +126,18 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	NSDictionary *batteryInfo = [notification.userInfo[@"batteryInfo"] isKindOfClass:[NSDictionary class]] ? notification.userInfo[@"batteryInfo"] : nil;
 	_latestBatteryInfo = batteryInfo;
 	_latestTimeString = timeString;
+	_latestHasEstimate = [notification.userInfo[@"hasEstimate"] respondsToSelector:@selector(boolValue)] ? [notification.userInfo[@"hasEstimate"] boolValue] : [TT100 hasEstimateWithBatteryInfo:batteryInfo];
+	_latestFullyCharged = [notification.userInfo[@"isFullyCharged"] respondsToSelector:@selector(boolValue)] ? [notification.userInfo[@"isFullyCharged"] boolValue] : [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&_latestDisplayPercent];
+	if ([notification.userInfo[@"displayPercent"] respondsToSelector:@selector(integerValue)]) {
+		_latestDisplayPercent = [notification.userInfo[@"displayPercent"] integerValue];
+	}
+	_latestDisplayPercent = MAX(0, MIN(100, _latestDisplayPercent));
+
 	if (_showingWattage && TTTapToShowWattageEnabled()) {
 		[self _updateWattageLabel];
+	} else if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
+		_timeRemainingLabel.text = @"100%";
+		_staticLabel.text = @"charged";
 	} else {
 		[self updateWithTimeString:timeString];
 	}
@@ -257,6 +273,11 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	}
 	if (_showingWattage && TTTapToShowWattageEnabled()) {
 		[self _updateWattageLabel];
+		return;
+	}
+	if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
+		_timeRemainingLabel.text = @"100%";
+		_staticLabel.text = @"charged";
 		return;
 	}
 	_timeRemainingLabel.text = timeString;
@@ -471,6 +492,10 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	if (!TTTapToShowWattageEnabled()) {
 		_showingWattage = NO;
 		[self updateWithTimeString:_latestTimeString ?: _timeRemainingLabel.text ?: @"N/A"];
+	} else if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
+		_showingWattage = NO;
+		_timeRemainingLabel.text = @"100%";
+		_staticLabel.text = @"charged";
 	}
 }
 

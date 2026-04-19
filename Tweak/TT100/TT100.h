@@ -19,6 +19,8 @@ FOUNDATION_EXPORT NSString *const JikanChargingStateChangedNotification;
 + (NSDictionary *_Nullable)fetchBatteryInfo;
 + (NSString *)estimatedTT100;
 + (NSString *)estimatedTT100WithBatteryInfo:(NSDictionary *_Nullable)batteryInfo;
++ (BOOL)hasEstimateWithBatteryInfo:(NSDictionary *_Nullable)batteryInfo;
++ (BOOL)isFullyChargedWithBatteryInfo:(NSDictionary *_Nullable)batteryInfo displayPercent:(NSInteger *_Nullable)outPercent;
 + (void)startMonitoring;
 + (NSDictionary<NSString *, NSNumber *> *)loadHistoryFromPLSQL;
 + (NSDictionary<NSString *, NSNumber *> *)cachedHistoryBuckets;

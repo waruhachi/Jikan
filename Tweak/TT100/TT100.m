@@ -186,11 +186,60 @@ static NSTimer *tt100PollingTimer = nil;
 		[[NSNotificationCenter defaultCenter] postNotificationName:TT100InternalDidRefreshBatteryInfoNotification object:nil userInfo:@{@"batteryInfo": batteryInfo}];
 	}
 	NSString *timeString = [TT100 estimatedTT100WithBatteryInfo:batteryInfo];
+	BOOL hasEstimate = [TT100 hasEstimateWithBatteryInfo:batteryInfo];
+	NSInteger percent = 0;
+	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
 
-	NSDictionary *userInfo = @{@"batteryInfo": batteryInfo ?: @{}, @"timeString": timeString ?: @"N/A"};
+	NSDictionary *userInfo = @{
+		@"batteryInfo": batteryInfo ?: @{},
+		@"timeString": timeString ?: @"N/A",
+		@"hasEstimate": @(hasEstimate),
+		@"isFullyCharged": @(fullyCharged),
+		@"displayPercent": @(MAX(0, MIN(100, percent)))
+	};
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[[NSNotificationCenter defaultCenter] postNotificationName:TT100BatteryInfoUpdatedNotification object:self userInfo:userInfo];
 	});
+}
+
++ (BOOL)hasEstimateWithBatteryInfo:(NSDictionary *)batteryInfo {
+	NSString *estimate = [self estimatedTT100WithBatteryInfo:batteryInfo];
+	if (![estimate isKindOfClass:[NSString class]]) return NO;
+	return ![estimate isEqualToString:NSLocalizedString(@"N/A", @"Not available")];
+}
+
++ (BOOL)isFullyChargedWithBatteryInfo:(NSDictionary *)batteryInfo displayPercent:(NSInteger *)outPercent {
+	NSInteger percent = 0;
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) {
+		if (outPercent) *outPercent = percent;
+		return NO;
+	}
+
+	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
+	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
+	NSNumber *rawMaxNum = batteryInfo[@"AppleRawMaxCapacity"];
+	NSNumber *rawCurrNum = batteryInfo[@"AppleRawCurrentCapacity"];
+
+	double soc = NAN;
+	if ([pctMax respondsToSelector:@selector(doubleValue)] && [pctCurr respondsToSelector:@selector(doubleValue)] && pctMax.doubleValue > 0) {
+		soc = (pctCurr.doubleValue / pctMax.doubleValue) * 100.0;
+	} else if ([rawMaxNum respondsToSelector:@selector(doubleValue)] && [rawCurrNum respondsToSelector:@selector(doubleValue)] && rawMaxNum.doubleValue > 0) {
+		soc = (rawCurrNum.doubleValue / rawMaxNum.doubleValue) * 100.0;
+	}
+
+	if (isfinite(soc)) {
+		if (soc < 0) soc = 0;
+		if (soc > 100) soc = 100;
+		percent = (NSInteger)llround(soc);
+	}
+
+	BOOL fullyFlag = [batteryInfo[@"FullyCharged"] respondsToSelector:@selector(boolValue)] ? [batteryInfo[@"FullyCharged"] boolValue] : NO;
+	BOOL fullBySoc = isfinite(soc) && soc >= 99.5;
+	BOOL isFull = fullyFlag || fullBySoc;
+
+	if (isFull && percent < 100) percent = 100;
+	if (outPercent) *outPercent = MAX(0, MIN(100, percent));
+	return isFull;
 }
 
 + (NSDictionary *)fetchBatteryInfo {

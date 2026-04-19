@@ -37,6 +37,7 @@ static void TTLoadPreferences(void) {
 	autoResizeRemainingBatteryTime = [preferences objectForKey:@"autoResizeRemainingBatteryTime"] ? [preferences boolForKey:@"autoResizeRemainingBatteryTime"] : NO;
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
 	previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
+	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
 	platterHasCustomPosition = ([preferences objectForKey:@"platterPosXNorm"] != nil && [preferences objectForKey:@"platterPosYNorm"] != nil);
 	platterPosXNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosXNorm"] : 0.5;
 	platterPosYNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosYNorm"] : 0.84;
@@ -653,7 +654,11 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 	TTApplyQuickActionStyleIfPossible(self);
 
-	BOOL shouldShow = (isCharging || previewPlatter);
+	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
+	BOOL hasEstimate = [TT100 hasEstimateWithBatteryInfo:batteryInfo];
+	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:NULL];
+
+	BOOL shouldShow = previewPlatter || (isCharging && (hasEstimate || (showAfterFullCharge && fullyCharged)));
 	if (shouldShow) {
 		[[TT100 sharedInstance] _refreshBatteryInfo];
 	}

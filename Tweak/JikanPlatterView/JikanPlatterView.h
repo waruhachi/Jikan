@@ -18,6 +18,9 @@
 	BOOL _showingWattage;
 	BOOL _previewMode;
 	BOOL _editingMode;
+	BOOL _latestHasEstimate;
+	BOOL _latestFullyCharged;
+	NSInteger _latestDisplayPercent;
 }
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;

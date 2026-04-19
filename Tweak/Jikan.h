@@ -16,6 +16,7 @@ static BOOL showRemainingBatteryTime;
 static BOOL autoResizeRemainingBatteryTime;
 static BOOL tapToShowWattage;
 static BOOL previewPlatter;
+static BOOL showAfterFullCharge;
 static CGFloat platterPosXNorm;
 static CGFloat platterPosYNorm;
 static BOOL platterHasCustomPosition;
