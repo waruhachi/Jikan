@@ -36,6 +36,32 @@ static UIView *TTFindFirstSubviewWithClassNameFragment(UIView *root, NSString *f
 	return nil;
 }
 
+static NSNumber *TTNumberFromDict(NSDictionary *dict, NSString *key) {
+	id value = dict[key];
+	return [value isKindOfClass:[NSNumber class]] ? (NSNumber *)value : nil;
+}
+
+static double TTWattsFromCurrentVoltage(double current, double voltage) {
+	if (!isfinite(current) || !isfinite(voltage)) return 0;
+	current = fabs(current);
+	voltage = fabs(voltage);
+	if (current <= 0 || voltage <= 0) return 0;
+
+	double amps = current;
+	if (amps > 20.0) amps /= 1000.0;
+	double volts = voltage;
+	if (volts > 100.0) volts /= 1000.0;
+
+	if (amps <= 0 || volts <= 0) return 0;
+	return amps * volts;
+}
+
+static BOOL TTTapToShowWattageEnabled(void) {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	if (![prefs objectForKey:@"tapToShowWattage"]) return NO;
+	return [prefs boolForKey:@"tapToShowWattage"];
+}
+
 @implementation JikanPlatterView
 
 static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
@@ -74,17 +100,27 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 	if (!self.window) {
 		[self _stopRefreshTimer];
+		_showingWattage = NO;
 		return;
 	}
 
 	if (isCharging) {
 		[self _startRefreshTimer];
 	}
+	[self _preferencesPossiblyChanged:nil];
+	[self _updateTapGestureState];
 }
 
 - (void)_tt100BatteryInfoUpdated:(NSNotification *)notification {
 	NSString *timeString = notification.userInfo[@"timeString"];
-	[self updateWithTimeString:timeString];
+	NSDictionary *batteryInfo = [notification.userInfo[@"batteryInfo"] isKindOfClass:[NSDictionary class]] ? notification.userInfo[@"batteryInfo"] : nil;
+	_latestBatteryInfo = batteryInfo;
+	_latestTimeString = timeString;
+	if (_showingWattage && TTTapToShowWattageEnabled()) {
+		[self _updateWattageLabel];
+	} else {
+		[self updateWithTimeString:timeString];
+	}
 }
 
 - (void)layoutSubviews {
@@ -154,6 +190,10 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_staticLabel.text = @"until fully charged";
 	[_containerView addSubview:_staticLabel];
 
+	_tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTap:)];
+	[self addGestureRecognizer:_tapGesture];
+	[self _updateTapGestureState];
+
 	[self _updateTypographyForCurrentSize];
 }
 
@@ -208,7 +248,15 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 }
 
 - (void)updateWithTimeString:(NSString *)timeString {
+	if (timeString.length > 0) {
+		_latestTimeString = timeString;
+	}
+	if (_showingWattage && TTTapToShowWattageEnabled()) {
+		[self _updateWattageLabel];
+		return;
+	}
 	_timeRemainingLabel.text = timeString;
+	_staticLabel.text = @"until fully charged";
 }
 
 - (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect {
@@ -331,13 +379,78 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 }
 
 - (void)_chargingStateChanged:(NSNotification *)notification {
+	[self _preferencesPossiblyChanged:nil];
 	BOOL charging = [notification.userInfo[@"isCharging"] boolValue];
 	if (charging) {
+		_showingWattage = NO;
+		[self _updateTapGestureState];
 		[self _startRefreshTimer];
 		[[TT100 sharedInstance] _refreshBatteryInfo];
 	} else {
+		_showingWattage = NO;
+		[self _updateTapGestureState];
 		[self _stopRefreshTimer];
 	}
+}
+
+- (void)_preferencesPossiblyChanged:(NSNotification *)notification {
+	#pragma unused(notification)
+	[self _updateTapGestureState];
+	if (!TTTapToShowWattageEnabled()) {
+		_showingWattage = NO;
+		[self updateWithTimeString:_latestTimeString ?: _timeRemainingLabel.text ?: @"N/A"];
+	}
+}
+
+- (void)_updateTapGestureState {
+	if (!_tapGesture) return;
+	_tapGesture.enabled = TTTapToShowWattageEnabled() && isCharging;
+}
+
+- (void)_handleTap:(UITapGestureRecognizer *)gesture {
+	if (gesture.state != UIGestureRecognizerStateRecognized) return;
+	if (!TTTapToShowWattageEnabled() || !isCharging) return;
+
+	_showingWattage = !_showingWattage;
+	if (_showingWattage) {
+		[self _updateWattageLabel];
+	} else {
+		[self updateWithTimeString:_latestTimeString ?: @"N/A"];
+	}
+}
+
+- (void)_updateWattageLabel {
+	NSDictionary *batteryInfo = _latestBatteryInfo;
+	if (!batteryInfo.count) {
+		batteryInfo = [TT100 fetchBatteryInfo];
+		_latestBatteryInfo = batteryInfo;
+	}
+
+	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
+	double watts = 0;
+	if (adapter) {
+		NSNumber *w = TTNumberFromDict(adapter, @"Wattage");
+		if (!w) w = TTNumberFromDict(adapter, @"Watts");
+		if (!w) w = TTNumberFromDict(adapter, @"Power");
+		if (w) watts = fabs(w.doubleValue);
+	}
+	if (watts <= 0 && adapter) {
+		double current = fabs([TTNumberFromDict(adapter, @"Current") doubleValue]);
+		double voltage = fabs([TTNumberFromDict(adapter, @"Voltage") doubleValue]);
+		watts = TTWattsFromCurrentVoltage(current, voltage);
+	}
+	if (watts <= 0) {
+		double current = fabs([TTNumberFromDict(batteryInfo, @"Amperage") doubleValue]);
+		double voltage = fabs([TTNumberFromDict(batteryInfo, @"Voltage") doubleValue]);
+		watts = TTWattsFromCurrentVoltage(current, voltage);
+	}
+
+	if (watts > 0) {
+		_timeRemainingLabel.text = [NSString stringWithFormat:@"%.1fW", watts];
+	} else {
+		_timeRemainingLabel.text = @"N/A";
+	}
+	_staticLabel.text = @"current wattage";
 }
 
 - (void)_startRefreshTimer {

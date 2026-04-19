@@ -12,6 +12,10 @@
 	UIView *_contentTintReplicaView;
 	NSTimer *_refreshTimer;
 	UIImageView *_boltImageView;
+	UITapGestureRecognizer *_tapGesture;
+	NSDictionary *_latestBatteryInfo;
+	NSString *_latestTimeString;
+	BOOL _showingWattage;
 }
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;

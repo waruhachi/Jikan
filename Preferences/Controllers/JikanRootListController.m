@@ -26,7 +26,8 @@ static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferen
 		@"platterYOffset",
 		@"hideQuickActionButtons",
 		@"showRemainingBatteryTime",
-		@"autoResizeRemainingBatteryTime"
+		@"autoResizeRemainingBatteryTime",
+		@"tapToShowWattage"
 	];
 
 	for (NSString *key in keys) {
