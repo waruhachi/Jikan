@@ -19,6 +19,12 @@ static const void *kTTPlatterAlignmentLoggedKey = &kTTPlatterAlignmentLoggedKey;
 static const void *kTTCoverSheetObserverInstalledKey = &kTTCoverSheetObserverInstalledKey;
 static const void *kTTCoverSheetBootstrapTimerKey = &kTTCoverSheetBootstrapTimerKey;
 static const void *kTTCoverSheetBootstrapStartTimeKey = &kTTCoverSheetBootstrapStartTimeKey;
+static const void *kTTPlatterCenterYConstraintKey = &kTTPlatterCenterYConstraintKey;
+static const void *kTTPlatterLongPressKey = &kTTPlatterLongPressKey;
+static const void *kTTPlatterDragStartCenterKey = &kTTPlatterDragStartCenterKey;
+static const void *kTTPlatterDragStartTouchKey = &kTTPlatterDragStartTouchKey;
+static const void *kTTPlatterDefaultCenterComputedKey = &kTTPlatterDefaultCenterComputedKey;
+static const void *kTTPlatterDraggingKey = &kTTPlatterDraggingKey;
 static BOOL _ttDidLogQuickActionHierarchy = NO;
 static BOOL _ttLastResolvedChargingValid = NO;
 static BOOL _ttAllowSBUIControllerFallback = NO;
@@ -30,7 +36,12 @@ static void TTLoadPreferences(void) {
 	showRemainingBatteryTime = [preferences objectForKey:@"showRemainingBatteryTime"] ? [preferences boolForKey:@"showRemainingBatteryTime"] : NO;
 	autoResizeRemainingBatteryTime = [preferences objectForKey:@"autoResizeRemainingBatteryTime"] ? [preferences boolForKey:@"autoResizeRemainingBatteryTime"] : NO;
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
-	platterYOffset = [preferences objectForKey:@"platterYOffset"] ? [preferences doubleForKey:@"platterYOffset"] : 0.0;
+	previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
+	platterHasCustomPosition = ([preferences objectForKey:@"platterPosXNorm"] != nil && [preferences objectForKey:@"platterPosYNorm"] != nil);
+	platterPosXNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosXNorm"] : 0.5;
+	platterPosYNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosYNorm"] : 0.84;
+	platterPosXNorm = MAX(0.05, MIN(0.95, platterPosXNorm));
+	platterPosYNorm = MAX(0.05, MIN(0.95, platterPosYNorm));
 }
 
 static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -64,14 +75,6 @@ static BOOL TTPlatterStyleCaptured(UIView *view) {
 
 static void TTSetPlatterStyleCaptured(UIView *view, BOOL captured) {
 	objc_setAssociatedObject(view, kTTPlatterStyleCapturedKey, @(captured), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-static BOOL TTPlatterAlignmentLogged(UIView *view) {
-	return [objc_getAssociatedObject(view, kTTPlatterAlignmentLoggedKey) boolValue];
-}
-
-static void TTSetPlatterAlignmentLogged(UIView *view, BOOL logged) {
-	objc_setAssociatedObject(view, kTTPlatterAlignmentLoggedKey, @(logged), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 static NSString *TTColorDescription(UIColor *color) {
@@ -563,20 +566,101 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 }
 
 %new
+- (void)_jikanHandlePlatterLongPress:(UILongPressGestureRecognizer *)gesture {
+	if (!previewPlatter || !self.remainingTimePlatter) return;
+	JikanPlatterView *pill = self.remainingTimePlatter;
+	CGPoint location = [gesture locationInView:self];
+
+	CGFloat halfW = CGRectGetWidth(pill.bounds) * 0.5;
+	CGFloat halfH = CGRectGetHeight(pill.bounds) * 0.5;
+	CGFloat minX = self.safeAreaInsets.left + halfW;
+	CGFloat maxX = CGRectGetWidth(self.bounds) - self.safeAreaInsets.right - halfW;
+	CGFloat minY = self.safeAreaInsets.top + halfH + 8.0;
+	CGFloat maxY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom - halfH - 8.0;
+	if (maxX < minX) maxX = minX;
+	if (maxY < minY) maxY = minY;
+
+	if (gesture.state == UIGestureRecognizerStateBegan) {
+		objc_setAssociatedObject(self, kTTPlatterDraggingKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		platterHasCustomPosition = YES;
+		[pill enterEditMode:YES];
+		UIImpactFeedbackGenerator *gen = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+		[gen impactOccurred];
+
+		CGPoint center = CGPointMake(CGRectGetMidX(pill.frame), CGRectGetMidY(pill.frame));
+		objc_setAssociatedObject(self, kTTPlatterDragStartCenterKey, [NSValue valueWithCGPoint:center], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		objc_setAssociatedObject(self, kTTPlatterDragStartTouchKey, [NSValue valueWithCGPoint:location], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		return;
+	}
+
+	if (gesture.state == UIGestureRecognizerStateChanged) {
+		NSValue *centerValue = (NSValue *)objc_getAssociatedObject(self, kTTPlatterDragStartCenterKey);
+		NSValue *touchValue = (NSValue *)objc_getAssociatedObject(self, kTTPlatterDragStartTouchKey);
+		if (!centerValue || !touchValue) return;
+
+		CGPoint startCenter = centerValue.CGPointValue;
+		CGPoint startTouch = touchValue.CGPointValue;
+		CGPoint candidate = CGPointMake(startCenter.x + (location.x - startTouch.x), startCenter.y + (location.y - startTouch.y));
+		candidate.x = MAX(minX, MIN(maxX, candidate.x));
+		candidate.y = MAX(minY, MIN(maxY, candidate.y));
+
+		NSLayoutConstraint *cx = TTGetConstraint(self, kTTPlatterCenterXConstraintKey);
+		NSLayoutConstraint *cy = TTGetConstraint(self, kTTPlatterCenterYConstraintKey);
+		if (cx && cy) {
+			cx.constant = candidate.x - CGRectGetMidX(self.bounds);
+			cy.constant = candidate.y - CGRectGetMidY(self.bounds);
+			platterPosXNorm = MAX(0.05, MIN(0.95, candidate.x / MAX(1.0, CGRectGetWidth(self.bounds))));
+			platterPosYNorm = MAX(0.05, MIN(0.95, candidate.y / MAX(1.0, CGRectGetHeight(self.bounds))));
+			platterHasCustomPosition = YES;
+			[self layoutIfNeeded];
+		}
+		return;
+	}
+
+	if (gesture.state == UIGestureRecognizerStateEnded || gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateFailed) {
+		[pill enterEditMode:NO];
+		UIImpactFeedbackGenerator *gen = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+		[gen impactOccurred];
+
+		CGPoint center = CGPointMake(CGRectGetMidX(pill.frame), CGRectGetMidY(pill.frame));
+		platterPosXNorm = MAX(0.05, MIN(0.95, center.x / MAX(1.0, CGRectGetWidth(self.bounds))));
+		platterPosYNorm = MAX(0.05, MIN(0.95, center.y / MAX(1.0, CGRectGetHeight(self.bounds))));
+		platterHasCustomPosition = YES;
+
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+		[prefs setDouble:platterPosXNorm forKey:@"platterPosXNorm"];
+		[prefs setDouble:platterPosYNorm forKey:@"platterPosYNorm"];
+		[prefs synchronize];
+
+		objc_setAssociatedObject(self, kTTPlatterDraggingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		objc_setAssociatedObject(self, kTTPlatterDragStartCenterKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		objc_setAssociatedObject(self, kTTPlatterDragStartTouchKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	}
+}
+
+%new
 - (void)_addOrRemoveRemainingTimePlatterIfNecessary {
 	if (!self.remainingTimePlatter) {
 		self.remainingTimePlatter = [[JikanPlatterView alloc] init];
 		self.remainingTimePlatter.translatesAutoresizingMaskIntoConstraints = NO;
 		[self addSubview:self.remainingTimePlatter];
 		[self.remainingTimePlatter setupConstraints];
+		UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_jikanHandlePlatterLongPress:)];
+		longPress.minimumPressDuration = 0.35;
+		[self.remainingTimePlatter addGestureRecognizer:longPress];
+		objc_setAssociatedObject(self, kTTPlatterLongPressKey, longPress, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 
 	TTApplyQuickActionStyleIfPossible(self);
 
-	BOOL shouldShow = isCharging;
+	BOOL shouldShow = (isCharging || previewPlatter);
 	if (shouldShow) {
 		[[TT100 sharedInstance] _refreshBatteryInfo];
 	}
+	[self.remainingTimePlatter setPreviewMode:(previewPlatter && !isCharging)];
+
+	UILongPressGestureRecognizer *lp = (UILongPressGestureRecognizer *)objc_getAssociatedObject(self, kTTPlatterLongPressKey);
+	lp.enabled = previewPlatter;
 
 	[self _setRemainingTimePlatterVisible:shouldShow];
 }
@@ -589,9 +673,6 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	if (visible == currentlyVisible) {
 		if (visible && self.remainingTimePlatter.alpha < 1.0) {
 			self.remainingTimePlatter.alpha = 1.0;
-		}
-		if (visible) {
-			self.remainingTimePlatter.transform = CGAffineTransformIdentity;
 		}
 		return;
 	}
@@ -634,47 +715,70 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	if (!self.remainingTimePlatter) return;
 	static const CGFloat kPlatterHeight = 60.0;
 	CGFloat platterWidth = MAX(180.0, MIN(280.0, self.bounds.size.width * 0.45));
-	CGFloat bottomOffset = hideQuickActionButtons ? -28.0 : -76.0;
-	CGFloat centerXOffset = 0.0;
+	CGFloat defaultBottomOffset = hideQuickActionButtons ? -28.0 : -76.0;
+	CGFloat defaultCenterXOffset = 0.0;
 
 	CGRect flashRect = CGRectZero;
 	CGRect cameraRect = CGRectZero;
 	if (TTQuickActionButtonFramesInView(self, &flashRect, &cameraRect)) {
 		CGFloat targetCenterY = (CGRectGetMidY(flashRect) + CGRectGetMidY(cameraRect)) * 0.5;
 		CGFloat safeBottomY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom;
-		bottomOffset = (targetCenterY + (kPlatterHeight * 0.5)) - safeBottomY;
+		defaultBottomOffset = (targetCenterY + (kPlatterHeight * 0.5)) - safeBottomY;
 		CGFloat targetCenterX = (CGRectGetMidX(flashRect) + CGRectGetMidX(cameraRect)) * 0.5;
-		centerXOffset = targetCenterX - CGRectGetMidX(self.bounds);
+		defaultCenterXOffset = targetCenterX - CGRectGetMidX(self.bounds);
 
 		CGFloat innerGap = CGRectGetMinX(cameraRect) - CGRectGetMaxX(flashRect);
 		if (innerGap > 0) {
 			CGFloat targetWidth = innerGap - 12.0;
 			platterWidth = MAX(136.0, MIN(220.0, targetWidth));
 		}
-
-		if (!TTPlatterAlignmentLogged(self)) {
-			NSLog(@"[Jikan] QA alignment metrics flash=%@ camera=%@ targetWidth=%.2f bottomOffset=%.2f centerXOffset=%.2f yOffset=%.2f", NSStringFromCGRect(flashRect), NSStringFromCGRect(cameraRect), platterWidth, bottomOffset, centerXOffset, platterYOffset);
-			TTSetPlatterAlignmentLogged(self, YES);
-		}
 	}
 
-	bottomOffset -= platterYOffset;
+	CGFloat safeMinX = self.safeAreaInsets.left + (platterWidth * 0.5);
+	CGFloat safeMaxX = CGRectGetWidth(self.bounds) - self.safeAreaInsets.right - (platterWidth * 0.5);
+	CGFloat safeMinY = self.safeAreaInsets.top + (kPlatterHeight * 0.5) + 8.0;
+	CGFloat safeMaxY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom - (kPlatterHeight * 0.5) - 8.0;
+	if (safeMaxX < safeMinX) safeMaxX = safeMinX;
+	if (safeMaxY < safeMinY) safeMaxY = safeMinY;
+
+	CGFloat defaultCenterX = CGRectGetMidX(self.bounds) + defaultCenterXOffset;
+	CGFloat safeBottomY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom;
+	CGFloat defaultCenterY = safeBottomY + defaultBottomOffset - (kPlatterHeight * 0.5);
+	defaultCenterX = MAX(safeMinX, MIN(safeMaxX, defaultCenterX));
+	defaultCenterY = MAX(safeMinY, MIN(safeMaxY, defaultCenterY));
+
+	if (!platterHasCustomPosition && ![objc_getAssociatedObject(self, kTTPlatterDefaultCenterComputedKey) boolValue]) {
+		platterPosXNorm = defaultCenterX / MAX(1.0, CGRectGetWidth(self.bounds));
+		platterPosYNorm = defaultCenterY / MAX(1.0, CGRectGetHeight(self.bounds));
+		objc_setAssociatedObject(self, kTTPlatterDefaultCenterComputedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	}
+
+	CGFloat centerX = platterHasCustomPosition ? (platterPosXNorm * CGRectGetWidth(self.bounds)) : defaultCenterX;
+	CGFloat centerY = platterHasCustomPosition ? (platterPosYNorm * CGRectGetHeight(self.bounds)) : defaultCenterY;
+	centerX = MAX(safeMinX, MIN(safeMaxX, centerX));
+	centerY = MAX(safeMinY, MIN(safeMaxY, centerY));
+
+	CGFloat centerXOffset = centerX - CGRectGetMidX(self.bounds);
+	CGFloat centerYOffset = centerY - CGRectGetMidY(self.bounds);
+	BOOL dragging = [objc_getAssociatedObject(self, kTTPlatterDraggingKey) boolValue];
 
 	if (!TTConstraintsInstalled(self)) {
 		NSLayoutConstraint *width = [self.remainingTimePlatter.widthAnchor constraintEqualToConstant:platterWidth];
 		NSLayoutConstraint *height = [self.remainingTimePlatter.heightAnchor constraintEqualToConstant:kPlatterHeight];
 		NSLayoutConstraint *centerX = [self.remainingTimePlatter.centerXAnchor constraintEqualToAnchor:self.centerXAnchor constant:centerXOffset];
-		NSLayoutConstraint *bottom = [self.remainingTimePlatter.bottomAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.bottomAnchor constant:bottomOffset];
+		NSLayoutConstraint *centerY = [self.remainingTimePlatter.centerYAnchor constraintEqualToAnchor:self.centerYAnchor constant:centerYOffset];
 		TTSetConstraint(self, kTTPlatterWidthConstraintKey, width);
 		TTSetConstraint(self, kTTPlatterHeightConstraintKey, height);
 		TTSetConstraint(self, kTTPlatterCenterXConstraintKey, centerX);
-		TTSetConstraint(self, kTTPlatterBottomConstraintKey, bottom);
-		[NSLayoutConstraint activateConstraints:@[width, height, centerX, bottom]];
+		TTSetConstraint(self, kTTPlatterCenterYConstraintKey, centerY);
+		[NSLayoutConstraint activateConstraints:@[width, height, centerX, centerY]];
 		TTSetConstraintsInstalled(self, YES);
 	} else {
 		TTGetConstraint(self, kTTPlatterWidthConstraintKey).constant = platterWidth;
-		TTGetConstraint(self, kTTPlatterCenterXConstraintKey).constant = centerXOffset;
-		TTGetConstraint(self, kTTPlatterBottomConstraintKey).constant = bottomOffset;
+		if (!dragging) {
+			TTGetConstraint(self, kTTPlatterCenterXConstraintKey).constant = centerXOffset;
+			TTGetConstraint(self, kTTPlatterCenterYConstraintKey).constant = centerYOffset;
+		}
 	}
 }
 

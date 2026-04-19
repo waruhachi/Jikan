@@ -16,11 +16,15 @@
 	NSDictionary *_latestBatteryInfo;
 	NSString *_latestTimeString;
 	BOOL _showingWattage;
+	BOOL _previewMode;
+	BOOL _editingMode;
 }
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;
 - (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect;
 - (void)applyQuickActionBackgroundStyleFromView:(UIView *)sourceView;
+- (void)setPreviewMode:(BOOL)preview;
+- (void)enterEditMode:(BOOL)editing;
 @end
 
 @interface MTMaterialView : UIView

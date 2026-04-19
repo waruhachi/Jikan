@@ -24,10 +24,13 @@ static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferen
 	NSArray<NSString *> *keys = @[
 		@"enabled",
 		@"platterYOffset",
+		@"platterPosXNorm",
+		@"platterPosYNorm",
 		@"hideQuickActionButtons",
 		@"showRemainingBatteryTime",
 		@"autoResizeRemainingBatteryTime",
-		@"tapToShowWattage"
+		@"tapToShowWattage",
+		@"previewPlatter"
 	];
 
 	for (NSString *key in keys) {

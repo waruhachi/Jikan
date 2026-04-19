@@ -62,6 +62,10 @@ static BOOL TTTapToShowWattageEnabled(void) {
 	return [prefs boolForKey:@"tapToShowWattage"];
 }
 
+static CGFloat TTWiggleRandomOffset(void) {
+	return ((arc4random_uniform(1000) / 1000.0) - 0.5) * 0.03;
+}
+
 @implementation JikanPlatterView
 
 static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
@@ -259,6 +263,68 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_staticLabel.text = @"until fully charged";
 }
 
+- (void)setPreviewMode:(BOOL)preview {
+	if (_previewMode == preview) {
+		if (_previewMode && !isCharging) {
+			if (_showingWattage) {
+				[self _updateWattageLabel];
+			} else {
+				_timeRemainingLabel.text = @"1 hr 23 min";
+				_staticLabel.text = @"until fully charged";
+			}
+		}
+		return;
+	}
+	_previewMode = preview;
+	if (_previewMode) {
+		_showingWattage = NO;
+		_timeRemainingLabel.text = @"1 hr 23 min";
+		_staticLabel.text = @"until fully charged";
+	} else {
+		[self updateWithTimeString:_latestTimeString ?: @"N/A"];
+	}
+	[self _updateTapGestureState];
+}
+
+- (void)enterEditMode:(BOOL)editing {
+	if (_editingMode == editing) return;
+	_editingMode = editing;
+	if (editing) {
+		_showingWattage = NO;
+		[self.layer removeAnimationForKey:@"jikan.wiggle.rotation"];
+		[self.layer removeAnimationForKey:@"jikan.wiggle.bob"];
+
+		CAKeyframeAnimation *rotate = [CAKeyframeAnimation animationWithKeyPath:@"transform.rotation.z"];
+		CGFloat r = 0.018 + TTWiggleRandomOffset();
+		rotate.values = @[@(-r), @(r)];
+		rotate.autoreverses = YES;
+		rotate.duration = 0.16;
+		rotate.repeatCount = HUGE_VALF;
+		rotate.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+		[self.layer addAnimation:rotate forKey:@"jikan.wiggle.rotation"];
+
+		CABasicAnimation *bob = [CABasicAnimation animationWithKeyPath:@"transform.translation.y"];
+		bob.fromValue = @(-0.8);
+		bob.toValue = @(0.8);
+		bob.autoreverses = YES;
+		bob.duration = 0.22;
+		bob.repeatCount = HUGE_VALF;
+		bob.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+		[self.layer addAnimation:bob forKey:@"jikan.wiggle.bob"];
+
+		[UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+			self.transform = CGAffineTransformScale(self.transform, 1.02, 1.02);
+		} completion:nil];
+	} else {
+		[self.layer removeAnimationForKey:@"jikan.wiggle.rotation"];
+		[self.layer removeAnimationForKey:@"jikan.wiggle.bob"];
+		[UIView animateWithDuration:0.18 delay:0 options:UIViewAnimationOptionBeginFromCurrentState animations:^{
+			self.transform = CGAffineTransformIdentity;
+		} completion:nil];
+	}
+	[self _updateTapGestureState];
+}
+
 - (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect {
 	if (![self->_backgroundView isKindOfClass:[UIVisualEffectView class]]) return;
 	UIVisualEffectView *ev = (UIVisualEffectView *)self->_backgroundView;
@@ -382,14 +448,20 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	[self _preferencesPossiblyChanged:nil];
 	BOOL charging = [notification.userInfo[@"isCharging"] boolValue];
 	if (charging) {
+		[self enterEditMode:NO];
 		_showingWattage = NO;
 		[self _updateTapGestureState];
 		[self _startRefreshTimer];
 		[[TT100 sharedInstance] _refreshBatteryInfo];
 	} else {
+		[self enterEditMode:NO];
 		_showingWattage = NO;
 		[self _updateTapGestureState];
 		[self _stopRefreshTimer];
+		if (_previewMode) {
+			_timeRemainingLabel.text = @"1 hr 23 min";
+			_staticLabel.text = @"until fully charged";
+		}
 	}
 }
 
@@ -404,18 +476,23 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 - (void)_updateTapGestureState {
 	if (!_tapGesture) return;
-	_tapGesture.enabled = TTTapToShowWattageEnabled() && isCharging;
+	_tapGesture.enabled = TTTapToShowWattageEnabled() && (isCharging || _previewMode) && !_editingMode;
 }
 
 - (void)_handleTap:(UITapGestureRecognizer *)gesture {
 	if (gesture.state != UIGestureRecognizerStateRecognized) return;
-	if (!TTTapToShowWattageEnabled() || !isCharging) return;
+	if (!TTTapToShowWattageEnabled() || (!isCharging && !_previewMode) || _editingMode) return;
 
 	_showingWattage = !_showingWattage;
 	if (_showingWattage) {
 		[self _updateWattageLabel];
 	} else {
-		[self updateWithTimeString:_latestTimeString ?: @"N/A"];
+		if (_previewMode && !isCharging) {
+			_timeRemainingLabel.text = @"1 hr 23 min";
+			_staticLabel.text = @"until fully charged";
+		} else {
+			[self updateWithTimeString:_latestTimeString ?: @"N/A"];
+		}
 	}
 }
 
@@ -447,6 +524,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 	if (watts > 0) {
 		_timeRemainingLabel.text = [NSString stringWithFormat:@"%.1fW", watts];
+	} else if (_previewMode && !isCharging) {
+		_timeRemainingLabel.text = @"20.0W";
 	} else {
 		_timeRemainingLabel.text = @"N/A";
 	}

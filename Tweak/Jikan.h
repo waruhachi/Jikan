@@ -15,7 +15,10 @@ static BOOL hideQuickActionButtons;
 static BOOL showRemainingBatteryTime;
 static BOOL autoResizeRemainingBatteryTime;
 static BOOL tapToShowWattage;
-static CGFloat platterYOffset;
+static BOOL previewPlatter;
+static CGFloat platterPosXNorm;
+static CGFloat platterPosYNorm;
+static BOOL platterHasCustomPosition;
 
 extern BOOL isCharging;
 
@@ -50,6 +53,7 @@ static const void *kTTBaseTextKey = &kTTBaseTextKey;
 - (void)_jikanStartChargingBootstrap;
 - (void)_jikanStopChargingBootstrap;
 - (void)_jikanBootstrapTick:(NSTimer *)timer;
+- (void)_jikanHandlePlatterLongPress:(UILongPressGestureRecognizer *)gesture;
 @end
 
 @interface CSCoverSheetViewController : UIViewController
