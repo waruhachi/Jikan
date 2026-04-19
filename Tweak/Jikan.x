@@ -590,27 +590,41 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		if (visible && self.remainingTimePlatter.alpha < 1.0) {
 			self.remainingTimePlatter.alpha = 1.0;
 		}
+		if (visible) {
+			self.remainingTimePlatter.transform = CGAffineTransformIdentity;
+		}
 		return;
 	}
 
 	[self.remainingTimePlatter.layer removeAllAnimations];
 
-	NSTimeInterval duration = 0.25;
-	UIViewAnimationOptions options = UIViewAnimationOptionCurveEaseInOut | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState;
+	NSTimeInterval showDuration = 0.42;
+	NSTimeInterval hideDuration = 0.22;
+	UIViewAnimationOptions showOptions = UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState;
+	UIViewAnimationOptions hideOptions = UIViewAnimationOptionCurveEaseIn | UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionBeginFromCurrentState;
 
 	if (visible) {
 		self.remainingTimePlatter.hidden = NO;
-		if (self.remainingTimePlatter.alpha < 0.01) {
-			self.remainingTimePlatter.alpha = 0.0;
-		}
-		[UIView animateWithDuration:duration delay:0 options:options animations:^{
+		self.remainingTimePlatter.alpha = 0.0;
+		self.remainingTimePlatter.transform = CGAffineTransformTranslate(CGAffineTransformMakeScale(0.965, 0.965), 0.0, 4.0);
+		[UIView animateWithDuration:showDuration
+						delay:0
+		 usingSpringWithDamping:0.88
+		  initialSpringVelocity:0.35
+					  options:showOptions
+				animations:^{
 			self.remainingTimePlatter.alpha = 1.0;
+			self.remainingTimePlatter.transform = CGAffineTransformIdentity;
 		} completion:nil];
 	} else {
-		[UIView animateWithDuration:duration delay:0 options:options animations:^{
+		[UIView animateWithDuration:hideDuration delay:0 options:hideOptions animations:^{
 			self.remainingTimePlatter.alpha = 0.0;
+			self.remainingTimePlatter.transform = CGAffineTransformTranslate(CGAffineTransformMakeScale(0.975, 0.975), 0.0, 2.0);
 		} completion:^(BOOL finished) {
-			self.remainingTimePlatter.hidden = YES;
+			if (finished && self.remainingTimePlatter.alpha <= 0.01) {
+				self.remainingTimePlatter.hidden = YES;
+				self.remainingTimePlatter.transform = CGAffineTransformIdentity;
+			}
 		}];
 	}
 }
