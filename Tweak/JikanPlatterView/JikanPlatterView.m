@@ -72,6 +72,16 @@ static CGFloat TTWiggleRandomOffset(void) {
 	return ((arc4random_uniform(1000) / 1000.0) - 0.5) * 0.03;
 }
 
+static UIColor *TTBoltColorForSpeed(NSString *speed) {
+	if ([speed isEqualToString:@"slow"]) {
+		return [UIColor systemYellowColor];
+	}
+	if ([speed isEqualToString:@"unknown"]) {
+		return [UIColor systemGrayColor];
+	}
+	return [UIColor systemGreenColor];
+}
+
 @implementation JikanPlatterView
 
 static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
@@ -132,6 +142,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		_latestDisplayPercent = [notification.userInfo[@"displayPercent"] integerValue];
 	}
 	_latestDisplayPercent = MAX(0, MIN(100, _latestDisplayPercent));
+	NSString *speed = [notification.userInfo[@"chargingSpeed"] isKindOfClass:[NSString class]] ? notification.userInfo[@"chargingSpeed"] : @"unknown";
+	_boltImageView.tintColor = TTBoltColorForSpeed(speed);
 
 	if (_showingWattage && TTTapToShowWattageEnabled()) {
 		[self _updateWattageLabel];
@@ -477,6 +489,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	} else {
 		[self enterEditMode:NO];
 		_showingWattage = NO;
+		_boltImageView.tintColor = [UIColor systemGreenColor];
 		[self _updateTapGestureState];
 		[self _stopRefreshTimer];
 		if (_previewMode) {

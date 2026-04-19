@@ -66,6 +66,39 @@ static double TT100WattsFromCurrentVoltage(double current, double voltage) {
 	return amps * volts;
 }
 
+static double TT100ExtractWattage(NSDictionary *batteryInfo) {
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return 0;
+	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
+
+	double watts = 0;
+	if (adapter) {
+		NSNumber *w = TT100Number(adapter, @"Wattage");
+		if (!w) w = TT100Number(adapter, @"Watts");
+		if (!w) w = TT100Number(adapter, @"Power");
+		if (w) watts = fabs(w.doubleValue);
+	}
+	if (watts <= 0 && adapter) {
+		double cur = fabs([TT100Number(adapter, @"Current") doubleValue]);
+		double volt = fabs([TT100Number(adapter, @"Voltage") doubleValue]);
+		watts = TT100WattsFromCurrentVoltage(cur, volt);
+	}
+	if (watts <= 0) {
+		double cur = fabs([TT100Number(batteryInfo, @"Amperage") doubleValue]);
+		double volt = fabs([TT100Number(batteryInfo, @"Voltage") doubleValue]);
+		double approx = TT100WattsFromCurrentVoltage(cur, volt);
+		if (approx > 0) watts = approx;
+	}
+
+	return watts;
+}
+
+static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) {
+	double watts = TT100ExtractWattage(batteryInfo);
+	if (watts <= 0) return @"unknown";
+	double fastThreshold = isWireless ? 10.0 : 15.0;
+	return (watts >= fastThreshold) ? @"fast" : @"slow";
+}
+
 + (NSString *)chargerClassWithBatteryInfo:(NSDictionary *)batteryInfo outIsWireless:(BOOL *)outIsWireless {
 	BOOL isWireless = NO;
 	BOOL hasWireless = NO;
@@ -95,26 +128,7 @@ static double TT100WattsFromCurrentVoltage(double current, double voltage) {
 	}
 
 	// Wattage detection.
-	double watts = 0;
-	if (adapter) {
-		NSNumber *w = TT100Number(adapter, @"Wattage");
-		if (!w) w = TT100Number(adapter, @"Watts");
-		if (!w) w = TT100Number(adapter, @"Power");
-		if (w) watts = fabs(w.doubleValue);
-	}
-	if (watts <= 0 && adapter) {
-		double cur = fabs([TT100Number(adapter, @"Current") doubleValue]);
-		double volt = fabs([TT100Number(adapter, @"Voltage") doubleValue]);
-		watts = TT100WattsFromCurrentVoltage(cur, volt);
-	}
-
-	// If we still don't have watts, approximate from batteryInfo amperage/voltage if present.
-	if (watts <= 0) {
-		double cur = fabs([TT100Number(batteryInfo, @"Amperage") doubleValue]);
-		double volt = fabs([TT100Number(batteryInfo, @"Voltage") doubleValue]);
-		double approx = TT100WattsFromCurrentVoltage(cur, volt);
-		if (approx > 0) watts = approx;
-	}
+	double watts = TT100ExtractWattage(batteryInfo);
 
 	NSString *prefix = isWireless ? @"wireless" : @"wired";
 	NSString *tier = @"unknown";
@@ -189,13 +203,17 @@ static NSTimer *tt100PollingTimer = nil;
 	BOOL hasEstimate = [TT100 hasEstimateWithBatteryInfo:batteryInfo];
 	NSInteger percent = 0;
 	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
+	BOOL isWireless = NO;
+	[TT100 chargerClassWithBatteryInfo:batteryInfo outIsWireless:&isWireless];
+	NSString *chargingSpeed = TT100ChargingSpeed(batteryInfo, isWireless);
 
 	NSDictionary *userInfo = @{
 		@"batteryInfo": batteryInfo ?: @{},
 		@"timeString": timeString ?: @"N/A",
 		@"hasEstimate": @(hasEstimate),
 		@"isFullyCharged": @(fullyCharged),
-		@"displayPercent": @(MAX(0, MIN(100, percent)))
+		@"displayPercent": @(MAX(0, MIN(100, percent))),
+		@"chargingSpeed": chargingSpeed ?: @"unknown"
 	};
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[[NSNotificationCenter defaultCenter] postNotificationName:TT100BatteryInfoUpdatedNotification object:self userInfo:userInfo];

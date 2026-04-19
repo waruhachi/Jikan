@@ -113,6 +113,8 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Reset</string>
+			<key>footerText</key>
+			<string>⚡ Green = fast charging&#10;⚡ Yellow = slow charging&#10;⚡ Gray = unknown</string>
 		</dict>
 		<dict>
 			<key>cell</key>
