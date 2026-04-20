@@ -41,6 +41,10 @@ static void TTLoadPreferences(void) {
 	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
 	lockPreviewXAxis = [preferences objectForKey:@"lockPreviewXAxis"] ? [preferences boolForKey:@"lockPreviewXAxis"] : NO;
 	lockPreviewYAxis = [preferences objectForKey:@"lockPreviewYAxis"] ? [preferences boolForKey:@"lockPreviewYAxis"] : NO;
+	double opacityPercent = [preferences objectForKey:@"pillBackgroundOpacityPercent"] ? [preferences doubleForKey:@"pillBackgroundOpacityPercent"] : 100.0;
+	if (!isfinite(opacityPercent)) opacityPercent = 100.0;
+	opacityPercent = MAX(0.0, MIN(100.0, opacityPercent));
+	pillBackgroundOpacity = (CGFloat)(opacityPercent / 100.0);
 	platterHasCustomPosition = ([preferences objectForKey:@"platterPosXNorm"] != nil && [preferences objectForKey:@"platterPosYNorm"] != nil);
 	platterPosXNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosXNorm"] : 0.5;
 	platterPosYNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosYNorm"] : 0.84;

@@ -82,10 +82,41 @@ static UIColor *TTBoltColorForSpeed(NSString *speed) {
 	return [UIColor systemGreenColor];
 }
 
+static CGFloat TTPillBackgroundOpacity(void) {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	id value = [prefs objectForKey:@"pillBackgroundOpacityPercent"];
+	double percent = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 100.0;
+	if (!isfinite(percent)) percent = 100.0;
+	percent = MAX(0.0, MIN(100.0, percent));
+	return (CGFloat)(percent / 100.0);
+}
+
 @implementation JikanPlatterView
 
 static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	return MIN(MAX(value, minValue), maxValue);
+}
+
+- (void)_captureBackgroundBaseAlphas {
+	_backgroundBaseAlpha = _backgroundView ? _backgroundView.alpha : 1.0;
+	_styleOverlayBaseAlpha = _styleOverlayView ? _styleOverlayView.alpha : 0.12;
+	_contentTintBaseAlpha = _contentTintReplicaView ? _contentTintReplicaView.alpha : 0.0;
+}
+
+- (void)_applyBackgroundOpacity {
+	CGFloat factor = TTPillBackgroundOpacity();
+	if (!isfinite(factor)) factor = 1.0;
+	factor = MAX(0.0, MIN(1.0, factor));
+
+	if (_backgroundView) {
+		_backgroundView.alpha = _backgroundBaseAlpha * factor;
+	}
+	if (_styleOverlayView) {
+		_styleOverlayView.alpha = _styleOverlayBaseAlpha * factor;
+	}
+	if (_contentTintReplicaView) {
+		_contentTintReplicaView.alpha = _contentTintBaseAlpha * factor;
+	}
 }
 
 - (instancetype)init {
@@ -129,6 +160,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	}
 	[self _preferencesPossiblyChanged:nil];
 	[self _updateTapGestureState];
+	[self _applyBackgroundOpacity];
 }
 
 - (void)_tt100BatteryInfoUpdated:(NSNotification *)notification {
@@ -153,6 +185,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	} else {
 		[self updateWithTimeString:timeString];
 	}
+	[self _applyBackgroundOpacity];
 }
 
 - (void)layoutSubviews {
@@ -166,6 +199,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	}
 
 	[self _updateTypographyForCurrentSize];
+	[self _applyBackgroundOpacity];
 }
 
 - (void)_setupSubviews {
@@ -225,6 +259,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTap:)];
 	[self addGestureRecognizer:_tapGesture];
 	[self _updateTapGestureState];
+	[self _captureBackgroundBaseAlphas];
+	[self _applyBackgroundOpacity];
 
 	[self _updateTypographyForCurrentSize];
 }
@@ -474,6 +510,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		}
 	}
 
+	[self _captureBackgroundBaseAlphas];
+	[self _applyBackgroundOpacity];
 	[self setNeedsLayout];
 }
 
@@ -510,6 +548,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		_timeRemainingLabel.text = @"100%";
 		_staticLabel.text = @"charged";
 	}
+	[self _applyBackgroundOpacity];
 }
 
 - (void)_updateTapGestureState {

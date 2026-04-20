@@ -19,6 +19,7 @@ static BOOL previewPlatter;
 static BOOL showAfterFullCharge;
 static BOOL lockPreviewXAxis;
 static BOOL lockPreviewYAxis;
+static CGFloat pillBackgroundOpacity;
 static CGFloat platterPosXNorm;
 static CGFloat platterPosYNorm;
 static BOOL platterHasCustomPosition;

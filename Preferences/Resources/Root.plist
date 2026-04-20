@@ -26,40 +26,6 @@
 			<key>defaults</key>
 			<string>moe.waru.jikan.preferences</string>
 			<key>key</key>
-			<string>lockPreviewXAxis</string>
-			<key>label</key>
-			<string>Lock X Axis</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>lockPreviewYAxis</string>
-			<key>label</key>
-			<string>Lock Y Axis</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>Axis locks apply only in Preview positioning mode.</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
 			<string>showAfterFullCharge</string>
 			<key>label</key>
 			<string>Show after full charge</string>
@@ -77,6 +43,38 @@
 			<string>tapToShowWattage</string>
 			<key>label</key>
 			<string>Tap To Show Current Wattage</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Opacity</string>
+			<key>footerText</key>
+			<string>Double tap number to edit manually.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>pillBackgroundOpacitySlider</string>
+			<key>default</key>
+			<real>100</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>pillBackgroundOpacityPercent</string>
+			<key>label</key>
+			<string>Pill Background Opacity (%)</string>
+			<key>min</key>
+			<real>0</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>

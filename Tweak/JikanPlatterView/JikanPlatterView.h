@@ -21,6 +21,9 @@
 	BOOL _latestHasEstimate;
 	BOOL _latestFullyCharged;
 	NSInteger _latestDisplayPercent;
+	CGFloat _backgroundBaseAlpha;
+	CGFloat _styleOverlayBaseAlpha;
+	CGFloat _contentTintBaseAlpha;
 }
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;
