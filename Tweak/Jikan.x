@@ -23,7 +23,8 @@ static const void *kTTPlatterCenterYConstraintKey = &kTTPlatterCenterYConstraint
 static const void *kTTPlatterLongPressKey = &kTTPlatterLongPressKey;
 static const void *kTTPlatterDragStartCenterKey = &kTTPlatterDragStartCenterKey;
 static const void *kTTPlatterDragStartTouchKey = &kTTPlatterDragStartTouchKey;
-static const void *kTTPlatterDefaultCenterComputedKey = &kTTPlatterDefaultCenterComputedKey;
+static const void *kTTPlatterDefaultCenterComputedPortraitKey = &kTTPlatterDefaultCenterComputedPortraitKey;
+static const void *kTTPlatterDefaultCenterComputedLandscapeKey = &kTTPlatterDefaultCenterComputedLandscapeKey;
 static const void *kTTPlatterDraggingKey = &kTTPlatterDraggingKey;
 static BOOL _ttDidLogQuickActionHierarchy = NO;
 static BOOL _ttLastResolvedChargingValid = NO;
@@ -43,8 +44,13 @@ static void TTLoadPreferences(void) {
 	platterHasCustomPosition = ([preferences objectForKey:@"platterPosXNorm"] != nil && [preferences objectForKey:@"platterPosYNorm"] != nil);
 	platterPosXNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosXNorm"] : 0.5;
 	platterPosYNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosYNorm"] : 0.84;
+	platterHasCustomPositionLandscape = ([preferences objectForKey:@"platterPosXNormLandscape"] != nil && [preferences objectForKey:@"platterPosYNormLandscape"] != nil);
+	platterPosXNormLandscape = platterHasCustomPositionLandscape ? [preferences doubleForKey:@"platterPosXNormLandscape"] : 0.5;
+	platterPosYNormLandscape = platterHasCustomPositionLandscape ? [preferences doubleForKey:@"platterPosYNormLandscape"] : 0.84;
 	platterPosXNorm = MAX(0.05, MIN(0.95, platterPosXNorm));
 	platterPosYNorm = MAX(0.05, MIN(0.95, platterPosYNorm));
+	platterPosXNormLandscape = MAX(0.05, MIN(0.95, platterPosXNormLandscape));
+	platterPosYNormLandscape = MAX(0.05, MIN(0.95, platterPosYNormLandscape));
 }
 
 static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -163,6 +169,25 @@ static BOOL TTQuickActionButtonFramesInView(CSCoverSheetView *coverSheet, CGRect
 	if (flashRectOut) *flashRectOut = flashRect;
 	if (cameraRectOut) *cameraRectOut = cameraRect;
 	return YES;
+}
+
+static UIView *TTFindDateViewContainer(CSCoverSheetView *coverSheet) {
+	if (!coverSheet) return nil;
+	Class dateClass = NSClassFromString(@"CSProminentSubtitleDateView");
+	if (!dateClass) return nil;
+
+	NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:coverSheet];
+	while (stack.count) {
+		UIView *view = stack.lastObject;
+		[stack removeLastObject];
+		if ([view isKindOfClass:dateClass]) {
+			return view;
+		}
+		for (UIView *sub in view.subviews) {
+			[stack addObject:sub];
+		}
+	}
+	return nil;
 }
 
 static UIView *TTFindNearestQuickActionMaterialView(UIView *root) {
@@ -573,6 +598,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	if (!previewPlatter || !self.remainingTimePlatter) return;
 	JikanPlatterView *pill = self.remainingTimePlatter;
 	CGPoint location = [gesture locationInView:self];
+	BOOL isLandscape = CGRectGetWidth(self.bounds) > CGRectGetHeight(self.bounds);
 
 	CGFloat halfW = CGRectGetWidth(pill.bounds) * 0.5;
 	CGFloat halfH = CGRectGetHeight(pill.bounds) * 0.5;
@@ -585,7 +611,11 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 	if (gesture.state == UIGestureRecognizerStateBegan) {
 		objc_setAssociatedObject(self, kTTPlatterDraggingKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		platterHasCustomPosition = YES;
+		if (isLandscape) {
+			platterHasCustomPositionLandscape = YES;
+		} else {
+			platterHasCustomPosition = YES;
+		}
 		[pill enterEditMode:YES];
 		UIImpactFeedbackGenerator *gen = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
 		[gen impactOccurred];
@@ -614,9 +644,17 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		if (cx && cy) {
 			cx.constant = candidate.x - CGRectGetMidX(self.bounds);
 			cy.constant = candidate.y - CGRectGetMidY(self.bounds);
-			platterPosXNorm = MAX(0.05, MIN(0.95, candidate.x / MAX(1.0, CGRectGetWidth(self.bounds))));
-			platterPosYNorm = MAX(0.05, MIN(0.95, candidate.y / MAX(1.0, CGRectGetHeight(self.bounds))));
-			platterHasCustomPosition = YES;
+			CGFloat nx = MAX(0.05, MIN(0.95, candidate.x / MAX(1.0, CGRectGetWidth(self.bounds))));
+			CGFloat ny = MAX(0.05, MIN(0.95, candidate.y / MAX(1.0, CGRectGetHeight(self.bounds))));
+			if (isLandscape) {
+				platterPosXNormLandscape = nx;
+				platterPosYNormLandscape = ny;
+				platterHasCustomPositionLandscape = YES;
+			} else {
+				platterPosXNorm = nx;
+				platterPosYNorm = ny;
+				platterHasCustomPosition = YES;
+			}
 			[self layoutIfNeeded];
 		}
 		return;
@@ -628,13 +666,26 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		[gen impactOccurred];
 
 		CGPoint center = CGPointMake(CGRectGetMidX(pill.frame), CGRectGetMidY(pill.frame));
-		platterPosXNorm = MAX(0.05, MIN(0.95, center.x / MAX(1.0, CGRectGetWidth(self.bounds))));
-		platterPosYNorm = MAX(0.05, MIN(0.95, center.y / MAX(1.0, CGRectGetHeight(self.bounds))));
-		platterHasCustomPosition = YES;
+		CGFloat nx = MAX(0.05, MIN(0.95, center.x / MAX(1.0, CGRectGetWidth(self.bounds))));
+		CGFloat ny = MAX(0.05, MIN(0.95, center.y / MAX(1.0, CGRectGetHeight(self.bounds))));
+		if (isLandscape) {
+			platterPosXNormLandscape = nx;
+			platterPosYNormLandscape = ny;
+			platterHasCustomPositionLandscape = YES;
+		} else {
+			platterPosXNorm = nx;
+			platterPosYNorm = ny;
+			platterHasCustomPosition = YES;
+		}
 
 		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-		[prefs setDouble:platterPosXNorm forKey:@"platterPosXNorm"];
-		[prefs setDouble:platterPosYNorm forKey:@"platterPosYNorm"];
+		if (isLandscape) {
+			[prefs setDouble:platterPosXNormLandscape forKey:@"platterPosXNormLandscape"];
+			[prefs setDouble:platterPosYNormLandscape forKey:@"platterPosYNormLandscape"];
+		} else {
+			[prefs setDouble:platterPosXNorm forKey:@"platterPosXNorm"];
+			[prefs setDouble:platterPosYNorm forKey:@"platterPosYNorm"];
+		}
 		[prefs synchronize];
 
 		objc_setAssociatedObject(self, kTTPlatterDraggingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -723,6 +774,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 - (void)_configureRemainingTimePlatterConstraints {
 	if (!self.remainingTimePlatter) return;
 	static const CGFloat kPlatterHeight = 60.0;
+	BOOL isLandscape = CGRectGetWidth(self.bounds) > CGRectGetHeight(self.bounds);
 	CGFloat platterWidth = MAX(180.0, MIN(280.0, self.bounds.size.width * 0.45));
 	CGFloat defaultBottomOffset = hideQuickActionButtons ? -28.0 : -76.0;
 	CGFloat defaultCenterXOffset = 0.0;
@@ -753,17 +805,34 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	CGFloat defaultCenterX = CGRectGetMidX(self.bounds) + defaultCenterXOffset;
 	CGFloat safeBottomY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom;
 	CGFloat defaultCenterY = safeBottomY + defaultBottomOffset - (kPlatterHeight * 0.5);
+	if (isLandscape) {
+		UIView *dateContainer = TTFindDateViewContainer(self);
+		if (dateContainer) {
+			CGRect dateRect = [dateContainer.superview convertRect:dateContainer.frame toView:self];
+			if (!CGRectIsEmpty(dateRect)) {
+				defaultCenterX = CGRectGetMidX(dateRect);
+			}
+		}
+	}
 	defaultCenterX = MAX(safeMinX, MIN(safeMaxX, defaultCenterX));
 	defaultCenterY = MAX(safeMinY, MIN(safeMaxY, defaultCenterY));
 
-	if (!platterHasCustomPosition && ![objc_getAssociatedObject(self, kTTPlatterDefaultCenterComputedKey) boolValue]) {
+	if (!isLandscape && !platterHasCustomPosition && ![objc_getAssociatedObject(self, kTTPlatterDefaultCenterComputedPortraitKey) boolValue]) {
 		platterPosXNorm = defaultCenterX / MAX(1.0, CGRectGetWidth(self.bounds));
 		platterPosYNorm = defaultCenterY / MAX(1.0, CGRectGetHeight(self.bounds));
-		objc_setAssociatedObject(self, kTTPlatterDefaultCenterComputedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		objc_setAssociatedObject(self, kTTPlatterDefaultCenterComputedPortraitKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	}
+	if (isLandscape && !platterHasCustomPositionLandscape && ![objc_getAssociatedObject(self, kTTPlatterDefaultCenterComputedLandscapeKey) boolValue]) {
+		platterPosXNormLandscape = defaultCenterX / MAX(1.0, CGRectGetWidth(self.bounds));
+		platterPosYNormLandscape = defaultCenterY / MAX(1.0, CGRectGetHeight(self.bounds));
+		objc_setAssociatedObject(self, kTTPlatterDefaultCenterComputedLandscapeKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 
-	CGFloat centerX = platterHasCustomPosition ? (platterPosXNorm * CGRectGetWidth(self.bounds)) : defaultCenterX;
-	CGFloat centerY = platterHasCustomPosition ? (platterPosYNorm * CGRectGetHeight(self.bounds)) : defaultCenterY;
+	BOOL hasCustomForOrientation = isLandscape ? platterHasCustomPositionLandscape : platterHasCustomPosition;
+	CGFloat savedX = isLandscape ? platterPosXNormLandscape : platterPosXNorm;
+	CGFloat savedY = isLandscape ? platterPosYNormLandscape : platterPosYNorm;
+	CGFloat centerX = hasCustomForOrientation ? (savedX * CGRectGetWidth(self.bounds)) : defaultCenterX;
+	CGFloat centerY = hasCustomForOrientation ? (savedY * CGRectGetHeight(self.bounds)) : defaultCenterY;
 	centerX = MAX(safeMinX, MIN(safeMaxX, centerX));
 	centerY = MAX(safeMinY, MIN(safeMaxY, centerY));
 

@@ -22,6 +22,9 @@ static BOOL lockPreviewYAxis;
 static CGFloat platterPosXNorm;
 static CGFloat platterPosYNorm;
 static BOOL platterHasCustomPosition;
+static CGFloat platterPosXNormLandscape;
+static CGFloat platterPosYNormLandscape;
+static BOOL platterHasCustomPositionLandscape;
 
 extern BOOL isCharging;
 

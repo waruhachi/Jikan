@@ -26,6 +26,8 @@ static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferen
 		@"platterYOffset",
 		@"platterPosXNorm",
 		@"platterPosYNorm",
+		@"platterPosXNormLandscape",
+		@"platterPosYNormLandscape",
 		@"hideQuickActionButtons",
 		@"showRemainingBatteryTime",
 		@"autoResizeRemainingBatteryTime",
