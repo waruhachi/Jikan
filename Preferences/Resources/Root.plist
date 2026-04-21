@@ -50,6 +50,122 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Portrait Mode Position</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>pillPosXPortraitSlider</string>
+			<key>leftIconSystemImage</key>
+			<string>arrow.left.and.right</string>
+			<key>default</key>
+			<real>50</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>pillPosXPortraitPercent</string>
+			<key>label</key>
+			<string>Portrait X %</string>
+			<key>min</key>
+			<real>0</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>pillPosYPortraitSlider</string>
+			<key>leftIconSystemImage</key>
+			<string>arrow.up.and.down</string>
+			<key>default</key>
+			<real>84</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>pillPosYPortraitPercent</string>
+			<key>label</key>
+			<string>Portrait Y %</string>
+			<key>min</key>
+			<real>0</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Landscape Mode Position</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>pillPosXLandscapeSlider</string>
+			<key>leftIconSystemImage</key>
+			<string>arrow.left.and.right</string>
+			<key>default</key>
+			<real>50</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>pillPosXLandscapePercent</string>
+			<key>label</key>
+			<string>Landscape X %</string>
+			<key>min</key>
+			<real>0</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>pillPosYLandscapeSlider</string>
+			<key>leftIconSystemImage</key>
+			<string>arrow.up.and.down</string>
+			<key>default</key>
+			<real>84</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>pillPosYLandscapePercent</string>
+			<key>label</key>
+			<string>Landscape Y %</string>
+			<key>min</key>
+			<real>0</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Opacity</string>
 			<key>footerText</key>
 			<string>Double tap number to edit manually.</string>

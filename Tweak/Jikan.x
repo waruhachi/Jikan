@@ -30,6 +30,13 @@ static BOOL _ttDidLogQuickActionHierarchy = NO;
 static BOOL _ttLastResolvedChargingValid = NO;
 static BOOL _ttAllowSBUIControllerFallback = NO;
 
+static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
+	double v = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : (double)(fallback * 100.0);
+	if (!isfinite(v)) v = (double)(fallback * 100.0);
+	v = MAX(0.0, MIN(100.0, v));
+	return (CGFloat)(v / 100.0);
+}
+
 static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
@@ -55,6 +62,26 @@ static void TTLoadPreferences(void) {
 	platterPosYNorm = MAX(0.05, MIN(0.95, platterPosYNorm));
 	platterPosXNormLandscape = MAX(0.05, MIN(0.95, platterPosXNormLandscape));
 	platterPosYNormLandscape = MAX(0.05, MIN(0.95, platterPosYNormLandscape));
+
+	id px = [preferences objectForKey:@"pillPosXPortraitPercent"];
+	id py = [preferences objectForKey:@"pillPosYPortraitPercent"];
+	if (px || py) {
+		platterPosXNorm = TTPercentToNorm(px, platterPosXNorm);
+		platterPosYNorm = TTPercentToNorm(py, platterPosYNorm);
+		platterPosXNorm = MAX(0.05, MIN(0.95, platterPosXNorm));
+		platterPosYNorm = MAX(0.05, MIN(0.95, platterPosYNorm));
+		platterHasCustomPosition = YES;
+	}
+
+	id lx = [preferences objectForKey:@"pillPosXLandscapePercent"];
+	id ly = [preferences objectForKey:@"pillPosYLandscapePercent"];
+	if (lx || ly) {
+		platterPosXNormLandscape = TTPercentToNorm(lx, platterPosXNormLandscape);
+		platterPosYNormLandscape = TTPercentToNorm(ly, platterPosYNormLandscape);
+		platterPosXNormLandscape = MAX(0.05, MIN(0.95, platterPosXNormLandscape));
+		platterPosYNormLandscape = MAX(0.05, MIN(0.95, platterPosYNormLandscape));
+		platterHasCustomPositionLandscape = YES;
+	}
 }
 
 static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {

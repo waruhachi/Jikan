@@ -9,6 +9,20 @@ static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercen
 - (NSArray *)specifiers {
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
+
+		// PSSliderCell doesn't reliably support SF Symbols from plist-only keys.
+		// We keep the plist declarative (leftIconSystemImage) and inject the UIImage here.
+		for (PSSpecifier *spec in _specifiers) {
+			NSString *symbolName = [spec propertyForKey:@"leftIconSystemImage"];
+			if (![symbolName isKindOfClass:[NSString class]] || symbolName.length == 0) continue;
+			if ([[spec propertyForKey:@"leftImage"] isKindOfClass:[UIImage class]]) continue;
+
+			UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightRegular];
+			UIImage *img = [UIImage systemImageNamed:symbolName withConfiguration:cfg];
+			if (!img) continue;
+			img = [img imageWithTintColor:[UIColor secondaryLabelColor] renderingMode:UIImageRenderingModeAlwaysOriginal];
+			[spec setProperty:img forKey:@"leftImage"];
+		}
 	}
 
 	return _specifiers;
