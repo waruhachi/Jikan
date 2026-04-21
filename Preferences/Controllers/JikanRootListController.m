@@ -1,10 +1,21 @@
 #include "JikanRootListController.h"
 
-@implementation JikanRootListController
-
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
 static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferences.reload";
 static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercent";
+
+@interface JikanRootListController ()
+- (void)_jikanPreferencesDidChange;
+@end
+
+static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+	#pragma unused(center, name, object, userInfo)
+	JikanRootListController *controller = (__bridge JikanRootListController *)observer;
+	if (!controller) return;
+	[controller _jikanPreferencesDidChange];
+}
+
+@implementation JikanRootListController
 
 - (NSArray *)specifiers {
 	if (!_specifiers) {
@@ -28,6 +39,21 @@ static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercen
 	return _specifiers;
 }
 
+- (void)viewWillAppear:(BOOL)animated {
+	[super viewWillAppear:animated];
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge const void *)(self), JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+
+	// When Notification Center (or other overlays) are shown, Settings becomes inactive and can miss Darwin notifications.
+	// Refresh again when the app becomes active.
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanPreferencesDidChange) name:UIApplicationDidBecomeActiveNotification object:nil];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+	[super viewWillDisappear:animated];
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge const void *)(self), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL);
+	[[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidBecomeActiveNotification object:nil];
+}
+
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	[super setPreferenceValue:value specifier:specifier];
 }
@@ -40,6 +66,20 @@ static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercen
 - (void)reloadSpecifiers {
 	[super reloadSpecifiers];
 	[self _installOpacityValueTapIfNeeded];
+}
+
+- (void)_jikanPreferencesDidChange {
+	if (![NSThread isMainThread]) {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[self _jikanPreferencesDidChange];
+		});
+		return;
+	}
+
+	// Another process (SpringBoard) updated defaults; force the UI to re-read values.
+	_specifiers = nil;
+	[self reloadSpecifiers];
+	[self.table reloadData];
 }
 
 - (void)_installOpacityValueTapIfNeeded {

@@ -37,6 +37,15 @@ static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
 	return (CGFloat)(v / 100.0);
 }
 
+static double TTNormToPercent(CGFloat norm) {
+	double v = (double)(norm * 100.0);
+	if (!isfinite(v)) v = 0.0;
+	v = MAX(0.0, MIN(100.0, v));
+	// Keep one decimal to match typical slider/manual expectations.
+	v = round(v * 10.0) / 10.0;
+	return v;
+}
+
 static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
@@ -713,11 +722,16 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		if (isLandscape) {
 			[prefs setDouble:platterPosXNormLandscape forKey:@"platterPosXNormLandscape"];
 			[prefs setDouble:platterPosYNormLandscape forKey:@"platterPosYNormLandscape"];
+			[prefs setDouble:TTNormToPercent(platterPosXNormLandscape) forKey:@"pillPosXLandscapePercent"];
+			[prefs setDouble:TTNormToPercent(platterPosYNormLandscape) forKey:@"pillPosYLandscapePercent"];
 		} else {
 			[prefs setDouble:platterPosXNorm forKey:@"platterPosXNorm"];
 			[prefs setDouble:platterPosYNorm forKey:@"platterPosYNorm"];
+			[prefs setDouble:TTNormToPercent(platterPosXNorm) forKey:@"pillPosXPortraitPercent"];
+			[prefs setDouble:TTNormToPercent(platterPosYNorm) forKey:@"pillPosYPortraitPercent"];
 		}
 		[prefs synchronize];
+		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 
 		objc_setAssociatedObject(self, kTTPlatterDraggingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		objc_setAssociatedObject(self, kTTPlatterDragStartCenterKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
