@@ -50,15 +50,19 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Portrait Mode Position</string>
+			<string>Manual Position (%)</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Portrait Axis</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
 			<key>id</key>
 			<string>pillPosXPortraitSlider</string>
-			<key>leftIconSystemImage</key>
-			<string>arrow.left.and.right</string>
 			<key>default</key>
 			<real>50</real>
 			<key>defaults</key>
@@ -83,8 +87,6 @@
 			<string>PSSliderCell</string>
 			<key>id</key>
 			<string>pillPosYPortraitSlider</string>
-			<key>leftIconSystemImage</key>
-			<string>arrow.up.and.down</string>
 			<key>default</key>
 			<real>84</real>
 			<key>defaults</key>
@@ -108,15 +110,13 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Landscape Mode Position</string>
+			<string>Landscape Axis</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
 			<key>id</key>
 			<string>pillPosXLandscapeSlider</string>
-			<key>leftIconSystemImage</key>
-			<string>arrow.left.and.right</string>
 			<key>default</key>
 			<real>50</real>
 			<key>defaults</key>
@@ -141,8 +141,6 @@
 			<string>PSSliderCell</string>
 			<key>id</key>
 			<string>pillPosYLandscapeSlider</string>
-			<key>leftIconSystemImage</key>
-			<string>arrow.up.and.down</string>
 			<key>default</key>
 			<real>84</real>
 			<key>defaults</key>

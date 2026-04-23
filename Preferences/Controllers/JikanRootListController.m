@@ -1,57 +1,35 @@
 #include "JikanRootListController.h"
 
+@implementation JikanRootListController
+
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
 static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferences.reload";
 static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercent";
-
-@interface JikanRootListController ()
-- (void)_jikanPreferencesDidChange;
-@end
 
 static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
 	#pragma unused(center, name, object, userInfo)
 	JikanRootListController *controller = (__bridge JikanRootListController *)observer;
 	if (!controller) return;
-	[controller _jikanPreferencesDidChange];
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (!controller.viewIfLoaded.window) return;
+		[controller reloadSpecifiers];
+	});
 }
-
-@implementation JikanRootListController
 
 - (NSArray *)specifiers {
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
-
-		// PSSliderCell doesn't reliably support SF Symbols from plist-only keys.
-		// We keep the plist declarative (leftIconSystemImage) and inject the UIImage here.
-		for (PSSpecifier *spec in _specifiers) {
-			NSString *symbolName = [spec propertyForKey:@"leftIconSystemImage"];
-			if (![symbolName isKindOfClass:[NSString class]] || symbolName.length == 0) continue;
-			if ([[spec propertyForKey:@"leftImage"] isKindOfClass:[UIImage class]]) continue;
-
-			UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightRegular];
-			UIImage *img = [UIImage systemImageNamed:symbolName withConfiguration:cfg];
-			if (!img) continue;
-			img = [img imageWithTintColor:[UIColor secondaryLabelColor] renderingMode:UIImageRenderingModeAlwaysOriginal];
-			[spec setProperty:img forKey:@"leftImage"];
-		}
+		[self _configureAxisSliderLeftImages];
+		CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_appDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
 	}
 
 	return _specifiers;
 }
 
-- (void)viewWillAppear:(BOOL)animated {
-	[super viewWillAppear:animated];
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge const void *)(self), JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-
-	// When Notification Center (or other overlays) are shown, Settings becomes inactive and can miss Darwin notifications.
-	// Refresh again when the app becomes active.
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanPreferencesDidChange) name:UIApplicationDidBecomeActiveNotification object:nil];
-}
-
-- (void)viewWillDisappear:(BOOL)animated {
-	[super viewWillDisappear:animated];
-	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge const void *)(self), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL);
+- (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidBecomeActiveNotification object:nil];
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL);
 }
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
@@ -63,23 +41,47 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[self _installOpacityValueTapIfNeeded];
 }
 
+- (void)viewDidLayoutSubviews {
+	[super viewDidLayoutSubviews];
+}
+
 - (void)reloadSpecifiers {
 	[super reloadSpecifiers];
+	[self _configureAxisSliderLeftImages];
 	[self _installOpacityValueTapIfNeeded];
 }
 
-- (void)_jikanPreferencesDidChange {
-	if (![NSThread isMainThread]) {
-		dispatch_async(dispatch_get_main_queue(), ^{
-			[self _jikanPreferencesDidChange];
-		});
-		return;
-	}
-
-	// Another process (SpringBoard) updated defaults; force the UI to re-read values.
-	_specifiers = nil;
+- (void)viewWillAppear:(BOOL)animated {
+	[super viewWillAppear:animated];
 	[self reloadSpecifiers];
-	[self.table reloadData];
+}
+
+- (void)_appDidBecomeActive:(NSNotification *)note {
+	#pragma unused(note)
+	[self reloadSpecifiers];
+}
+
+- (UIImage *)_axisIconForSymbol:(NSString *)symbolName {
+	UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:18 weight:UIImageSymbolWeightRegular];
+	UIImage *img = [UIImage systemImageNamed:symbolName withConfiguration:cfg];
+	if (!img) return nil;
+	return [img imageWithTintColor:[UIColor systemBlueColor] renderingMode:UIImageRenderingModeAlwaysOriginal];
+}
+
+- (void)_configureAxisSliderLeftImages {
+	NSArray<NSDictionary *> *map = @[
+		@{@"id": @"pillPosXPortraitSlider", @"symbol": @"arrow.left.and.right"},
+		@{@"id": @"pillPosYPortraitSlider", @"symbol": @"arrow.up.and.down"},
+		@{@"id": @"pillPosXLandscapeSlider", @"symbol": @"arrow.left.and.right"},
+		@{@"id": @"pillPosYLandscapeSlider", @"symbol": @"arrow.up.and.down"}
+	];
+	for (NSDictionary *entry in map) {
+		PSSpecifier *spec = [self specifierForID:entry[@"id"]];
+		if (!spec) continue;
+		UIImage *icon = [self _axisIconForSymbol:entry[@"symbol"]];
+		if (!icon) continue;
+		[spec setProperty:icon forKey:@"leftImage"];
+	}
 }
 
 - (void)_installOpacityValueTapIfNeeded {

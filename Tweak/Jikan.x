@@ -37,15 +37,6 @@ static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
 	return (CGFloat)(v / 100.0);
 }
 
-static double TTNormToPercent(CGFloat norm) {
-	double v = (double)(norm * 100.0);
-	if (!isfinite(v)) v = 0.0;
-	v = MAX(0.0, MIN(100.0, v));
-	// Keep one decimal to match typical slider/manual expectations.
-	v = round(v * 10.0) / 10.0;
-	return v;
-}
-
 static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
@@ -722,13 +713,13 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		if (isLandscape) {
 			[prefs setDouble:platterPosXNormLandscape forKey:@"platterPosXNormLandscape"];
 			[prefs setDouble:platterPosYNormLandscape forKey:@"platterPosYNormLandscape"];
-			[prefs setDouble:TTNormToPercent(platterPosXNormLandscape) forKey:@"pillPosXLandscapePercent"];
-			[prefs setDouble:TTNormToPercent(platterPosYNormLandscape) forKey:@"pillPosYLandscapePercent"];
+			[prefs setDouble:(platterPosXNormLandscape * 100.0) forKey:@"pillPosXLandscapePercent"];
+			[prefs setDouble:(platterPosYNormLandscape * 100.0) forKey:@"pillPosYLandscapePercent"];
 		} else {
 			[prefs setDouble:platterPosXNorm forKey:@"platterPosXNorm"];
 			[prefs setDouble:platterPosYNorm forKey:@"platterPosYNorm"];
-			[prefs setDouble:TTNormToPercent(platterPosXNorm) forKey:@"pillPosXPortraitPercent"];
-			[prefs setDouble:TTNormToPercent(platterPosYNorm) forKey:@"pillPosYPortraitPercent"];
+			[prefs setDouble:(platterPosXNorm * 100.0) forKey:@"pillPosXPortraitPercent"];
+			[prefs setDouble:(platterPosYNorm * 100.0) forKey:@"pillPosYPortraitPercent"];
 		}
 		[prefs synchronize];
 		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
