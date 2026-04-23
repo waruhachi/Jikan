@@ -166,12 +166,46 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		@"platterPosYNorm",
 		@"platterPosXNormLandscape",
 		@"platterPosYNormLandscape",
+		@"pillPosXPortraitPercent",
+		@"pillPosYPortraitPercent",
+		@"pillPosXLandscapePercent",
+		@"pillPosYLandscapePercent",
+		@"pillBackgroundOpacityPercent",
 		@"hideQuickActionButtons",
 		@"showRemainingBatteryTime",
 		@"autoResizeRemainingBatteryTime",
 		@"tapToShowWattage",
 		@"previewPlatter",
 		@"showAfterFullCharge",
+		@"lockPreviewXAxis",
+		@"lockPreviewYAxis"
+	];
+
+	for (NSString *key in keys) {
+		[prefs removeObjectForKey:key];
+	}
+
+	[prefs synchronize];
+	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
+
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self reloadSpecifiers];
+	});
+}
+
+- (void)resetPillPosition {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	if (!prefs) return;
+
+	NSArray<NSString *> *keys = @[
+		@"platterPosXNorm",
+		@"platterPosYNorm",
+		@"platterPosXNormLandscape",
+		@"platterPosYNormLandscape",
+		@"pillPosXPortraitPercent",
+		@"pillPosYPortraitPercent",
+		@"pillPosXLandscapePercent",
+		@"pillPosYLandscapePercent",
 		@"lockPreviewXAxis",
 		@"lockPreviewYAxis"
 	];

@@ -266,6 +266,23 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
+			<string>Reset Pill Position</string>
+			<key>action</key>
+			<string>resetPillPosition</string>
+			<key>confirmation</key>
+			<dict>
+				<key>title</key>
+				<string>Reset Pill Position</string>
+				<key>prompt</key>
+				<string>Reset portrait/landscape pill position and axis locks?</string>
+				<key>cancelTitle</key>
+				<string>Cancel</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
 			<string>Reset To Defaults</string>
 			<key>action</key>
 			<string>resetPreferences</string>

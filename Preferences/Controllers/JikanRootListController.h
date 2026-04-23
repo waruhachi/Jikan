@@ -4,5 +4,6 @@
 
 @interface JikanRootListController : PSListController
 - (void)resetPreferences;
+- (void)resetPillPosition;
 - (void)openPillBackgroundOpacityEditor;
 @end
