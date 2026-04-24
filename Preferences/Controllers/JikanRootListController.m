@@ -7,7 +7,7 @@ static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferen
 static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercent";
 
 static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
-	#pragma unused(center, name, object, userInfo)
+#pragma unused(center, name, object, userInfo)
 	JikanRootListController *controller = (__bridge JikanRootListController *)observer;
 	if (!controller) return;
 	dispatch_async(dispatch_get_main_queue(), ^{
@@ -27,6 +27,27 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	return _specifiers;
 }
 
+- (void)viewDidAppear:(BOOL)animated {
+	[super viewDidAppear:animated];
+
+	// Create view and set as titleView of your navigation bar
+	// Set the title and the minimum scroll offset before starting the animation
+	if (!self.navigationItem.titleView) {
+		AnimatedTitleView *titleView = [[AnimatedTitleView alloc] initWithTitle:@"Jikan" minimumScrollOffsetRequired:100];
+		self.navigationItem.titleView = titleView;
+	}
+
+	[super viewDidAppear:animated];
+	[self _installOpacityValueTapIfNeeded];
+}
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+	// Send scroll offset updates to view
+	if ([self.navigationItem.titleView respondsToSelector:@selector(adjustLabelPositionToScrollOffset:)]) {
+		[(AnimatedTitleView *)self.navigationItem.titleView adjustLabelPositionToScrollOffset:scrollView.contentOffset.y];
+	}
+}
+
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidBecomeActiveNotification object:nil];
 	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL);
@@ -34,11 +55,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	[super setPreferenceValue:value specifier:specifier];
-}
-
-- (void)viewDidAppear:(BOOL)animated {
-	[super viewDidAppear:animated];
-	[self _installOpacityValueTapIfNeeded];
 }
 
 - (void)viewDidLayoutSubviews {
@@ -57,7 +73,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)_appDidBecomeActive:(NSNotification *)note {
-	#pragma unused(note)
+#pragma unused(note)
 	[self reloadSpecifiers];
 }
 
@@ -127,14 +143,14 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	currentValue = MAX(0.0, MIN(100.0, currentValue));
 
 	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Pill Background Opacity" message:@"Enter a value from 0 to 100" preferredStyle:UIAlertControllerStyleAlert];
-	[alert addTextFieldWithConfigurationHandler:^(UITextField * _Nonnull textField) {
+	[alert addTextFieldWithConfigurationHandler:^(UITextField *_Nonnull textField) {
 		textField.keyboardType = UIKeyboardTypeDecimalPad;
 		textField.placeholder = @"0-100";
 		textField.text = [NSString stringWithFormat:@"%.1f", currentValue];
 	}];
 
-	__weak __typeof(self) weakSelf = self;
-	UIAlertAction *save = [UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+	__typeof(self) weakSelf = self;
+	UIAlertAction *save = [UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction *_Nonnull action) {
 		__unused UIAlertAction *unusedAction = action;
 		UITextField *tf = alert.textFields.firstObject;
 		double v = tf.text.doubleValue;

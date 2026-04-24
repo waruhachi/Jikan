@@ -2,6 +2,8 @@
 #include <Preferences/PSSpecifier.h>
 #include <UIKit/UIKit.h>
 
+#include "../Views/AnimatedTitleView.h"
+
 @interface JikanRootListController : PSListController
 - (void)resetPreferences;
 - (void)resetPillPosition;
