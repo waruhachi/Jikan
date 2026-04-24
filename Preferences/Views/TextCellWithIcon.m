@@ -16,6 +16,14 @@
 
 	self.selectionStyle = UITableViewCellSelectionStyleNone;
 	self.backgroundColor = UIColor.clearColor;
+	if ([self respondsToSelector:@selector(titleLabel)] && self.titleLabel) {
+		self.titleLabel.hidden = YES;
+		self.titleLabel.text = @"";
+	}
+	if (self.textLabel) {
+		self.textLabel.hidden = YES;
+		self.textLabel.text = @"";
+	}
 
 	_iconView = [[UIImageView alloc] initWithFrame:CGRectZero];
 	_iconView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -46,13 +54,25 @@
 		_iconView.image = symbol;
 	}
 
-	NSString *title = [specifier propertyForKey:@"label"];
+	NSString *title = [specifier propertyForKey:@"CCELabel"];
 	if (![title isKindOfClass:[NSString class]] || title.length == 0) {
 		title = [specifier propertyForKey:@"label"];
 	}
 	_iconTitleLabel.text = title;
 
 	return self;
+}
+
+- (void)layoutSubviews {
+	[super layoutSubviews];
+	if ([self respondsToSelector:@selector(titleLabel)] && self.titleLabel) {
+		self.titleLabel.hidden = YES;
+		self.titleLabel.text = @"";
+	}
+	if (self.textLabel) {
+		self.textLabel.hidden = YES;
+		self.textLabel.text = @"";
+	}
 }
 
 @end
