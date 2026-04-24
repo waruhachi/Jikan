@@ -5,8 +5,8 @@
 @end
 
 @interface JikanRootListController ()
-@property(nonatomic, assign) BOOL jikanReloadQueued;
-@property(nonatomic, assign) CFAbsoluteTime jikanLastReloadTime;
+@property (nonatomic, assign) BOOL jikanReloadQueued;
+@property (nonatomic, assign) CFAbsoluteTime jikanLastReloadTime;
 @end
 
 @implementation JikanRootListController
@@ -105,6 +105,75 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		}
 		[self reloadSpecifiers];
 	});
+}
+
+- (BOOL)_isEnableSectionInTableView:(UITableView *)tableView section:(NSInteger)section {
+	#pragma unused(tableView)
+	return section == 0;
+}
+
+- (UIView *)_legendFooterView {
+	UIView *container = [[UIView alloc] initWithFrame:CGRectZero];
+
+	UIStackView *stack = [[UIStackView alloc] initWithFrame:CGRectZero];
+	stack.translatesAutoresizingMaskIntoConstraints = NO;
+	stack.axis = UILayoutConstraintAxisVertical;
+	stack.spacing = 4.0;
+	stack.alignment = UIStackViewAlignmentLeading;
+	[container addSubview:stack];
+
+	NSArray<NSDictionary *> *legend = @[
+		@{@"color": UIColor.systemGreenColor, @"text": @"Fast charging"},
+		@{@"color": UIColor.systemYellowColor, @"text": @"Slow charging"},
+		@{@"color": UIColor.systemGrayColor, @"text": @"Unknown"}
+	];
+
+	for (NSDictionary *entry in legend) {
+		UIStackView *row = [[UIStackView alloc] initWithFrame:CGRectZero];
+		row.axis = UILayoutConstraintAxisHorizontal;
+		row.spacing = 6.0;
+		row.alignment = UIStackViewAlignmentCenter;
+
+		UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:12 weight:UIImageSymbolWeightSemibold];
+		UIImage *bolt = [UIImage systemImageNamed:@"bolt.fill" withConfiguration:cfg];
+		UIImageView *icon = [[UIImageView alloc] initWithImage:bolt];
+		icon.tintColor = entry[@"color"];
+		icon.contentMode = UIViewContentModeScaleAspectFit;
+		[icon.widthAnchor constraintEqualToConstant:12.0].active = YES;
+		[icon.heightAnchor constraintEqualToConstant:12.0].active = YES;
+
+		UILabel *label = [[UILabel alloc] initWithFrame:CGRectZero];
+		label.text = entry[@"text"];
+		label.textColor = [UIColor secondaryLabelColor];
+		label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+
+		[row addArrangedSubview:icon];
+		[row addArrangedSubview:label];
+		[stack addArrangedSubview:row];
+	}
+
+	[NSLayoutConstraint activateConstraints:@[
+		[stack.leadingAnchor constraintEqualToAnchor:container.leadingAnchor constant:16.0],
+		[stack.trailingAnchor constraintLessThanOrEqualToAnchor:container.trailingAnchor constant:-16.0],
+		[stack.topAnchor constraintEqualToAnchor:container.topAnchor constant:2.0],
+		[stack.bottomAnchor constraintEqualToAnchor:container.bottomAnchor constant:-8.0],
+	]];
+
+	return container;
+}
+
+- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section {
+	if ([self _isEnableSectionInTableView:tableView section:section]) {
+		return [self _legendFooterView];
+	}
+	return [super tableView:tableView viewForFooterInSection:section];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
+	if ([self _isEnableSectionInTableView:tableView section:section]) {
+		return 66.0;
+	}
+	return [super tableView:tableView heightForFooterInSection:section];
 }
 
 - (UIImage *)_axisIconForSymbol:(NSString *)symbolName {

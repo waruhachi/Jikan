@@ -22,6 +22,54 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Pill Preview</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>previewPlatter</string>
+			<key>label</key>
+			<string>Preview</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>lockPreviewXAxis</string>
+			<key>label</key>
+			<string>Lock X Axis</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>lockPreviewYAxis</string>
+			<key>label</key>
+			<string>Lock Y Axis</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Pill Display</string>
 		</dict>
 		<dict>
@@ -49,6 +97,46 @@
 			<string>tapToShowWattage</string>
 			<key>label</key>
 			<string>Tap To Show Current Wattage</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string> </string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSStaticTextCell</string>
+			<key>cellClass</key>
+			<string>TextCellWithIcon</string>
+			<key>label</key>
+			<string>Opacity</string>
+			<key>sfIcon</key>
+			<string>circle.righthalf.fill</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>pillBackgroundOpacitySlider</string>
+			<key>default</key>
+			<real>100</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>pillBackgroundOpacityPercent</string>
+			<key>label</key>
+			<string>Pill Background Opacity (%)</string>
+			<key>min</key>
+			<real>0</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
@@ -178,39 +266,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Opacity</string>
-			<key>footerText</key>
-			<string>Double tap number to edit manually.</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSliderCell</string>
-			<key>id</key>
-			<string>pillBackgroundOpacitySlider</string>
-			<key>default</key>
-			<real>100</real>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>pillBackgroundOpacityPercent</string>
-			<key>label</key>
-			<string>Pill Background Opacity (%)</string>
-			<key>min</key>
-			<real>0</real>
-			<key>max</key>
-			<real>100</real>
-			<key>showValue</key>
-			<true/>
-			<key>isContinuous</key>
-			<true/>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Display Options</string>
+			<string>Miscellaneous</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -226,48 +282,7 @@
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>previewPlatter</string>
-			<key>label</key>
-			<string>Preview</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>lockPreviewXAxis</string>
-			<key>label</key>
-			<string>Lock X Axis</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>lockPreviewYAxis</string>
-			<key>label</key>
-			<string>Lock Y Axis</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
+		<!--
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -296,13 +311,14 @@
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
+		-->
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Reset</string>
 			<key>footerText</key>
-			<string>⚡ Green = fast charging&#10;⚡ Yellow = slow charging&#10;⚡ Gray = unknown</string>
+			<string> </string>
 		</dict>
 		<dict>
 			<key>cell</key>

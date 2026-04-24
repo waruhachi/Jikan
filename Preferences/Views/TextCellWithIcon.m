@@ -10,6 +10,18 @@
 
 @implementation TextCellWithIcon
 
+- (UIColor *)_iconColorFromSpecifier:(PSSpecifier *)specifier {
+	NSString *name = [specifier propertyForKey:@"sfColor"];
+	if (![name isKindOfClass:[NSString class]] || name.length == 0) {
+		return [UIColor systemBlueColor];
+	}
+	if ([name isEqualToString:@"green"]) return [UIColor systemGreenColor];
+	if ([name isEqualToString:@"yellow"]) return [UIColor systemYellowColor];
+	if ([name isEqualToString:@"gray"]) return [UIColor systemGrayColor];
+	if ([name isEqualToString:@"blue"]) return [UIColor systemBlueColor];
+	return [UIColor systemBlueColor];
+}
+
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)identifier specifier:(PSSpecifier *)specifier {
 	self = [super initWithStyle:style reuseIdentifier:identifier specifier:specifier];
 	if (!self) return nil;
@@ -28,7 +40,7 @@
 	_iconView = [[UIImageView alloc] initWithFrame:CGRectZero];
 	_iconView.translatesAutoresizingMaskIntoConstraints = NO;
 	_iconView.contentMode = UIViewContentModeScaleAspectFit;
-	_iconView.tintColor = [UIColor systemBlueColor];
+	_iconView.tintColor = [self _iconColorFromSpecifier:specifier];
 	[self.contentView addSubview:_iconView];
 
 	_iconTitleLabel = [[UILabel alloc] initWithFrame:CGRectZero];

@@ -41,8 +41,11 @@ static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
-	showRemainingBatteryTime = [preferences objectForKey:@"showRemainingBatteryTime"] ? [preferences boolForKey:@"showRemainingBatteryTime"] : NO;
-	autoResizeRemainingBatteryTime = [preferences objectForKey:@"autoResizeRemainingBatteryTime"] ? [preferences boolForKey:@"autoResizeRemainingBatteryTime"] : NO;
+	// Disabled for now per request (kept for future re-enable)
+	// showRemainingBatteryTime = [preferences objectForKey:@"showRemainingBatteryTime"] ? [preferences boolForKey:@"showRemainingBatteryTime"] : NO;
+	// autoResizeRemainingBatteryTime = [preferences objectForKey:@"autoResizeRemainingBatteryTime"] ? [preferences boolForKey:@"autoResizeRemainingBatteryTime"] : NO;
+	showRemainingBatteryTime = NO;
+	autoResizeRemainingBatteryTime = NO;
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
 	previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
 	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
@@ -274,6 +277,7 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 	}
 }
 
+/*
 static _UIAnimatingLabel *TTFindAnimatingLabel(UIView *view) {
 	for (UIView *subview in view.subviews) {
 		if ([subview isKindOfClass:NSClassFromString(@"_UIAnimatingLabel")]) {
@@ -325,6 +329,7 @@ static NSString *TTBuildSubtitleWithRemainingTime(NSString *text) {
 	if (!suffix.length) return base;
 	return base.length ? [NSString stringWithFormat:@"%@ • %@", base, suffix] : suffix;
 }
+*/
 
 static void TT100SessionMaybeStart(NSDictionary *batteryInfo) {
 	if (_tt100CurrentSessionId >= 0) return;
@@ -417,8 +422,9 @@ static BOOL TTReadIsOnACFromSBUIController(BOOL *outHasValue) {
 		id controller = [cls sharedInstance];
 		if (!controller || ![controller respondsToSelector:@selector(isOnAC)]) return NO;
 		if (outHasValue) *outHasValue = YES;
-		return ((BOOL(*)(id, SEL))objc_msgSend)(controller, @selector(isOnAC));
-	} @catch (__unused NSException *exception) {
+		return ((BOOL (*)(id, SEL))objc_msgSend)(controller, @selector(isOnAC));
+	}
+	@catch (__unused NSException *exception) {
 		return NO;
 	}
 }
@@ -593,7 +599,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 %new
 - (void)_jikanBootstrapTick:(NSTimer *)timer {
-	#pragma unused(timer)
+#pragma unused(timer)
 	if (!self.window) {
 		[self _jikanStopChargingBootstrap];
 		return;
@@ -615,7 +621,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 %new
 - (void)_jikanChargingStateChanged:(NSNotification *)notification {
-	#pragma unused(notification)
+#pragma unused(notification)
 	if (![NSThread isMainThread]) {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[self _jikanChargingStateChanged:nil];
@@ -786,14 +792,15 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		self.remainingTimePlatter.alpha = 0.0;
 		self.remainingTimePlatter.transform = CGAffineTransformTranslate(CGAffineTransformMakeScale(0.965, 0.965), 0.0, 4.0);
 		[UIView animateWithDuration:showDuration
-						delay:0
-		 usingSpringWithDamping:0.88
-		  initialSpringVelocity:0.35
-					  options:showOptions
-				animations:^{
-			self.remainingTimePlatter.alpha = 1.0;
-			self.remainingTimePlatter.transform = CGAffineTransformIdentity;
-		} completion:nil];
+							  delay:0
+			 usingSpringWithDamping:0.88
+			  initialSpringVelocity:0.35
+							options:showOptions
+						 animations:^{
+							 self.remainingTimePlatter.alpha = 1.0;
+							 self.remainingTimePlatter.transform = CGAffineTransformIdentity;
+						 }
+						 completion:nil];
 	} else {
 		[UIView animateWithDuration:hideDuration delay:0 options:hideOptions animations:^{
 			self.remainingTimePlatter.alpha = 0.0;
@@ -923,34 +930,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 - (void)didMoveToWindow {
 	%orig;
-
-	for (UIView *subview in self.subviews) {
-		if (![subview isKindOfClass:NSClassFromString(@"_UIAnimatingLabel")]) continue;
-
-		_UIAnimatingLabel *label = (_UIAnimatingLabel *)subview;
-
-		objc_setAssociatedObject(label, kTTManagedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-
-		label.adjustsFontSizeToFitWidth = autoResizeRemainingBatteryTime;
-
-		NSString *current = label.text ?: @"";
-		NSRange sep = [current rangeOfString:@" • " options:NSBackwardsSearch];
-		NSString *baseText = (sep.location != NSNotFound) ? [current substringToIndex:sep.location] : current;
-		objc_setAssociatedObject(label, kTTBaseTextKey, baseText, OBJC_ASSOCIATION_COPY_NONATOMIC);
-
-		if (isCharging || !showRemainingBatteryTime) {
-			[[NSNotificationCenter defaultCenter] removeObserver:label name:TT100BatteryInfoUpdatedNotification object:nil];
-			label.text = baseText;
-			continue;
-		}
-
-		[[NSNotificationCenter defaultCenter] removeObserver:label name:TT100BatteryInfoUpdatedNotification object:nil];
-		[[NSNotificationCenter defaultCenter] addObserver:label selector:@selector(_updateBatteryTime:) name:TT100BatteryInfoUpdatedNotification object:nil];
-
-		[label _updateBatteryTime:nil];
-	}
-
-	[self setNeedsLayout];
+	// Remaining battery time subtitle integration disabled for now.
 }
 
 - (void)layoutSubviews {
@@ -976,34 +956,12 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 - (void)_updateLabel {
 	%orig;
-
-	if (isCharging || !showRemainingBatteryTime) return;
-
-	_UIAnimatingLabel *label = TTFindAnimatingLabel(self);
-	if (!label) return;
-
-	NSString *current = label.text ?: @"";
-	NSRange sep = [current rangeOfString:@" • " options:NSBackwardsSearch];
-	NSString *baseText = (sep.location != NSNotFound) ? [current substringToIndex:sep.location] : current;
-
-	objc_setAssociatedObject(label, kTTManagedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	objc_setAssociatedObject(label, kTTBaseTextKey, baseText, OBJC_ASSOCIATION_COPY_NONATOMIC);
-
-	[[NSNotificationCenter defaultCenter] removeObserver:label name:TT100BatteryInfoUpdatedNotification object:nil];
-	[[NSNotificationCenter defaultCenter] addObserver:label selector:@selector(_updateBatteryTime:) name:TT100BatteryInfoUpdatedNotification object:nil];
-
-	[label _updateBatteryTime:nil];
+	// Remaining battery time subtitle integration disabled for now.
 }
 
 - (void)setDate:(id)date {
 	%orig;
-
-	if (isCharging || !showRemainingBatteryTime) return;
-
-	_UIAnimatingLabel *label = TTFindAnimatingLabel(self);
-	if (label) {
-		[label _updateBatteryTime:nil];
-	}
+	// Remaining battery time subtitle integration disabled for now.
 }
 
 %end
@@ -1011,12 +969,11 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 %hook SBFLockScreenDateSubtitleDateView
 
 - (NSString *)string {
-	NSString *value = %orig;
-	return TTBuildSubtitleWithRemainingTime(value);
+	return %orig;
 }
 
 - (void)setString:(NSString *)string {
-	%orig(TTBuildSubtitleWithRemainingTime(string));
+	%orig;
 }
 
 %end
@@ -1025,70 +982,8 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 %new
 - (void)_updateBatteryTime:(NSNotification *)notification {
-	NSString *storedBase = objc_getAssociatedObject(self, kTTBaseTextKey);
-	if (!storedBase) return;
-
-	if (isCharging || !showRemainingBatteryTime) {
-		self.text = storedBase;
-		[[NSNotificationCenter defaultCenter] removeObserver:self name:TT100BatteryInfoUpdatedNotification object:nil];
-		return;
-	}
-
-	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-	id avgObj = batteryInfo[@"AvgTimeToEmpty"];
-	id remObj = batteryInfo[@"TimeRemaining"];
-
-	NSInteger minutes = 0;
-
-	if ([avgObj isKindOfClass:[NSNumber class]]) minutes = [(NSNumber *)avgObj integerValue];
-	else if ([avgObj isKindOfClass:[NSString class]])
-		minutes = [(NSString *)avgObj integerValue];
-
-	if (minutes <= 0) {
-		if ([remObj isKindOfClass:[NSNumber class]]) minutes = [(NSNumber *)remObj integerValue];
-		else if ([remObj isKindOfClass:[NSString class]])
-			minutes = [(NSString *)remObj integerValue];
-	}
-
-	if (minutes <= 0 || minutes > 48 * 60) {
-		NSString *baseText = objc_getAssociatedObject(self, kTTBaseTextKey);
-		if (baseText) self.text = baseText;
-		return;
-	}
-
-	NSInteger hours = minutes / 60;
-	NSInteger mins = minutes % 60;
-
-	NSString *timeString = nil;
-
-	if (hours > 0) {
-		if (mins == 0) {
-			timeString = [NSString stringWithFormat:@"%ldh left", (long)hours];
-		} else {
-			timeString = [NSString stringWithFormat:@"%ldh %02ldm left", (long)hours, (long)mins];
-		}
-	} else {
-		if (mins == 0) {
-			NSString *baseText = objc_getAssociatedObject(self, kTTBaseTextKey);
-			if (baseText) self.text = baseText;
-			return;
-		}
-		timeString = [NSString stringWithFormat:@"%ldm left", (long)mins];
-	}
-
-	NSString *current = self.text ?: @"";
-	NSRange sep = [current rangeOfString:@" • " options:NSBackwardsSearch];
-	NSString *currentBase = (sep.location != NSNotFound) ? [current substringToIndex:sep.location] : current;
-
-	if (currentBase.length > 0 && ![currentBase isEqualToString:storedBase]) {
-		storedBase = currentBase;
-		objc_setAssociatedObject(self, kTTBaseTextKey, storedBase, OBJC_ASSOCIATION_COPY_NONATOMIC);
-	}
-
-	self.adjustsFontSizeToFitWidth = autoResizeRemainingBatteryTime;
-	self.text = (storedBase.length > 0)
-		? [NSString stringWithFormat:@"%@ • %@", storedBase, timeString]
-		: timeString;
+#pragma unused(notification)
+	// Remaining battery time subtitle integration disabled for now.
 }
 
 %end
