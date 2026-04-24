@@ -3,6 +3,7 @@
 BOOL isCharging = NO;
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
 static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferences.reload";
+static NSString *const kJikanOpenNCPreviewNotification = @"moe.waru.jikan.preview.nc.request";
 static NSInteger _tt100CurrentSessionId = -1;
 static NSInteger _tt100LastSOC = -1;
 static CFAbsoluteTime _tt100LastSOCTime = 0;
@@ -29,6 +30,240 @@ static const void *kTTPlatterDraggingKey = &kTTPlatterDraggingKey;
 static BOOL _ttDidLogQuickActionHierarchy = NO;
 static BOOL _ttLastResolvedChargingValid = NO;
 static BOOL _ttAllowSBUIControllerFallback = NO;
+static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
+static BOOL _ttPreviewSessionActive = NO;
+
+static const char *TTUnqualifiedType(const char *type) {
+	while (type && (*type == 'r' || *type == 'n' || *type == 'N' || *type == 'o' || *type == 'O' || *type == 'R' || *type == 'V')) {
+		type++;
+	}
+	return type;
+}
+
+static BOOL TTInvokeSelectorWithDefaultArguments(id target, NSString *selectorName) {
+	if (!target || selectorName.length == 0) return NO;
+	SEL selector = NSSelectorFromString(selectorName);
+	if (!selector || ![target respondsToSelector:selector]) return NO;
+
+	NSMethodSignature *sig = [target methodSignatureForSelector:selector];
+	if (!sig) return NO;
+
+	NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+	inv.target = target;
+	inv.selector = selector;
+
+	NSUInteger argCount = sig.numberOfArguments;
+	for (NSUInteger i = 2; i < argCount; i++) {
+		const char *rawType = [sig getArgumentTypeAtIndex:i];
+		const char *type = TTUnqualifiedType(rawType);
+		if (!type) continue;
+
+		switch (type[0]) {
+			case '@': {
+				id value = nil;
+				[inv setArgument:&value atIndex:i];
+				break;
+			}
+			case 'B':
+			case 'c': {
+				BOOL value = YES;
+				[inv setArgument:&value atIndex:i];
+				break;
+			}
+			case 'i':
+			case 's':
+			case 'l':
+			case 'q':
+			case 'I':
+			case 'S':
+			case 'L':
+			case 'Q': {
+				NSInteger value = 1;
+				[inv setArgument:&value atIndex:i];
+				break;
+			}
+			case 'f': {
+				float value = 1.0f;
+				[inv setArgument:&value atIndex:i];
+				break;
+			}
+			case 'd': {
+				double value = 1.0;
+				[inv setArgument:&value atIndex:i];
+				break;
+			}
+			default: {
+				NSUInteger size = 0;
+				NSGetSizeAndAlignment(type, &size, NULL);
+				if (size > 0) {
+					void *zero = calloc(1, size);
+					[inv setArgument:zero atIndex:i];
+					free(zero);
+				}
+				break;
+			}
+		}
+	}
+
+	@try {
+		[inv invoke];
+		NSLog(@"[Jikan] NC preview invoked selector: %@ on %@", selectorName, NSStringFromClass([target class]));
+		return YES;
+	}
+	@catch (__unused NSException *exception) {
+		return NO;
+	}
+}
+
+static BOOL TTOpenNotificationCenterWithObject(id target) {
+	if (!target) return NO;
+	NSArray<NSString *> *selectors = @[
+		@"presentNotificationCenter",
+		@"showNotificationCenter",
+		@"revealNotificationCenter",
+		@"_showNotificationCenter",
+		@"_showNotifications",
+		@"_showNotificationsIfNecessary",
+		@"_presentNotificationCenter",
+		@"_revealNotificationCenter",
+		@"_setNotificationCenterVisible:animated:",
+		@"setNotificationCenterVisible:animated:",
+		@"_setVisible:animated:",
+		@"_setPresented:animated:",
+		@"_handleShowNotificationsSystemGesture",
+		@"_handleShowNotificationsGesture",
+		@"_showNotificationsGestureBeganFromSource:",
+		@"_showNotificationsGestureEndedWithCompletionType:",
+		@"_showNotificationsGestureEndedFromSource:",
+		@"_toggleNotificationCenter",
+		@"toggleNotificationCenter",
+		@"presentNotificationCenterAnimated:",
+		@"showNotificationCenterAnimated:",
+		@"revealNotificationCenterAnimated:",
+		@"_presentNotificationCenterAnimated:",
+		@"_showNotificationCenterAnimated:",
+		@"_revealNotificationCenterAnimated:",
+		@"presentAnimated:",
+		@"revealAnimated:"
+	];
+	for (NSString *name in selectors) {
+		if (TTInvokeSelectorWithDefaultArguments(target, name)) return YES;
+	}
+	return NO;
+}
+
+static BOOL TTOpenNotificationCenterViaCoverSheetManager(void) {
+	Class managerClass = NSClassFromString(@"SBCoverSheetPresentationManager");
+	if (!managerClass) return NO;
+
+	id manager = nil;
+	SEL sharedSel = NSSelectorFromString(@"sharedInstance");
+	SEL sharedIfExistsSel = NSSelectorFromString(@"sharedInstanceIfExists");
+	if ([managerClass respondsToSelector:sharedSel]) {
+		manager = ((id (*)(id, SEL))objc_msgSend)(managerClass, sharedSel);
+	} else if ([managerClass respondsToSelector:sharedIfExistsSel]) {
+		manager = ((id (*)(id, SEL))objc_msgSend)(managerClass, sharedIfExistsSel);
+	}
+	if (!manager) return NO;
+
+	SEL presentSel = NSSelectorFromString(@"setCoverSheetPresented:animated:withCompletion:");
+	if ([manager respondsToSelector:presentSel]) {
+		((void (*)(id, SEL, BOOL, BOOL, id))objc_msgSend)(manager, presentSel, YES, YES, nil);
+		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetPresented:animated:withCompletion:");
+		return YES;
+	}
+
+	SEL presentOptionsSel = NSSelectorFromString(@"setCoverSheetPresented:animated:options:withCompletion:");
+	if ([manager respondsToSelector:presentOptionsSel]) {
+		((void (*)(id, SEL, BOOL, BOOL, unsigned long long, id))objc_msgSend)(manager, presentOptionsSel, YES, YES, 0, nil);
+		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetPresented:animated:options:withCompletion:");
+		return YES;
+	}
+
+	SEL presentDismissModalSel = NSSelectorFromString(@"setCoverSheetPresented:animated:dismissModalPresentation:withCompletion:");
+	if ([manager respondsToSelector:presentDismissModalSel]) {
+		((void (*)(id, SEL, BOOL, BOOL, BOOL, id))objc_msgSend)(manager, presentDismissModalSel, YES, YES, NO, nil);
+		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetPresented:animated:dismissModalPresentation:withCompletion:");
+		return YES;
+	}
+
+	SEL translationSel = NSSelectorFromString(@"setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:suppressingIconFly:animated:");
+	if ([manager respondsToSelector:translationSel]) {
+		((void (*)(id, SEL, BOOL, BOOL, BOOL, BOOL, BOOL))objc_msgSend)(manager, translationSel, YES, YES, YES, NO, YES);
+		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:suppressingIconFly:animated:");
+		return YES;
+	}
+
+	SEL translationLegacySel = NSSelectorFromString(@"setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:animated:");
+	if ([manager respondsToSelector:translationLegacySel]) {
+		((void (*)(id, SEL, BOOL, BOOL, BOOL, BOOL))objc_msgSend)(manager, translationLegacySel, YES, YES, YES, YES);
+		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:animated:");
+		return YES;
+	}
+
+	return NO;
+}
+
+static void TTOpenNotificationCenterPreview(void) {
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	if ((now - _ttLastNCPreviewTriggerTime) < 0.35) return;
+	_ttLastNCPreviewTriggerTime = now;
+
+	@try {
+		if (TTOpenNotificationCenterViaCoverSheetManager()) return;
+
+		id app = [UIApplication sharedApplication];
+		if (TTOpenNotificationCenterWithObject(app)) return;
+		id appDelegate = [app respondsToSelector:@selector(delegate)] ? ((id (*)(id, SEL))objc_msgSend)(app, @selector(delegate)) : nil;
+		if (TTOpenNotificationCenterWithObject(appDelegate)) return;
+
+		NSArray<NSString *> *classNames = @[
+			@"SBNotificationCenterController",
+			@"SBUIController",
+			@"SpringBoard",
+			@"SBMainWorkspace"
+		];
+		NSArray<NSString *> *singletonSelectors = @[
+			@"sharedInstance",
+			@"sharedController",
+			@"defaultInstance"
+		];
+
+		for (NSString *className in classNames) {
+			Class cls = NSClassFromString(className);
+			if (!cls) continue;
+
+			for (NSString *selName in singletonSelectors) {
+				SEL sel = NSSelectorFromString(selName);
+				if (![cls respondsToSelector:sel]) continue;
+				id instance = ((id (*)(id, SEL))objc_msgSend)(cls, sel);
+				if (!instance) continue;
+				if (TTOpenNotificationCenterWithObject(instance)) return;
+			}
+
+			if (TTOpenNotificationCenterWithObject(cls)) return;
+		}
+		NSLog(@"[Jikan] NC preview request received but no compatible selector was found");
+	}
+	@catch (NSException *exception) {
+		NSLog(@"[Jikan] Failed opening Notification Center preview: %@", exception);
+	}
+}
+
+static void TTNCPreviewRequestReceived(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+#pragma unused(center, observer, name, object, userInfo)
+	dispatch_async(dispatch_get_main_queue(), ^{
+		_ttPreviewSessionActive = YES;
+		[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{ @"isCharging": @(isCharging) }];
+		TTOpenNotificationCenterPreview();
+	});
+}
+
+static void TTEndPreviewSession(void) {
+	if (!_ttPreviewSessionActive) return;
+	_ttPreviewSessionActive = NO;
+	[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{ @"isCharging": @(isCharging) }];
+}
 
 static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
 	double v = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : (double)(fallback * 100.0);
@@ -47,7 +282,9 @@ static void TTLoadPreferences(void) {
 	showRemainingBatteryTime = NO;
 	autoResizeRemainingBatteryTime = NO;
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
-	previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
+	// Preview is session-based (triggered from "Show Preview" button) and does not persist.
+	// previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
+	previewPlatter = NO;
 	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
 	lockPreviewXAxis = [preferences objectForKey:@"lockPreviewXAxis"] ? [preferences boolForKey:@"lockPreviewXAxis"] : NO;
 	lockPreviewYAxis = [preferences objectForKey:@"lockPreviewYAxis"] ? [preferences boolForKey:@"lockPreviewYAxis"] : NO;
@@ -562,10 +799,16 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		TTSyncChargingStateFromBatteryInfoAndNotify(NO);
 		[self _jikanStartChargingBootstrap];
 		[self _jikanChargingStateChanged:nil];
-	} else if (installed) {
+	} else {
+		_ttPreviewSessionActive = NO;
+		if (self.remainingTimePlatter) {
+			[self.remainingTimePlatter setPreviewMode:NO];
+		}
+		if (installed) {
 		[[NSNotificationCenter defaultCenter] removeObserver:self name:JikanChargingStateChangedNotification object:nil];
 		objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		[self _jikanStopChargingBootstrap];
+		}
 	}
 }
 
@@ -636,7 +879,8 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 %new
 - (void)_jikanHandlePlatterLongPress:(UILongPressGestureRecognizer *)gesture {
-	if (!previewPlatter || !self.remainingTimePlatter) return;
+	BOOL previewEnabled = (previewPlatter || _ttPreviewSessionActive);
+	if (!previewEnabled || !self.remainingTimePlatter) return;
 	JikanPlatterView *pill = self.remainingTimePlatter;
 	CGPoint location = [gesture locationInView:self];
 	BOOL isLandscape = CGRectGetWidth(self.bounds) > CGRectGetHeight(self.bounds);
@@ -758,12 +1002,13 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
 	BOOL hasEstimate = [TT100 hasEstimateWithBatteryInfo:batteryInfo];
 	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:NULL];
+	BOOL previewEnabled = (previewPlatter || _ttPreviewSessionActive);
 
-	BOOL shouldShow = previewPlatter || (isCharging && (hasEstimate || (showAfterFullCharge && fullyCharged)));
-	[self.remainingTimePlatter setPreviewMode:(previewPlatter && !isCharging)];
+	BOOL shouldShow = previewEnabled || (isCharging && (hasEstimate || (showAfterFullCharge && fullyCharged)));
+	[self.remainingTimePlatter setPreviewMode:(previewEnabled && !isCharging)];
 
 	UILongPressGestureRecognizer *lp = (UILongPressGestureRecognizer *)objc_getAssociatedObject(self, kTTPlatterLongPressKey);
-	lp.enabled = previewPlatter;
+	lp.enabled = previewEnabled;
 
 	[self _setRemainingTimePlatterVisible:shouldShow];
 }
@@ -924,6 +1169,16 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	}
 }
 
+- (void)viewWillDisappear:(BOOL)animated {
+	%orig;
+	TTEndPreviewSession();
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+	%orig;
+	TTEndPreviewSession();
+}
+
 %end
 
 %hook CSProminentSubtitleDateView
@@ -991,6 +1246,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 %ctor {
 	TTLoadPreferences();
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTNCPreviewRequestReceived, (__bridge CFStringRef)kJikanOpenNCPreviewNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
 	if (!enabled) {
 		return;

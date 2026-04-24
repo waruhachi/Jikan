@@ -8,4 +8,5 @@
 - (void)resetPreferences;
 - (void)resetPillPosition;
 - (void)openPillBackgroundOpacityEditor;
+- (void)openNotificationCenterPreview;
 @end

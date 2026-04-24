@@ -13,6 +13,7 @@
 
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
 static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferences.reload";
+static NSString *const kJikanOpenNCPreviewNotification = @"moe.waru.jikan.preview.nc.request";
 static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercent";
 
 static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -108,7 +109,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (BOOL)_isEnableSectionInTableView:(UITableView *)tableView section:(NSInteger)section {
-	#pragma unused(tableView)
+#pragma unused(tableView)
 	return section == 0;
 }
 
@@ -268,6 +269,17 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
 	[alert addAction:save];
 	[self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)openNotificationCenterPreview {
+	static CFAbsoluteTime lastTrigger = 0;
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	if ((now - lastTrigger) < 0.35) return;
+	lastTrigger = now;
+
+	CFNotificationCenterRef darwin = CFNotificationCenterGetDarwinNotifyCenter();
+	CFNotificationCenterPostNotification(darwin, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
+	CFNotificationCenterPostNotification(darwin, (__bridge CFStringRef)kJikanOpenNCPreviewNotification, NULL, NULL, YES);
 }
 
 - (void)resetPreferences {

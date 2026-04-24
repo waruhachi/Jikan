@@ -26,17 +26,11 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>previewPlatter</string>
+			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>Preview</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
+			<string>Show Preview</string>
+			<key>action</key>
+			<string>openNotificationCenterPreview</string>
 		</dict>
 		<dict>
 			<key>cell</key>
