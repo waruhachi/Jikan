@@ -20,6 +20,12 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Pill Display</string>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
 			<false/>
@@ -50,13 +56,17 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Manual Position (%)</string>
+			<string>Pill Position</string>
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
+			<string>PSStaticTextCell</string>
+			<key>cellClass</key>
+			<string>TextCellWithIcon</string>
 			<key>label</key>
-			<string>Portrait Axis</string>
+			<string>Portrait</string>
+			<key>sfIcon</key>
+			<string>iphone</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -108,9 +118,13 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
+			<string>PSStaticTextCell</string>
+			<key>cellClass</key>
+			<string>TextCellWithIcon</string>
 			<key>label</key>
-			<string>Landscape Axis</string>
+			<string>Landscape</string>
+			<key>sfIcon</key>
+			<string>iphone.landscape</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -223,6 +237,34 @@
 			<string>previewPlatter</string>
 			<key>label</key>
 			<string>Preview</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>lockPreviewXAxis</string>
+			<key>label</key>
+			<string>Lock X Axis</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>lockPreviewYAxis</string>
+			<key>label</key>
+			<string>Lock Y Axis</string>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>

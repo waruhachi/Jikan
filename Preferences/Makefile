@@ -1,6 +1,6 @@
 BUNDLE_NAME = JikanPreferences
 
-$(BUNDLE_NAME)_FILES = $(wildcard Controllers/*.m)
+$(BUNDLE_NAME)_FILES = $(wildcard Controllers/*.m) $(wildcard Views/*.m)
 $(BUNDLE_NAME)_CFLAGS = -fobjc-arc
 $(BUNDLE_NAME)_FRAMEWORKS = UIKit
 $(BUNDLE_NAME)_PRIVATE_FRAMEWORKS = Preferences
