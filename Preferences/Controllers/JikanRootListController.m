@@ -113,6 +113,13 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	return section == 0;
 }
 
+- (BOOL)_isSpacerSectionInTableView:(UITableView *)tableView section:(NSInteger)section {
+	NSString *header = [super tableView:tableView titleForHeaderInSection:section];
+	if (![header isKindOfClass:[NSString class]]) return NO;
+	NSString *trimmed = [header stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+	return trimmed.length == 0;
+}
+
 - (UIView *)_legendFooterView {
 	UIView *container = [[UIView alloc] initWithFrame:CGRectZero];
 
@@ -170,11 +177,27 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	return [super tableView:tableView viewForFooterInSection:section];
 }
 
+- (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
+	if ([self _isSpacerSectionInTableView:tableView section:section]) {
+		UIView *spacer = [[UIView alloc] initWithFrame:CGRectZero];
+		spacer.backgroundColor = UIColor.clearColor;
+		return spacer;
+	}
+	return [super tableView:tableView viewForHeaderInSection:section];
+}
+
 - (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
 	if ([self _isEnableSectionInTableView:tableView section:section]) {
 		return 66.0;
 	}
 	return [super tableView:tableView heightForFooterInSection:section];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
+	if ([self _isSpacerSectionInTableView:tableView section:section]) {
+		return 2.0;
+	}
+	return [super tableView:tableView heightForHeaderInSection:section];
 }
 
 - (UIImage *)_axisIconForSymbol:(NSString *)symbolName {

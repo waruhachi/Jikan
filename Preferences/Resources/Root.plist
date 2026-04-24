@@ -23,15 +23,7 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Pill Preview</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>label</key>
-			<string>Show Preview</string>
-			<key>action</key>
-			<string>openNotificationCenterPreview</string>
-		</dict>
+		</dict>		
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -64,6 +56,20 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string> </string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Show Preview</string>
+			<key>action</key>
+			<string>openNotificationCenterPreview</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Pill Display</string>
 		</dict>
 		<dict>
@@ -90,7 +96,7 @@
 			<key>key</key>
 			<string>tapToShowWattage</string>
 			<key>label</key>
-			<string>Tap To Show Current Wattage</string>
+			<string>Show current wattage</string>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
