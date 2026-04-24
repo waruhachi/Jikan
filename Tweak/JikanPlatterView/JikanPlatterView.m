@@ -412,10 +412,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	if (sourceView.backgroundColor) {
 		self.backgroundColor = sourceView.backgroundColor;
 	}
-	self.alpha = sourceView.alpha;
 	self.opaque = sourceView.opaque;
 	self.clipsToBounds = sourceView.clipsToBounds;
-	self.tintColor = sourceView.tintColor;
 
 	UIVisualEffectView *sourceEffectView = nil;
 	if ([sourceView isKindOfClass:[UIVisualEffectView class]]) {
@@ -431,11 +429,9 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		} else if (!target.effect) {
 			target.effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterialDark];
 		}
-		target.alpha = sourceEffectView.alpha;
 		target.backgroundColor = sourceEffectView.backgroundColor;
 		target.opaque = sourceEffectView.opaque;
 		target.clipsToBounds = sourceEffectView.clipsToBounds;
-		target.tintColor = sourceEffectView.tintColor;
 		TTCopyLayerVisualProperties(sourceEffectView.layer, target.layer);
 
 		UIView *sourceBackdrop = TTFindFirstSubviewWithClassNameFragment(sourceEffectView, @"_UIVisualEffectBackdropView");

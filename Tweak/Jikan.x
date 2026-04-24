@@ -247,6 +247,7 @@ static UIView *TTFindNearestQuickActionMaterialView(UIView *root) {
 
 static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 	if (!coverSheet.remainingTimePlatter) return;
+	if (TTPlatterStyleCaptured(coverSheet)) return;
 	CSQuickActionsView *quickActions = TTFindQuickActionsView(coverSheet);
 	CSQuickActionsButton *referenceButton = quickActions.flashlightButton ?: quickActions.cameraButton;
 
@@ -547,6 +548,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	BOOL installed = [objc_getAssociatedObject(self, kTTCoverSheetObserverInstalledKey) boolValue];
 	if (self.window) {
 		_ttAllowSBUIControllerFallback = YES;
+		TTSetPlatterStyleCaptured(self, NO);
 		if (!installed) {
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanChargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
 			objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -564,7 +566,9 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 - (void)layoutSubviews {
 	%orig;
 
-	[self _addOrRemoveRemainingTimePlatterIfNecessary];
+	if (!self.remainingTimePlatter) {
+		[self _addOrRemoveRemainingTimePlatterIfNecessary];
+	}
 	[self _configureRemainingTimePlatterConstraints];
 }
 
@@ -750,9 +754,6 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:NULL];
 
 	BOOL shouldShow = previewPlatter || (isCharging && (hasEstimate || (showAfterFullCharge && fullyCharged)));
-	if (shouldShow) {
-		[[TT100 sharedInstance] _refreshBatteryInfo];
-	}
 	[self.remainingTimePlatter setPreviewMode:(previewPlatter && !isCharging)];
 
 	UILongPressGestureRecognizer *lp = (UILongPressGestureRecognizer *)objc_getAssociatedObject(self, kTTPlatterLongPressKey);
