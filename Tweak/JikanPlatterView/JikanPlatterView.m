@@ -91,6 +91,9 @@ static CGFloat TTPillBackgroundOpacity(void) {
 	return (CGFloat)(percent / 100.0);
 }
 
+static const CGFloat kTTPreviewOutlineLineWidth = 2.5;
+static const CGFloat kTTPreviewOutlineGap = 2.0;
+
 @implementation JikanPlatterView
 
 static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
@@ -192,14 +195,26 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	[super layoutSubviews];
 
 	self.layer.cornerRadius = self.bounds.size.height / 2;
-	self.clipsToBounds = YES;
+	self.clipsToBounds = NO;
 	if (_backgroundView) {
 		_backgroundView.layer.cornerRadius = _backgroundView.bounds.size.height / 2;
 		_backgroundView.layer.cornerCurve = self.layer.cornerCurve;
+		_backgroundView.clipsToBounds = YES;
+	}
+	if (_styleOverlayView) {
+		_styleOverlayView.layer.cornerRadius = _styleOverlayView.bounds.size.height / 2;
+		_styleOverlayView.layer.cornerCurve = self.layer.cornerCurve;
+		_styleOverlayView.clipsToBounds = YES;
+	}
+	if (_contentTintReplicaView) {
+		_contentTintReplicaView.layer.cornerRadius = _contentTintReplicaView.bounds.size.height / 2;
+		_contentTintReplicaView.layer.cornerCurve = self.layer.cornerCurve;
+		_contentTintReplicaView.clipsToBounds = YES;
 	}
 
 	[self _updateTypographyForCurrentSize];
 	[self _applyBackgroundOpacity];
+	[self _updatePreviewOutlineAppearance];
 }
 
 - (void)_setupSubviews {
@@ -353,6 +368,31 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[self updateWithTimeString:_latestTimeString ?: @"N/A"];
 	}
 	[self _updateTapGestureState];
+	[self _updatePreviewOutlineAppearance];
+}
+
+- (void)_updatePreviewOutlineAppearance {
+	if (!_previewMode) {
+		_previewOutlineLayer.hidden = YES;
+		return;
+	}
+
+	if (!_previewOutlineLayer) {
+		_previewOutlineLayer = [CAShapeLayer layer];
+		_previewOutlineLayer.fillColor = UIColor.clearColor.CGColor;
+		_previewOutlineLayer.strokeColor = UIColor.systemRedColor.CGColor;
+		_previewOutlineLayer.lineWidth = kTTPreviewOutlineLineWidth;
+		_previewOutlineLayer.lineJoin = kCALineJoinRound;
+		_previewOutlineLayer.zPosition = -1.0;
+		[self.layer addSublayer:_previewOutlineLayer];
+	}
+
+	CGFloat radius = CGRectGetHeight(self.bounds) * 0.5 + kTTPreviewOutlineGap;
+	CGFloat inset = -(kTTPreviewOutlineGap + (kTTPreviewOutlineLineWidth * 0.5));
+	CGRect outlineRect = CGRectInset(self.bounds, inset, inset);
+
+	_previewOutlineLayer.hidden = NO;
+	_previewOutlineLayer.path = [UIBezierPath bezierPathWithRoundedRect:outlineRect cornerRadius:radius].CGPath;
 }
 
 - (void)enterEditMode:(BOOL)editing {
@@ -450,7 +490,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 					if (value && value != [NSNull null]) {
 						[targetBackdrop setValue:value forKey:key];
 					}
-				} @catch (__unused NSException *exception) {
+				}
+				@catch (__unused NSException *exception) {
 				}
 			}
 		}
@@ -534,11 +575,12 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 }
 
 - (void)_preferencesPossiblyChanged:(NSNotification *)notification {
-	#pragma unused(notification)
+#pragma unused(notification)
 	[self _updateTapGestureState];
 	if (!TTTapToShowWattageEnabled()) {
 		_showingWattage = NO;
-		[self updateWithTimeString:_latestTimeString ?: _timeRemainingLabel.text ?: @"N/A"];
+		[self updateWithTimeString:_latestTimeString ?: _timeRemainingLabel.text ?
+																				 : @"N/A"];
 	} else if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
 		_showingWattage = NO;
 		_timeRemainingLabel.text = @"100%";

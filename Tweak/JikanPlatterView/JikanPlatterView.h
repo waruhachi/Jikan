@@ -10,6 +10,7 @@
 	UIView *_backgroundView;
 	UIView *_styleOverlayView;
 	UIView *_contentTintReplicaView;
+	CAShapeLayer *_previewOutlineLayer;
 	NSTimer *_refreshTimer;
 	UIImageView *_boltImageView;
 	UITapGestureRecognizer *_tapGesture;
