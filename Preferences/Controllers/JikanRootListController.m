@@ -1,5 +1,14 @@
 #include "JikanRootListController.h"
 
+@interface JikanRootListController (CoalescedReload)
+- (void)_scheduleSpecifiersReload:(BOOL)immediate;
+@end
+
+@interface JikanRootListController ()
+@property(nonatomic, assign) BOOL jikanReloadQueued;
+@property(nonatomic, assign) CFAbsoluteTime jikanLastReloadTime;
+@end
+
 @implementation JikanRootListController
 
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
@@ -12,7 +21,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (!controller) return;
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (!controller.viewIfLoaded.window) return;
-		[controller reloadSpecifiers];
+		[controller _scheduleSpecifiersReload:NO];
 	});
 }
 
@@ -37,7 +46,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		self.navigationItem.titleView = titleView;
 	}
 
-	[super viewDidAppear:animated];
 	[self _installOpacityValueTapIfNeeded];
 }
 
@@ -62,6 +70,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)reloadSpecifiers {
+	self.jikanLastReloadTime = CFAbsoluteTimeGetCurrent();
+	self.jikanReloadQueued = NO;
 	[super reloadSpecifiers];
 	[self _configureAxisSliderLeftImages];
 	[self _installOpacityValueTapIfNeeded];
@@ -69,12 +79,32 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)viewWillAppear:(BOOL)animated {
 	[super viewWillAppear:animated];
-	[self reloadSpecifiers];
+	[self _scheduleSpecifiersReload:YES];
 }
 
 - (void)_appDidBecomeActive:(NSNotification *)note {
 #pragma unused(note)
-	[self reloadSpecifiers];
+	[self _scheduleSpecifiersReload:NO];
+}
+
+- (void)_scheduleSpecifiersReload:(BOOL)immediate {
+	if (immediate) {
+		[self reloadSpecifiers];
+		return;
+	}
+
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	if ((now - self.jikanLastReloadTime) < 0.25) return;
+	if (self.jikanReloadQueued) return;
+
+	self.jikanReloadQueued = YES;
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.08 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+		if (!self.viewIfLoaded.window) {
+			self.jikanReloadQueued = NO;
+			return;
+		}
+		[self reloadSpecifiers];
+	});
 }
 
 - (UIImage *)_axisIconForSymbol:(NSString *)symbolName {
@@ -162,7 +192,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 
 		dispatch_async(dispatch_get_main_queue(), ^{
-			[weakSelf reloadSpecifiers];
+			[weakSelf _scheduleSpecifiersReload:YES];
 		});
 	}];
 
@@ -205,7 +235,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		[self reloadSpecifiers];
+		[self _scheduleSpecifiersReload:YES];
 	});
 }
 
@@ -234,7 +264,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 
 	dispatch_async(dispatch_get_main_queue(), ^{
-		[self reloadSpecifiers];
+		[self _scheduleSpecifiersReload:YES];
 	});
 }
 
