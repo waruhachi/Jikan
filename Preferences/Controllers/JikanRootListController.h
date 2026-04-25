@@ -3,6 +3,7 @@
 #include <UIKit/UIKit.h>
 
 #include "../Views/AnimatedTitleView.h"
+#include "../Views/JikanHeaderView.h"
 
 @interface JikanRootListController : PSListController
 - (void)resetPreferences;

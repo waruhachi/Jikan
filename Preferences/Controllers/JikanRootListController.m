@@ -50,6 +50,19 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[self _installOpacityValueTapIfNeeded];
 }
 
+- (void)viewDidLoad {
+	[super viewDidLoad];
+
+	self.navigationController.navigationBar.prefersLargeTitles = NO;
+	self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+
+	NSArray<NSString *> *subtitles = @[@"Show time left to full charge on your lock screen"];
+	JikanHeaderView *header = [[JikanHeaderView alloc] initWithTitle:@"Jikan" subtitles:subtitles bundle:[self bundle]];
+	header.frame = CGRectMake(0.0, 0.0, CGRectGetWidth(self.view.bounds), 180.0);
+	UITableView *tableView = self.table ?: [self valueForKey:@"_table"];
+	if (tableView) tableView.tableHeaderView = header;
+}
+
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
 	// Send scroll offset updates to view
 	if ([self.navigationItem.titleView respondsToSelector:@selector(adjustLabelPositionToScrollOffset:)]) {
