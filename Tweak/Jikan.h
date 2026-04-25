@@ -12,8 +12,6 @@
 
 static BOOL enabled;
 static BOOL hideQuickActionButtons;
-static BOOL showRemainingBatteryTime;
-static BOOL autoResizeRemainingBatteryTime;
 static BOOL tapToShowWattage;
 static BOOL previewPlatter;
 static BOOL showAfterFullCharge;
@@ -28,9 +26,6 @@ static CGFloat platterPosYNormLandscape;
 static BOOL platterHasCustomPositionLandscape;
 
 extern BOOL isCharging;
-
-static const void *kTTManagedKey = &kTTManagedKey;
-static const void *kTTBaseTextKey = &kTTBaseTextKey;
 
 @interface NCNotificationListCountIndicatorView : UIView
 @end
@@ -69,20 +64,4 @@ static const void *kTTBaseTextKey = &kTTBaseTextKey;
 @interface SBUIController : NSObject
 + (id)sharedInstance;
 - (BOOL)isOnAC;
-@end
-
-@interface CSProminentSubtitleDateView : UIView
-@end
-
-@interface SBFLockScreenDateSubtitleDateView : UIView
-@property (nonatomic, copy) NSString *string;
-
-- (void)setString:(NSString *)string;
-@end
-
-@interface _UIAnimatingLabel : UILabel
-@end
-
-@interface _UIAnimatingLabel (Jikan)
-- (void)_updateBatteryTime:(NSNotification *)notification;
 @end

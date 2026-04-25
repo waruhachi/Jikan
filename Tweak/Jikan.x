@@ -13,10 +13,8 @@ static BOOL _tt100CurrentIsWireless = NO;
 static const void *kTTPlatterWidthConstraintKey = &kTTPlatterWidthConstraintKey;
 static const void *kTTPlatterHeightConstraintKey = &kTTPlatterHeightConstraintKey;
 static const void *kTTPlatterCenterXConstraintKey = &kTTPlatterCenterXConstraintKey;
-static const void *kTTPlatterBottomConstraintKey = &kTTPlatterBottomConstraintKey;
 static const void *kTTPlatterConstraintsInstalledKey = &kTTPlatterConstraintsInstalledKey;
 static const void *kTTPlatterStyleCapturedKey = &kTTPlatterStyleCapturedKey;
-static const void *kTTPlatterAlignmentLoggedKey = &kTTPlatterAlignmentLoggedKey;
 static const void *kTTCoverSheetObserverInstalledKey = &kTTCoverSheetObserverInstalledKey;
 static const void *kTTCoverSheetBootstrapTimerKey = &kTTCoverSheetBootstrapTimerKey;
 static const void *kTTCoverSheetBootstrapStartTimeKey = &kTTCoverSheetBootstrapStartTimeKey;
@@ -27,7 +25,6 @@ static const void *kTTPlatterDragStartTouchKey = &kTTPlatterDragStartTouchKey;
 static const void *kTTPlatterDefaultCenterComputedPortraitKey = &kTTPlatterDefaultCenterComputedPortraitKey;
 static const void *kTTPlatterDefaultCenterComputedLandscapeKey = &kTTPlatterDefaultCenterComputedLandscapeKey;
 static const void *kTTPlatterDraggingKey = &kTTPlatterDraggingKey;
-static BOOL _ttDidLogQuickActionHierarchy = NO;
 static BOOL _ttLastResolvedChargingValid = NO;
 static BOOL _ttAllowSBUIControllerFallback = NO;
 static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
@@ -270,11 +267,6 @@ static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
-	// Disabled for now per request (kept for future re-enable)
-	// showRemainingBatteryTime = [preferences objectForKey:@"showRemainingBatteryTime"] ? [preferences boolForKey:@"showRemainingBatteryTime"] : NO;
-	// autoResizeRemainingBatteryTime = [preferences objectForKey:@"autoResizeRemainingBatteryTime"] ? [preferences boolForKey:@"autoResizeRemainingBatteryTime"] : NO;
-	showRemainingBatteryTime = NO;
-	autoResizeRemainingBatteryTime = NO;
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
 	// Preview is session-based (triggered from "Show Preview" button) and does not persist.
 	// previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
@@ -349,11 +341,6 @@ static BOOL TTPlatterStyleCaptured(UIView *view) {
 
 static void TTSetPlatterStyleCaptured(UIView *view, BOOL captured) {
 	objc_setAssociatedObject(view, kTTPlatterStyleCapturedKey, @(captured), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-static void TTLogQuickActionAndPlatterTreesOnce(CSCoverSheetView *coverSheet, UIView *styleSource) {
-	#pragma unused(coverSheet, styleSource)
-	(void)_ttDidLogQuickActionHierarchy;
 }
 
 static CSQuickActionsView *TTFindQuickActionsView(UIView *root) {
@@ -447,7 +434,6 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 		[coverSheet.remainingTimePlatter applyQuickActionVisualEffect:sourceEffect.effect];
 		UIView *styleSource = sourceMaterialView.superview ?: (referenceButton ?: sourceMaterialView);
 		[coverSheet.remainingTimePlatter applyQuickActionBackgroundStyleFromView:styleSource];
-		TTLogQuickActionAndPlatterTreesOnce(coverSheet, styleSource);
 		if (!TTPlatterStyleCaptured(coverSheet)) {
 			TTSetPlatterStyleCaptured(coverSheet, YES);
 		}
@@ -459,60 +445,6 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 		TTSetPlatterStyleCaptured(coverSheet, YES);
 	}
 }
-
-/*
-static _UIAnimatingLabel *TTFindAnimatingLabel(UIView *view) {
-	for (UIView *subview in view.subviews) {
-		if ([subview isKindOfClass:NSClassFromString(@"_UIAnimatingLabel")]) {
-			return (_UIAnimatingLabel *)subview;
-		}
-	}
-	return nil;
-}
-
-static NSString *TTStripBatterySuffix(NSString *text) {
-	NSString *value = text ?: @"";
-	NSRange sep = [value rangeOfString:@" • " options:NSBackwardsSearch];
-	return (sep.location != NSNotFound) ? [value substringToIndex:sep.location] : value;
-}
-
-static NSString *TTRemainingTimeSuffix(void) {
-	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-	id avgObj = batteryInfo[@"AvgTimeToEmpty"];
-	id remObj = batteryInfo[@"TimeRemaining"];
-
-	NSInteger minutes = 0;
-	if ([avgObj isKindOfClass:[NSNumber class]]) minutes = [(NSNumber *)avgObj integerValue];
-	else if ([avgObj isKindOfClass:[NSString class]])
-		minutes = [(NSString *)avgObj integerValue];
-
-	if (minutes <= 0) {
-		if ([remObj isKindOfClass:[NSNumber class]]) minutes = [(NSNumber *)remObj integerValue];
-		else if ([remObj isKindOfClass:[NSString class]])
-			minutes = [(NSString *)remObj integerValue];
-	}
-
-	if (minutes <= 0 || minutes > 48 * 60) return nil;
-
-	NSInteger hours = minutes / 60;
-	NSInteger mins = minutes % 60;
-	if (hours > 0) {
-		if (mins == 0) return [NSString stringWithFormat:@"%ldh left", (long)hours];
-		return [NSString stringWithFormat:@"%ldh %02ldm left", (long)hours, (long)mins];
-	}
-	if (mins == 0) return nil;
-	return [NSString stringWithFormat:@"%ldm left", (long)mins];
-}
-
-static NSString *TTBuildSubtitleWithRemainingTime(NSString *text) {
-	NSString *base = TTStripBatterySuffix(text);
-	if (isCharging || !showRemainingBatteryTime) return base;
-
-	NSString *suffix = TTRemainingTimeSuffix();
-	if (!suffix.length) return base;
-	return base.length ? [NSString stringWithFormat:@"%@ • %@", base, suffix] : suffix;
-}
-*/
 
 static void TT100SessionMaybeStart(NSDictionary *batteryInfo) {
 	if (_tt100CurrentSessionId >= 0) return;
@@ -1123,68 +1055,6 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 - (void)viewDidDisappear:(BOOL)animated {
 	%orig;
 	TTEndPreviewSession();
-}
-
-%end
-
-%hook CSProminentSubtitleDateView
-
-- (void)didMoveToWindow {
-	%orig;
-	// Remaining battery time subtitle integration disabled for now.
-}
-
-- (void)layoutSubviews {
-	%orig;
-
-	CGRect bounds = self.bounds;
-
-	for (UIView *subview in self.subviews) {
-		if (![subview isKindOfClass:NSClassFromString(@"_UIAnimatingLabel")]) continue;
-
-		_UIAnimatingLabel *label = (_UIAnimatingLabel *)subview;
-		NSNumber *managed = objc_getAssociatedObject(label, kTTManagedKey);
-		if (!managed.boolValue) continue;
-
-		CGRect f = label.frame;
-
-		f.origin.x = 0.0;
-		f.size.width = bounds.size.width;
-
-		label.frame = f;
-	}
-}
-
-- (void)_updateLabel {
-	%orig;
-	// Remaining battery time subtitle integration disabled for now.
-}
-
-- (void)setDate:(id)date {
-	%orig;
-	// Remaining battery time subtitle integration disabled for now.
-}
-
-%end
-
-%hook SBFLockScreenDateSubtitleDateView
-
-- (NSString *)string {
-	return %orig;
-}
-
-- (void)setString:(NSString *)string {
-	%orig;
-}
-
-%end
-
-%hook _UIAnimatingLabel
-
-%new
-- (void)_updateBatteryTime:(NSNotification *)notification {
-#pragma unused(notification)
-	// Remaining battery time subtitle integration disabled for now.
 }
 
 %end
