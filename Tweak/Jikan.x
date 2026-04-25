@@ -107,7 +107,6 @@ static BOOL TTInvokeSelectorWithDefaultArguments(id target, NSString *selectorNa
 
 	@try {
 		[inv invoke];
-		NSLog(@"[Jikan] NC preview invoked selector: %@ on %@", selectorName, NSStringFromClass([target class]));
 		return YES;
 	}
 	@catch (__unused NSException *exception) {
@@ -169,35 +168,30 @@ static BOOL TTOpenNotificationCenterViaCoverSheetManager(void) {
 	SEL presentSel = NSSelectorFromString(@"setCoverSheetPresented:animated:withCompletion:");
 	if ([manager respondsToSelector:presentSel]) {
 		((void (*)(id, SEL, BOOL, BOOL, id))objc_msgSend)(manager, presentSel, YES, YES, nil);
-		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetPresented:animated:withCompletion:");
 		return YES;
 	}
 
 	SEL presentOptionsSel = NSSelectorFromString(@"setCoverSheetPresented:animated:options:withCompletion:");
 	if ([manager respondsToSelector:presentOptionsSel]) {
 		((void (*)(id, SEL, BOOL, BOOL, unsigned long long, id))objc_msgSend)(manager, presentOptionsSel, YES, YES, 0, nil);
-		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetPresented:animated:options:withCompletion:");
 		return YES;
 	}
 
 	SEL presentDismissModalSel = NSSelectorFromString(@"setCoverSheetPresented:animated:dismissModalPresentation:withCompletion:");
 	if ([manager respondsToSelector:presentDismissModalSel]) {
 		((void (*)(id, SEL, BOOL, BOOL, BOOL, id))objc_msgSend)(manager, presentDismissModalSel, YES, YES, NO, nil);
-		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetPresented:animated:dismissModalPresentation:withCompletion:");
 		return YES;
 	}
 
 	SEL translationSel = NSSelectorFromString(@"setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:suppressingIconFly:animated:");
 	if ([manager respondsToSelector:translationSel]) {
 		((void (*)(id, SEL, BOOL, BOOL, BOOL, BOOL, BOOL))objc_msgSend)(manager, translationSel, YES, YES, YES, NO, YES);
-		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:suppressingIconFly:animated:");
 		return YES;
 	}
 
 	SEL translationLegacySel = NSSelectorFromString(@"setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:animated:");
 	if ([manager respondsToSelector:translationLegacySel]) {
 		((void (*)(id, SEL, BOOL, BOOL, BOOL, BOOL))objc_msgSend)(manager, translationLegacySel, YES, YES, YES, YES);
-		NSLog(@"[Jikan] NC preview via SBCoverSheetPresentationManager setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:animated:");
 		return YES;
 	}
 
@@ -243,7 +237,7 @@ static void TTOpenNotificationCenterPreview(void) {
 
 			if (TTOpenNotificationCenterWithObject(cls)) return;
 		}
-		NSLog(@"[Jikan] NC preview request received but no compatible selector was found");
+		return;
 	}
 	@catch (NSException *exception) {
 		NSLog(@"[Jikan] Failed opening Notification Center preview: %@", exception);
@@ -357,55 +351,9 @@ static void TTSetPlatterStyleCaptured(UIView *view, BOOL captured) {
 	objc_setAssociatedObject(view, kTTPlatterStyleCapturedKey, @(captured), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
-static NSString *TTColorDescription(UIColor *color) {
-	if (!color) return @"nil";
-	CGFloat r = 0, g = 0, b = 0, a = 0;
-	if ([color getRed:&r green:&g blue:&b alpha:&a]) {
-		return [NSString stringWithFormat:@"rgba(%.3f,%.3f,%.3f,%.3f)", r, g, b, a];
-	}
-	return color.description;
-}
-
-static void TTLogVisualTree(UIView *view, NSInteger depth, NSInteger maxDepth) {
-	if (!view || depth > maxDepth) return;
-	NSMutableString *indent = [NSMutableString string];
-	for (NSInteger i = 0; i < depth; i++) [indent appendString:@"  "];
-	CALayer *layer = view.layer;
-	NSLog(@"[Jikan][Tree] %@%@ frame=%@ alpha=%.3f hidden=%d clips=%d bg=%@ tint=%@ cr=%.2f curve=%ld border=%.2f shadow(op=%.2f r=%.2f) compositing=%@ filters=%@",
-		indent,
-		NSStringFromClass(view.class),
-		NSStringFromCGRect(view.frame),
-		view.alpha,
-		view.hidden,
-		view.clipsToBounds,
-		TTColorDescription(view.backgroundColor),
-		TTColorDescription(view.tintColor),
-		layer.cornerRadius,
-		(long)layer.cornerCurve,
-		layer.borderWidth,
-		layer.shadowOpacity,
-		layer.shadowRadius,
-		layer.compositingFilter,
-		layer.filters);
-
-	if ([view isKindOfClass:[UIVisualEffectView class]]) {
-		UIVisualEffectView *ev = (UIVisualEffectView *)view;
-		NSLog(@"[Jikan][Tree] %@  effect=%@", indent, NSStringFromClass([ev.effect class]));
-	}
-
-	for (UIView *subview in view.subviews) {
-		TTLogVisualTree(subview, depth + 1, maxDepth);
-	}
-}
-
 static void TTLogQuickActionAndPlatterTreesOnce(CSCoverSheetView *coverSheet, UIView *styleSource) {
-	if (_ttDidLogQuickActionHierarchy) return;
-	if (!coverSheet || !styleSource || !coverSheet.remainingTimePlatter) return;
-	_ttDidLogQuickActionHierarchy = YES;
-	NSLog(@"[Jikan] ---- QuickAction source hierarchy ----");
-	TTLogVisualTree(styleSource, 0, 5);
-	NSLog(@"[Jikan] ---- Platter hierarchy ----");
-	TTLogVisualTree(coverSheet.remainingTimePlatter, 0, 5);
+	#pragma unused(coverSheet, styleSource)
+	(void)_ttDidLogQuickActionHierarchy;
 }
 
 static CSQuickActionsView *TTFindQuickActionsView(UIView *root) {
@@ -502,7 +450,6 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 		TTLogQuickActionAndPlatterTreesOnce(coverSheet, styleSource);
 		if (!TTPlatterStyleCaptured(coverSheet)) {
 			TTSetPlatterStyleCaptured(coverSheet, YES);
-			NSLog(@"[Jikan] Captured QA visual effect: class=%@ alpha=%.3f cornerRadius=%.2f", NSStringFromClass(sourceMaterialView.class), sourceMaterialView.alpha, sourceMaterialView.layer.cornerRadius);
 		}
 		return;
 	}
@@ -510,7 +457,6 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 	[coverSheet.remainingTimePlatter applyQuickActionBackgroundStyleFromView:(referenceButton ?: sourceMaterialView)];
 	if (!TTPlatterStyleCaptured(coverSheet)) {
 		TTSetPlatterStyleCaptured(coverSheet, YES);
-		NSLog(@"[Jikan] QA material view is not UIVisualEffectView: %@ alpha=%.3f cornerRadius=%.2f", NSStringFromClass(sourceMaterialView.class), sourceMaterialView.alpha, sourceMaterialView.layer.cornerRadius);
 	}
 }
 
