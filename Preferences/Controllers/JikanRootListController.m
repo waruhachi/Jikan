@@ -1,5 +1,9 @@
 #include "JikanRootListController.h"
 
+@interface PSListController (Private)
+- (id)readPreferenceValue:(PSSpecifier *)specifier;
+@end
+
 @interface JikanRootListController (CoalescedReload)
 - (void)_scheduleSpecifiersReload:(BOOL)immediate;
 @end
@@ -29,6 +33,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (NSArray *)specifiers {
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
+		[self collectDynamicSpecifiersFromArray:_specifiers];
 		[self _configureAxisSliderLeftImages];
 		CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_appDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
@@ -77,6 +82,15 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	[super setPreferenceValue:value specifier:specifier];
+
+	if (self.hasDynamicSpecifiers) {
+		NSString *specifierID = [specifier propertyForKey:PSIDKey];
+		PSSpecifier *dynamicSpecifier = [self.dynamicSpecifiers objectForKey:specifierID];
+		if (dynamicSpecifier) {
+			[self.table beginUpdates];
+			[self.table endUpdates];
+		}
+	}
 }
 
 - (void)viewDidLayoutSubviews {
@@ -87,8 +101,96 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	self.jikanLastReloadTime = CFAbsoluteTimeGetCurrent();
 	self.jikanReloadQueued = NO;
 	[super reloadSpecifiers];
+	[self collectDynamicSpecifiersFromArray:self.specifiers];
 	[self _configureAxisSliderLeftImages];
 	[self _installOpacityValueTapIfNeeded];
+}
+
+- (void)collectDynamicSpecifiersFromArray:(NSArray *)array {
+	if (!self.dynamicSpecifiers) {
+		self.dynamicSpecifiers = [NSMutableDictionary new];
+	} else {
+		[self.dynamicSpecifiers removeAllObjects];
+	}
+
+	for (PSSpecifier *specifier in array) {
+		NSString *dynamicSpecifierRule = [specifier propertyForKey:@"dynamicRule"];
+		if (dynamicSpecifierRule.length == 0) continue;
+
+		NSArray *ruleComponents = [dynamicSpecifierRule componentsSeparatedByString:@", "];
+		if (ruleComponents.count == 3) {
+			NSString *opposingSpecifierID = [ruleComponents objectAtIndex:0];
+			[self.dynamicSpecifiers setObject:specifier forKey:opposingSpecifierID];
+		} else {
+			[NSException raise:NSInternalInconsistencyException format:@"dynamicRule key requires three components (Specifier ID, Comparator, Value To Compare To). You have %ld of 3 (%@) for specifier '%@'.", (long)ruleComponents.count, dynamicSpecifierRule, [specifier propertyForKey:PSTitleKey]];
+		}
+	}
+
+	self.hasDynamicSpecifiers = (self.dynamicSpecifiers.count > 0);
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+	if (self.hasDynamicSpecifiers) {
+		PSSpecifier *dynamicSpecifier = [self specifierAtIndexPath:indexPath];
+		if ([self.dynamicSpecifiers.allValues containsObject:dynamicSpecifier]) {
+			BOOL shouldHide = [self shouldHideSpecifier:dynamicSpecifier];
+			UITableViewCell *specifierCell = [dynamicSpecifier propertyForKey:PSTableCellKey];
+			specifierCell.clipsToBounds = shouldHide;
+			if (shouldHide) return 0;
+		}
+
+		if ([dynamicSpecifier propertyForKey:@"height"] != 0) {
+			return [[dynamicSpecifier propertyForKey:@"height"] doubleValue];
+		}
+	}
+
+	return UITableViewAutomaticDimension;
+}
+
+- (BOOL)shouldHideSpecifier:(PSSpecifier *)specifier {
+	if (!specifier) return NO;
+
+	NSString *dynamicSpecifierRule = [specifier propertyForKey:@"dynamicRule"];
+	NSArray *ruleComponents = [dynamicSpecifierRule componentsSeparatedByString:@", "];
+	if (ruleComponents.count != 3) return NO;
+
+	PSSpecifier *opposingSpecifier = [self specifierForID:[ruleComponents objectAtIndex:0]];
+	id opposingValue = [self readPreferenceValue:opposingSpecifier];
+	id requiredValue = [ruleComponents objectAtIndex:2];
+
+	if ([opposingValue isKindOfClass:NSNumber.class]) {
+		JikanDynamicSpecifierOperatorType operatorType = [self operatorTypeForString:[ruleComponents objectAtIndex:1]];
+		switch (operatorType) {
+			case JikanEqualToOperatorType:
+				return ([opposingValue intValue] == [requiredValue intValue]);
+			case JikanNotEqualToOperatorType:
+				return ([opposingValue intValue] != [requiredValue intValue]);
+			case JikanGreaterThanOperatorType:
+				return ([opposingValue intValue] > [requiredValue intValue]);
+			case JikanLessThanOperatorType:
+				return ([opposingValue intValue] < [requiredValue intValue]);
+		}
+	}
+
+	if ([opposingValue isKindOfClass:NSString.class]) {
+		return [opposingValue isEqualToString:requiredValue];
+	}
+
+	if ([opposingValue isKindOfClass:NSArray.class]) {
+		return [opposingValue containsObject:requiredValue];
+	}
+
+	return NO;
+}
+
+- (JikanDynamicSpecifierOperatorType)operatorTypeForString:(NSString *)string {
+	NSDictionary *operatorValues = @{
+		@"==": @(JikanEqualToOperatorType),
+		@"!=": @(JikanNotEqualToOperatorType),
+		@">": @(JikanGreaterThanOperatorType),
+		@"<": @(JikanLessThanOperatorType)
+	};
+	return [operatorValues[string] intValue];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -335,6 +437,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		@"pillPosYLandscapePercent",
 		@"pillBackgroundOpacityPercent",
 		@"hideQuickActionButtons",
+		@"hideQuickActionButtonsOnlyWhenCharging",
 		@"showRemainingBatteryTime",
 		@"autoResizeRemainingBatteryTime",
 		@"tapToShowWattage",

@@ -5,7 +5,17 @@
 #include "../Views/AnimatedTitleView.h"
 #include "../Views/JikanHeaderView.h"
 
+typedef NS_ENUM(NSInteger, JikanDynamicSpecifierOperatorType) {
+	JikanEqualToOperatorType,
+	JikanNotEqualToOperatorType,
+	JikanGreaterThanOperatorType,
+	JikanLessThanOperatorType,
+};
+
 @interface JikanRootListController : PSListController
+@property (nonatomic, assign) BOOL hasDynamicSpecifiers;
+@property (nonatomic, retain) NSMutableDictionary *dynamicSpecifiers;
+
 - (void)resetPreferences;
 - (void)resetPillPosition;
 - (void)openPillBackgroundOpacityEditor;

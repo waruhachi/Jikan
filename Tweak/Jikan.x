@@ -30,6 +30,12 @@ static BOOL _ttAllowSBUIControllerFallback = NO;
 static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
 static BOOL _ttPreviewSessionActive = NO;
 
+static BOOL TTShouldHideQuickActionButtonsNow(void) {
+	if (!hideQuickActionButtons) return NO;
+	if (!hideQuickActionButtonsOnlyWhenCharging) return YES;
+	return isCharging;
+}
+
 static const char *TTUnqualifiedType(const char *type) {
 	while (type && (*type == 'r' || *type == 'n' || *type == 'N' || *type == 'o' || *type == 'O' || *type == 'R' || *type == 'V')) {
 		type++;
@@ -267,6 +273,7 @@ static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
+	hideQuickActionButtonsOnlyWhenCharging = [preferences objectForKey:@"hideQuickActionButtonsOnlyWhenCharging"] ? [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"] : NO;
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
 	// Preview is session-based (triggered from "Show Preview" button) and does not persist.
 	// previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
@@ -653,11 +660,9 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 - (void)refreshSupportedButtons {
 	%orig;
-
-	if (!hideQuickActionButtons) return;
-
-	self.cameraButton.hidden = YES;
-	self.flashlightButton.hidden = YES;
+	BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
+	self.cameraButton.hidden = shouldHide;
+	self.flashlightButton.hidden = shouldHide;
 }
 
 %end
@@ -752,6 +757,12 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		return;
 	}
 	[self _addOrRemoveRemainingTimePlatterIfNecessary];
+	CSQuickActionsView *quickActions = TTFindQuickActionsView(self);
+	if (quickActions) {
+		BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
+		quickActions.cameraButton.hidden = shouldHide;
+		quickActions.flashlightButton.hidden = shouldHide;
+	}
 	[self _configureRemainingTimePlatterConstraints];
 	[self setNeedsLayout];
 	[self layoutIfNeeded];
@@ -945,7 +956,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	static const CGFloat kPlatterHeight = 60.0;
 	BOOL isLandscape = CGRectGetWidth(self.bounds) > CGRectGetHeight(self.bounds);
 	CGFloat platterWidth = MAX(180.0, MIN(280.0, self.bounds.size.width * 0.45));
-	CGFloat defaultBottomOffset = hideQuickActionButtons ? -28.0 : -76.0;
+	CGFloat defaultBottomOffset = TTShouldHideQuickActionButtonsNow() ? -28.0 : -76.0;
 	CGFloat defaultCenterXOffset = 0.0;
 
 	CGRect flashRect = CGRectZero;

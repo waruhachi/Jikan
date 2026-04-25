@@ -12,6 +12,7 @@
 
 static BOOL enabled;
 static BOOL hideQuickActionButtons;
+static BOOL hideQuickActionButtonsOnlyWhenCharging;
 static BOOL tapToShowWattage;
 static BOOL previewPlatter;
 static BOOL showAfterFullCharge;

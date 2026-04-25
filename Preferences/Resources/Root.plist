@@ -271,6 +271,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>hideQuickActionsToggleID</string>
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
@@ -279,6 +281,24 @@
 			<string>hideQuickActionButtons</string>
 			<key>label</key>
 			<string>Hide Quick Action Buttons</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>hideQuickActionButtonsOnlyWhenCharging</string>
+			<key>label</key>
+			<string>Only While Charging</string>
+			<key>height</key>
+			<real>44</real>
+			<key>dynamicRule</key>
+			<string>hideQuickActionsToggleID, ==, 0</string>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
