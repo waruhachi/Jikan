@@ -62,6 +62,13 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
+            - name: Read package version
+              id: package_metadata
+              shell: bash
+              run: |
+                version=$(awk -F': *' '$1 == "Version" { print $2 }' layout/DEBIAN/control)
+                echo "version=$version" >> "$GITHUB_OUTPUT"
+
             - name: Download all DEBs
               uses: actions/download-artifact@v4
               with:
@@ -120,7 +127,7 @@ jobs:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                 tag_name: release
-                name: ${{ github.event.repository.name }}
+                name: ${{ github.event.repository.name }} v${{ steps.package_metadata.outputs.version }}
                 body_path: release_body.md
                 files: packages/*.deb
                 draft: false
