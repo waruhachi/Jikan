@@ -13,7 +13,7 @@
 		_titleLabel = [[UILabel alloc] init];
 		_titleLabel.text = title;
 		_titleLabel.textAlignment = NSTextAlignmentCenter;
-		_titleLabel.textColor = [UIColor whiteColor];
+		_titleLabel.textColor = [UIColor labelColor];
 		_titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightHeavy];
 		_titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
 		[_titleLabel sizeToFit];
