@@ -527,6 +527,8 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 			[arr addObject:@(slice)];
 		}
 	}
+	_tt100LastSOC = soc;
+	_tt100LastSOCTime = now;
 }
 
 static BOOL TTReadIsOnACFromSBUIController(BOOL *outHasValue) {

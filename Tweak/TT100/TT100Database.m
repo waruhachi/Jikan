@@ -165,7 +165,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	__block NSInteger newId = -1;
 	dispatch_sync(_queue, ^{
 		const char *sql = "INSERT INTO sessions(start_ts,start_soc) VALUES(?,?)";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			double now = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
 			sqlite3_bind_double(stmt, 1, now);
@@ -184,7 +184,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *sql = "UPDATE sessions SET end_ts=?, end_soc=? WHERE id=?";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			double now = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
 			sqlite3_bind_double(stmt, 1, now);
@@ -201,7 +201,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *sql = "UPDATE sessions SET charger_class=?, is_wireless=? WHERE id=?";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			sqlite3_bind_text(stmt, 1, chargerClass.UTF8String, -1, SQLITE_TRANSIENT);
 			sqlite3_bind_int(stmt, 2, isWireless ? 1 : 0);
@@ -217,7 +217,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *sql = "UPDATE sessions SET plateau_detected=1, plateau_start_ts=? WHERE id=? AND plateau_detected=0";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			sqlite3_bind_double(stmt, 1, ts);
 			sqlite3_bind_int(stmt, 2, (int)sessionId);
@@ -232,7 +232,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *sql = "UPDATE sessions SET plateau_end_ts=? WHERE id=? AND plateau_end_ts IS NULL";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			sqlite3_bind_double(stmt, 1, ts);
 			sqlite3_bind_int(stmt, 2, (int)sessionId);
@@ -256,7 +256,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *sql = "INSERT INTO ticks(session_id,soc,ts,battery_temp_c,instantaneous_current_mA,screen_on,cpu_load,thermal_level) VALUES(?,?,?,?,?,?,?,?)";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			sqlite3_bind_int(stmt, 1, (int)sessionId);
 			sqlite3_bind_int(stmt, 2, (int)soc);
@@ -282,7 +282,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *upsert = "INSERT INTO percent_stats(charger_class,percent,median_seconds,iqr_seconds,mean_seconds,m2_seconds,sample_count,last_updated_ts) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(charger_class,percent) DO UPDATE SET median_seconds=excluded.median_seconds, iqr_seconds=excluded.iqr_seconds, mean_seconds=((percent_stats.mean_seconds*percent_stats.sample_count)+(excluded.mean_seconds*excluded.sample_count))/NULLIF(percent_stats.sample_count+excluded.sample_count,0), m2_seconds=(percent_stats.m2_seconds + excluded.m2_seconds + ((excluded.mean_seconds-percent_stats.mean_seconds)*(excluded.mean_seconds-percent_stats.mean_seconds))*percent_stats.sample_count*excluded.sample_count/NULLIF(percent_stats.sample_count+excluded.sample_count,0)), sample_count=percent_stats.sample_count + excluded.sample_count, last_updated_ts=excluded.last_updated_ts;";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, upsert, -1, &stmt, NULL) != SQLITE_OK) return;
 		double now = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
 		[durationsByPercent enumerateKeysAndObjectsUsingBlock:^(NSNumber *_Nonnull key, NSArray<NSNumber *> *_Nonnull samples, BOOL *_Nonnull stop) {
@@ -349,7 +349,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 			lastUpdated[i] = 0;
 		}
 		const char *q = "SELECT percent, mean_seconds, m2_seconds, sample_count, median_seconds, iqr_seconds, last_updated_ts FROM percent_stats WHERE charger_class=?";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, q, -1, &stmt, NULL) != SQLITE_OK) return;
 		sqlite3_bind_text(stmt, 1, chargerClass.UTF8String, -1, SQLITE_TRANSIENT);
 		while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -384,7 +384,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *sql = "INSERT INTO unlock_events(ts,was_charging,soc) VALUES(?,?,?)";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			sqlite3_bind_double(stmt, 1, ts);
 			sqlite3_bind_int(stmt, 2, charging ? 1 : 0);
@@ -401,7 +401,7 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	if (![self openIfNeeded]) return;
 	dispatch_async(_queue, ^{
 		const char *sql = "DELETE FROM ticks WHERE session_id NOT IN (SELECT id FROM sessions ORDER BY start_ts DESC LIMIT ?)";
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 		if (sqlite3_prepare_v2(_db, sql, -1, &stmt, NULL) == SQLITE_OK) {
 			sqlite3_bind_int(stmt, 1, (int)recentCount);
 			sqlite3_step(stmt);

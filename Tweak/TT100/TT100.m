@@ -555,7 +555,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	}
 
 	double liveEstimate = 0;
-	NSDictionary *adapter = batteryInfo[@"AdapterDetails"];
+	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
 	double adapterCurr = fabs([adapter[@"Current"] doubleValue]);
 	if (adapterCurr <= 0) adapterCurr = fabs([batteryInfo[@"Amperage"] doubleValue]);
 	if (adapterCurr > 1e-6) {

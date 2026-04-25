@@ -7,7 +7,7 @@
 }
 
 - (instancetype)initWithTitle:(NSString *)title minimumScrollOffsetRequired:(CGFloat)minimumOffset {
-	if ([super init]) {
+	if ((self = [super init])) {
 		self.superview.clipsToBounds = YES;
 
 		_titleLabel = [[UILabel alloc] init];
