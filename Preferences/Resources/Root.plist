@@ -105,6 +105,8 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string> </string>
+			<key>footerText</key>
+			<string>Tap and Hold the Slider Knob to Edit</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -145,6 +147,8 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Pill Position</string>
+			<key>footerText</key>
+			<string>Tap and Hold the Slider Knob to Edit</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -168,7 +172,7 @@
 			<key>key</key>
 			<string>pillPosXPortraitPercent</string>
 			<key>label</key>
-			<string>Portrait X %</string>
+			<string>Portrait X</string>
 			<key>min</key>
 			<real>0</real>
 			<key>max</key>
@@ -192,7 +196,7 @@
 			<key>key</key>
 			<string>pillPosYPortraitPercent</string>
 			<key>label</key>
-			<string>Portrait Y %</string>
+			<string>Portrait Y</string>
 			<key>min</key>
 			<real>0</real>
 			<key>max</key>
@@ -226,7 +230,7 @@
 			<key>key</key>
 			<string>pillPosXLandscapePercent</string>
 			<key>label</key>
-			<string>Landscape X %</string>
+			<string>Landscape X</string>
 			<key>min</key>
 			<real>0</real>
 			<key>max</key>
@@ -250,7 +254,7 @@
 			<key>key</key>
 			<string>pillPosYLandscapePercent</string>
 			<key>label</key>
-			<string>Landscape Y %</string>
+			<string>Landscape Y</string>
 			<key>min</key>
 			<real>0</real>
 			<key>max</key>
@@ -337,8 +341,6 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Reset</string>
-			<key>footerText</key>
-			<string> </string>
 		</dict>
 		<dict>
 			<key>cell</key>

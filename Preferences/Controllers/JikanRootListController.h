@@ -1,6 +1,7 @@
 #include <Preferences/PSListController.h>
 #include <Preferences/PSSpecifier.h>
 #include <UIKit/UIKit.h>
+#include <objc/runtime.h>
 
 #include "../Views/AnimatedTitleView.h"
 #include "../Views/JikanHeaderView.h"

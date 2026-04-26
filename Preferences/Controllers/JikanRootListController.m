@@ -13,12 +13,44 @@
 @property (nonatomic, assign) CFAbsoluteTime jikanLastReloadTime;
 @end
 
-@implementation JikanRootListController
-
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
 static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferences.reload";
 static NSString *const kJikanOpenNCPreviewNotification = @"moe.waru.jikan.preview.nc.request";
 static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercent";
+static const void *kJikanSliderEditorInstalledKey = &kJikanSliderEditorInstalledKey;
+static const void *kJikanSliderEditorConfigKey = &kJikanSliderEditorConfigKey;
+static const void *kJikanSliderThumbOnlyKey = &kJikanSliderThumbOnlyKey;
+
+@interface UISlider (JikanThumbOnlyTracking)
+- (BOOL)jikan_beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event;
+@end
+
+@implementation UISlider (JikanThumbOnlyTracking)
+
+- (BOOL)jikan_beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
+	if ([objc_getAssociatedObject(self, kJikanSliderThumbOnlyKey) boolValue]) {
+		CGPoint point = [touch locationInView:self];
+		CGRect trackRect = [self trackRectForBounds:self.bounds];
+		CGRect thumbRect = [self thumbRectForBounds:self.bounds trackRect:trackRect value:self.value];
+		if (!CGRectContainsPoint(CGRectInset(thumbRect, -12.0, -12.0), point)) {
+			return NO;
+		}
+	}
+	return [self jikan_beginTrackingWithTouch:touch withEvent:event];
+}
+
+@end
+
+static void JikanInstallSliderTrackingGuardIfNeeded(void) {
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		Method original = class_getInstanceMethod([UISlider class], @selector(beginTrackingWithTouch:withEvent:));
+		Method replacement = class_getInstanceMethod([UISlider class], @selector(jikan_beginTrackingWithTouch:withEvent:));
+		if (original && replacement) method_exchangeImplementations(original, replacement);
+	});
+}
+
+@implementation JikanRootListController
 
 static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
 #pragma unused(center, name, object, userInfo)
@@ -52,7 +84,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		self.navigationItem.titleView = titleView;
 	}
 
-	[self _installOpacityValueTapIfNeeded];
+	[self _installSliderLongPressEditorsIfNeeded];
 }
 
 - (void)viewDidLoad {
@@ -73,6 +105,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if ([self.navigationItem.titleView respondsToSelector:@selector(adjustLabelPositionToScrollOffset:)]) {
 		[(AnimatedTitleView *)self.navigationItem.titleView adjustLabelPositionToScrollOffset:scrollView.contentOffset.y];
 	}
+	[self _installSliderLongPressEditorsIfNeeded];
 }
 
 - (void)dealloc {
@@ -103,7 +136,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[super reloadSpecifiers];
 	[self collectDynamicSpecifiersFromArray:self.specifiers];
 	[self _configureAxisSliderLeftImages];
-	[self _installOpacityValueTapIfNeeded];
+	[self _installSliderLongPressEditorsIfNeeded];
 }
 
 - (void)collectDynamicSpecifiersFromArray:(NSArray *)array {
@@ -338,67 +371,97 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 }
 
-- (void)_installOpacityValueTapIfNeeded {
-	if (!self.table) return;
+- (NSArray<NSDictionary *> *)_sliderEditorConfigs {
+	return @[
+		@{@"id": @"pillBackgroundOpacitySlider", @"key": kPillBackgroundOpacityKey, @"title": @"Pill Background Opacity", @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosXPortraitSlider", @"key": @"pillPosXPortraitPercent", @"title": @"Portrait X", @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosYPortraitSlider", @"key": @"pillPosYPortraitPercent", @"title": @"Portrait Y", @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosXLandscapeSlider", @"key": @"pillPosXLandscapePercent", @"title": @"Landscape X", @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosYLandscapeSlider", @"key": @"pillPosYLandscapePercent", @"title": @"Landscape Y", @"min": @0.0, @"max": @100.0, @"decimals": @1}
+	];
+}
 
-	PSSpecifier *opacitySpecifier = [self specifierForID:@"pillBackgroundOpacitySlider"];
-	if (!opacitySpecifier) return;
-	NSInteger row = [self indexOfSpecifier:opacitySpecifier];
-	if (row == NSNotFound) return;
+- (UISlider *)_firstSliderInView:(UIView *)view {
+	if ([view isKindOfClass:[UISlider class]]) return (UISlider *)view;
+	for (UIView *subview in view.subviews) {
+		UISlider *slider = [self _firstSliderInView:subview];
+		if (slider) return slider;
+	}
+	return nil;
+}
 
-	NSIndexPath *indexPath = [NSIndexPath indexPathForRow:row inSection:0];
-	UITableViewCell *cell = [self.table cellForRowAtIndexPath:indexPath];
-	if (!cell) return;
+- (void)_installSliderLongPressEditorsIfNeeded {
+	JikanInstallSliderTrackingGuardIfNeeded();
 
-	for (UIView *subview in cell.contentView.subviews) {
-		if (![subview isKindOfClass:[UILabel class]]) continue;
-		UILabel *label = (UILabel *)subview;
-		if (!label.userInteractionEnabled) {
-			label.userInteractionEnabled = YES;
-		}
-		BOOL isLikelyValueLabel = (label.textAlignment == NSTextAlignmentRight || CGRectGetWidth(label.frame) <= 72.0);
-		if (!isLikelyValueLabel) continue;
+	for (NSDictionary *config in [self _sliderEditorConfigs]) {
+		PSSpecifier *specifier = [self specifierForID:config[@"id"]];
+		if (!specifier) continue;
 
-		BOOL already = NO;
-		for (UIGestureRecognizer *gr in label.gestureRecognizers) {
-			if ([gr isKindOfClass:[UITapGestureRecognizer class]] && gr.view == label) {
-				already = YES;
-				break;
-			}
-		}
-		if (!already) {
-			UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(openPillBackgroundOpacityEditor)];
-			tap.numberOfTapsRequired = 2;
-			[label addGestureRecognizer:tap];
-		}
+		UITableViewCell *cell = [specifier propertyForKey:PSTableCellKey];
+		if (!cell) continue;
+
+		UISlider *slider = [self _firstSliderInView:cell.contentView];
+		if (!slider) continue;
+		objc_setAssociatedObject(slider, kJikanSliderThumbOnlyKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		if ([objc_getAssociatedObject(slider, kJikanSliderEditorInstalledKey) boolValue]) continue;
+
+		UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleSliderKnobHold:)];
+		hold.minimumPressDuration = 0.35;
+		hold.cancelsTouchesInView = NO;
+		[slider addGestureRecognizer:hold];
+
+		objc_setAssociatedObject(slider, kJikanSliderEditorInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		objc_setAssociatedObject(slider, kJikanSliderEditorConfigKey, config, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 }
 
-- (void)openPillBackgroundOpacityEditor {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	double currentValue = [prefs objectForKey:kPillBackgroundOpacityKey] ? [prefs doubleForKey:kPillBackgroundOpacityKey] : 100.0;
-	if (!isfinite(currentValue)) currentValue = 100.0;
-	currentValue = MAX(0.0, MIN(100.0, currentValue));
+- (void)_handleSliderKnobHold:(UILongPressGestureRecognizer *)gesture {
+	if (gesture.state != UIGestureRecognizerStateBegan) return;
+	if (![gesture.view isKindOfClass:[UISlider class]]) return;
 
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Pill Background Opacity" message:@"Enter a value from 0 to 100" preferredStyle:UIAlertControllerStyleAlert];
+	UISlider *slider = (UISlider *)gesture.view;
+	CGRect trackRect = [slider trackRectForBounds:slider.bounds];
+	CGRect thumbRect = [slider thumbRectForBounds:slider.bounds trackRect:trackRect value:slider.value];
+	CGPoint touch = [gesture locationInView:slider];
+	if (!CGRectContainsPoint(CGRectInset(thumbRect, -12.0, -12.0), touch)) return;
+
+	NSDictionary *config = objc_getAssociatedObject(slider, kJikanSliderEditorConfigKey);
+	if (![config isKindOfClass:[NSDictionary class]]) return;
+	[self _presentSliderEditorWithConfig:config fallbackValue:slider.value];
+}
+
+- (void)_presentSliderEditorWithConfig:(NSDictionary *)config fallbackValue:(double)fallback {
+	NSString *prefsKey = config[@"key"];
+	NSString *title = config[@"title"];
+	double minValue = [config[@"min"] doubleValue];
+	double maxValue = [config[@"max"] doubleValue];
+	NSInteger decimals = [config[@"decimals"] integerValue];
+
+	if (prefsKey.length == 0 || title.length == 0) return;
+
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	double currentValue = [prefs objectForKey:prefsKey] ? [prefs doubleForKey:prefsKey] : fallback;
+	if (!isfinite(currentValue)) currentValue = fallback;
+	if (!isfinite(currentValue)) currentValue = minValue;
+	currentValue = MAX(minValue, MIN(maxValue, currentValue));
+
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:[NSString stringWithFormat:@"Enter a value from %.0f to %.0f", minValue, maxValue] preferredStyle:UIAlertControllerStyleAlert];
 	[alert addTextFieldWithConfigurationHandler:^(UITextField *_Nonnull textField) {
 		textField.keyboardType = UIKeyboardTypeDecimalPad;
-		textField.placeholder = @"0-100";
-		textField.text = [NSString stringWithFormat:@"%.1f", currentValue];
+		textField.placeholder = [NSString stringWithFormat:@"%.0f-%.0f", minValue, maxValue];
+		textField.text = [NSString stringWithFormat:[NSString stringWithFormat:@"%%.%ldf", (long)decimals], currentValue];
 	}];
 
 	__typeof(self) weakSelf = self;
-	UIAlertAction *save = [UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(UIAlertAction *_Nonnull action) {
-		__unused UIAlertAction *unusedAction = action;
+	UIAlertAction *save = [UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *_Nonnull action) {
 		UITextField *tf = alert.textFields.firstObject;
-		double v = tf.text.doubleValue;
-		if (!isfinite(v)) v = currentValue;
-		v = MAX(0.0, MIN(100.0, v));
+		double value = tf.text.doubleValue;
+		if (!isfinite(value)) value = currentValue;
+		value = MAX(minValue, MIN(maxValue, value));
 
-		[prefs setDouble:v forKey:kPillBackgroundOpacityKey];
+		[prefs setDouble:value forKey:prefsKey];
 		[prefs synchronize];
 		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
-
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[weakSelf _scheduleSpecifiersReload:YES];
 		});
@@ -407,6 +470,11 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
 	[alert addAction:save];
 	[self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)openPillBackgroundOpacityEditor {
+	NSDictionary *config = [self _sliderEditorConfigs].firstObject;
+	[self _presentSliderEditorWithConfig:config fallbackValue:100.0];
 }
 
 - (void)openNotificationCenterPreview {
