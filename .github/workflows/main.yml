@@ -9,20 +9,7 @@ on:
             - main
 
 jobs:
-    cleanup:
-        runs-on: macos-latest
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Cleaning up existing releases and tags
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: |
-                gh release delete release --yes || true
-                git push origin :refs/tags/release || true
-
     build:
-        needs: cleanup
         runs-on: macos-latest
         strategy:
             matrix:
@@ -126,7 +113,7 @@ jobs:
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
-                tag_name: release
+                tag_name: ${{ steps.package_metadata.outputs.version }}
                 name: ${{ github.event.repository.name }} v${{ steps.package_metadata.outputs.version }}
                 body_path: release_body.md
                 files: packages/*.deb
