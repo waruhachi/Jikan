@@ -1,10 +1,10 @@
-#include <Preferences/PSListController.h>
-#include <Preferences/PSSpecifier.h>
-#include <UIKit/UIKit.h>
-#include <objc/runtime.h>
+#import <Preferences/PSListController.h>
+#import <Preferences/PSSpecifier.h>
+#import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 
-#include "../Views/AnimatedTitleView.h"
-#include "../Views/JikanHeaderView.h"
+#import "../Views/AnimatedTitleView.h"
+#import "../Views/JikanHeaderView.h"
 
 typedef NS_ENUM(NSInteger, JikanDynamicSpecifierOperatorType) {
 	JikanEqualToOperatorType,

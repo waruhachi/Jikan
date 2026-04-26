@@ -1,4 +1,4 @@
-#include "JikanRootListController.h"
+#import "JikanRootListController.h"
 
 @interface PSListController (Private)
 - (id)readPreferenceValue:(PSSpecifier *)specifier;
