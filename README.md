@@ -1,61 +1,68 @@
-<h1 align="center">
+<p align="center">
+  <img src="Preferences/Resources/icon@3x.png" alt="Jikan" width="96" height="96" />
+</p>
+
+<h1 align="center">Jikan</h1>
+
+<p align="center">
+  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0--rc.2-0a84ff?style=for-the-badge" />
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS-111111?style=for-the-badge" />
   <img alt="Language" src="https://img.shields.io/badge/language-Objective--C%20%26%20Logos-2b2b2b?style=for-the-badge" />
-  <img alt="Theos" src="https://img.shields.io/badge/build-Theos-2b2b2b?style=for-the-badge" />
   <img alt="License" src="https://img.shields.io/badge/license-GPLv3-blue?style=for-the-badge" />
-  <img alt="Package" src="https://img.shields.io/badge/package-.deb-0a84ff?style=for-the-badge" />
-</h1>
+</p>
 
-<br />
-<div align="center">
-  <h3 align="center">Jikan</h3>
+## About
 
-  <p align="center">
-    A lock screen tweak that shows an estimated time until fully charged in a charging platter UI.
-  </p>
-</div>
+Jikan is an iOS jailbreak tweak that adds a charging pill to the lock screen. It blends with the lock screen quick action style and shows an estimated time until your device is fully charged.
 
-## About The Project
+## Screenshots
 
-Jikan is an iOS jailbreak tweak built with Theos that adds a charging pill/platter to the lock screen.
+<p align="center">
+  <img src="Resources/Tweak.png" alt="Jikan lock screen banner" width="100%" />
+</p>
 
-When charging is detected, it shows estimated time to full charge and applies Quick Action-adjacent material styling so the component blends into SpringBoard's lock screen UI.
+<p align="center">
+  <img src="Resources/Preferences.png" alt="Jikan preferences banner" width="100%" />
+</p>
 
-## Getting Started
+## How It Works
 
-### Prerequisites
+The estimation pipeline is implemented in `Tweak/TT100/TT100.m` (`estimatedTT100WithBatteryInfo:`) and backed by `Tweak/TT100/TT100Database.m`.
 
-- macOS with Xcode command line tools
-- [Theos](https://theos.dev) configured
-- A jailbroken iOS device/environment
+1. **Power source sampling**
+   - `fetchBatteryInfo` reads `IOPMPowerSource` properties.
+   - Capacity inputs are resolved in priority order:
+     - `AppleRawMaxCapacity` / `AppleRawCurrentCapacity`
+     - fallback: `DesignCapacity` + (`CurrentCapacity` / `MaxCapacity`)
+   - SOC is normalized to `[0, 100]`, with early exit to `N/A` for invalid ranges.
 
-### Build & Package
+2. **Live estimate path (instant fallback)**
+   - Adapter power fields are resolved from `AdapterDetails` (`Wattage`, `Watts`, `Power`) or reconstructed from `Current * Voltage` with mA/mV normalization.
+   - Current-based live ETA uses:
+     - `liveEstimateSeconds = ((rawMax_mAh - rawCurr_mAh) / adapterCurrent_mA) * 3600`
+   - If no historical model is usable, this path is used directly.
 
-From project root:
+3. **Historical model (percent buckets)**
+   - During charging sessions, Jikan records per-percent ticks and durations into SQLite tables (`sessions`, `ticks`, `percent_stats`).
+   - Data is segmented by charger class (`wired_15w`, `wireless_10w`, etc.) to prevent cross-charger contamination.
+   - Per-percent stats store robust central tendency and variance terms (`median_seconds`, `mean_seconds`, `m2_seconds`, `sample_count`, `last_updated_ts`).
 
-```bash
-make clean package
-```
+4. **Confidence-weighted aggregation**
+   - ETA is formed by summing bucket seconds from current SOC to 100%.
+   - Current percent uses linear interpolation between floor/ceil buckets.
+   - Each bucket gets a confidence weight:
+     - sample term: `log1p(n) / log1p(20)`
+     - uncertainty term: derived from spread (stddev/IQR fallback)
+     - recency term: exponential decay with a ~14-day horizon
+   - Missing future buckets mark the model as partial.
 
-For rootless packaging/deploy (example):
+5. **Hybrid blend strategy**
+   - If history is complete: use historical sum.
+   - If history is partial and live path exists: blend
+     - `eta = alpha * historical + (1 - alpha) * live`
+     - `alpha` increases with model confidence (`~0.25 ... 0.90`).
+   - Final ETA is formatted into `hr/min` strings for platter display.
 
-```bash
-make clean do FINALPACKAGE=1 STRIP=0 THEOS_PACKAGE_SCHEME=rootless THEOS_DEVICE_IP=<device-ip>
-```
+The bolt icon indicates slow charging when the detected charge rate is below 5W. Otherwise, it uses the default green charging tint.
 
-Core build configuration:
-
-- [`Makefile`](Makefile)
-  - `ARCHS = arm64 arm64e`
-  - `TARGET = iphone:clang:16.5:14.5`
-  - `INSTALL_TARGET_PROCESSES = SpringBoard`
-- [`Tweak/Makefile`](Tweak/Makefile)
-- [`Preferences/Makefile`](Preferences/Makefile)
-
-## Project Layout
-
-- [`Tweak/Jikan.x`](Tweak/Jikan.x): Logos hooks and lock screen integration lifecycle
-- [`Tweak/JikanPlatterView/JikanPlatterView.m`](Tweak/JikanPlatterView/JikanPlatterView.m): platter UI, styling, timers, update handling
-- [`Tweak/TT100/TT100.m`](Tweak/TT100/TT100.m): battery sampling + refresh pipeline
-- [`Tweak/TT100/TT100Database.m`](Tweak/TT100/TT100Database.m): sqlite-backed charge history/statistics
-- [`Preferences/Resources/Root.plist`](Preferences/Resources/Root.plist): preference specifiers
+Preferences include controls for platter preview, opacity, portrait and landscape position, quick action visibility, and reset options.
