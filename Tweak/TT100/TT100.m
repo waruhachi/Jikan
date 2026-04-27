@@ -93,10 +93,10 @@ static double TT100ExtractWattage(NSDictionary *batteryInfo) {
 }
 
 static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) {
+#pragma unused(isWireless)
 	double watts = TT100ExtractWattage(batteryInfo);
-	if (watts <= 0) return @"unknown";
-	double fastThreshold = isWireless ? 10.0 : 15.0;
-	return (watts >= fastThreshold) ? @"fast" : @"slow";
+	if (!isfinite(watts) || watts <= 0) return @"normal";
+	return (watts < 5.0) ? @"slow" : @"normal";
 }
 
 + (NSString *)chargerClassWithBatteryInfo:(NSDictionary *)batteryInfo outIsWireless:(BOOL *)outIsWireless {
@@ -213,7 +213,7 @@ static NSTimer *tt100PollingTimer = nil;
 		@"hasEstimate": @(hasEstimate),
 		@"isFullyCharged": @(fullyCharged),
 		@"displayPercent": @(MAX(0, MIN(100, percent))),
-		@"chargingSpeed": chargingSpeed ?: @"unknown"
+		@"chargingSpeed": chargingSpeed ?: @"normal"
 	};
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[[NSNotificationCenter defaultCenter] postNotificationName:TT100BatteryInfoUpdatedNotification object:self userInfo:userInfo];

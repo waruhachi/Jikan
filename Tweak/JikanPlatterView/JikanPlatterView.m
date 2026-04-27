@@ -76,9 +76,6 @@ static UIColor *TTBoltColorForSpeed(NSString *speed) {
 	if ([speed isEqualToString:@"slow"]) {
 		return [UIColor systemYellowColor];
 	}
-	if ([speed isEqualToString:@"unknown"]) {
-		return [UIColor systemGrayColor];
-	}
 	return [UIColor systemGreenColor];
 }
 
@@ -177,7 +174,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		_latestDisplayPercent = [notification.userInfo[@"displayPercent"] integerValue];
 	}
 	_latestDisplayPercent = MAX(0, MIN(100, _latestDisplayPercent));
-	NSString *speed = [notification.userInfo[@"chargingSpeed"] isKindOfClass:[NSString class]] ? notification.userInfo[@"chargingSpeed"] : @"unknown";
+	NSString *speed = [notification.userInfo[@"chargingSpeed"] isKindOfClass:[NSString class]] ? notification.userInfo[@"chargingSpeed"] : @"normal";
 	_boltImageView.tintColor = TTBoltColorForSpeed(speed);
 
 	if (_showingWattage && TTTapToShowWattageEnabled()) {

@@ -279,9 +279,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[container addSubview:stack];
 
 	NSArray<NSDictionary *> *legend = @[
-		@{@"color": UIColor.systemGreenColor, @"text": @"Fast charging"},
-		@{@"color": UIColor.systemYellowColor, @"text": @"Slow charging"},
-		@{@"color": UIColor.systemGrayColor, @"text": @"Unknown"}
+		@{@"color": UIColor.systemYellowColor, @"text": @"Slow charging"}
 	];
 
 	for (NSDictionary *entry in legend) {
@@ -336,7 +334,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
 	if ([self _isEnableSectionInTableView:tableView section:section]) {
-		return 66.0;
+		return 42.0;
 	}
 	return [super tableView:tableView heightForFooterInSection:section];
 }
