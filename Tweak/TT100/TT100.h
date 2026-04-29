@@ -27,6 +27,10 @@ FOUNDATION_EXPORT NSString *const JikanChargingStateChangedNotification;
 + (NSDictionary<NSString *, NSNumber *> *)loadHistoryFromPLSQL;
 + (NSDictionary<NSString *, NSNumber *> *)cachedHistoryBuckets;
 
+/// Returns effective real-time charging power in watts when available.
+/// Prefers battery-side flow telemetry over adapter capability/rating.
++ (double)effectiveChargingWattageWithBatteryInfo:(NSDictionary *_Nullable)batteryInfo;
+
 /// Returns a stable charger class string used for DB bucketing (e.g. "wired_20w", "wireless_7w").
 /// If `outIsWireless` is non-NULL, it is set to whether the charger appears to be wireless.
 + (NSString *)chargerClassWithBatteryInfo:(NSDictionary *_Nullable)batteryInfo outIsWireless:(BOOL *_Nullable)outIsWireless;

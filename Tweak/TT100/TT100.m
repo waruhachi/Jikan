@@ -49,7 +49,6 @@ static BOOL TT100Bool(NSDictionary *dict, NSString *key, BOOL *outHasValue) {
 }
 
 static double TT100WattsFromCurrentVoltage(double current, double voltage) {
-	// Heuristics: AdapterDetails often provides Current (mA) and Voltage (mV).
 	if (!isfinite(current) || !isfinite(voltage)) return 0;
 	current = fabs(current);
 	voltage = fabs(voltage);
@@ -66,30 +65,31 @@ static double TT100WattsFromCurrentVoltage(double current, double voltage) {
 	return amps * volts;
 }
 
+static BOOL TT100IsPlausibleAmps(double amps) {
+	return isfinite(amps) && amps > 0.01 && amps <= 12.0;
+}
+
+static BOOL TT100IsPlausibleVolts(double volts) {
+	return isfinite(volts) && volts >= 2.5 && volts <= 30.0;
+}
+
+static double TT100WattsFromKeys(NSDictionary *dict, NSString *currentKey, NSString *voltageKey) {
+	if (![dict isKindOfClass:[NSDictionary class]]) return 0;
+	double current = fabs([TT100Number(dict, currentKey) doubleValue]);
+	double voltage = fabs([TT100Number(dict, voltageKey) doubleValue]);
+	if (!isfinite(current) || !isfinite(voltage) || current <= 0 || voltage <= 0) return 0;
+
+	double amps = current;
+	if (amps > 20.0) amps /= 1000.0;
+	double volts = voltage;
+	if (volts > 100.0) volts /= 1000.0;
+
+	if (!TT100IsPlausibleAmps(amps) || !TT100IsPlausibleVolts(volts)) return 0;
+	return TT100WattsFromCurrentVoltage(current, voltage);
+}
+
 static double TT100ExtractWattage(NSDictionary *batteryInfo) {
-	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return 0;
-	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
-
-	double watts = 0;
-	if (adapter) {
-		NSNumber *w = TT100Number(adapter, @"Wattage");
-		if (!w) w = TT100Number(adapter, @"Watts");
-		if (!w) w = TT100Number(adapter, @"Power");
-		if (w) watts = fabs(w.doubleValue);
-	}
-	if (watts <= 0 && adapter) {
-		double cur = fabs([TT100Number(adapter, @"Current") doubleValue]);
-		double volt = fabs([TT100Number(adapter, @"Voltage") doubleValue]);
-		watts = TT100WattsFromCurrentVoltage(cur, volt);
-	}
-	if (watts <= 0) {
-		double cur = fabs([TT100Number(batteryInfo, @"Amperage") doubleValue]);
-		double volt = fabs([TT100Number(batteryInfo, @"Voltage") doubleValue]);
-		double approx = TT100WattsFromCurrentVoltage(cur, volt);
-		if (approx > 0) watts = approx;
-	}
-
-	return watts;
+	return [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
 }
 
 static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) {
@@ -167,6 +167,31 @@ static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) 
 	if (outIsWireless) *outIsWireless = isWireless;
 	if ([tier isEqualToString:@"unknown"]) return @"unknown";
 	return [NSString stringWithFormat:@"%@_%@", prefix, tier];
+}
+
++ (double)effectiveChargingWattageWithBatteryInfo:(NSDictionary *)batteryInfo {
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return 0;
+	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
+
+	// 1) Real-time battery-side flow (preferred)
+	double watts = TT100WattsFromKeys(batteryInfo, @"InstantAmperage", @"Voltage");
+	if (watts > 0) return watts;
+
+	// 2) Battery-side fallback
+	watts = TT100WattsFromKeys(batteryInfo, @"Amperage", @"Voltage");
+	if (watts > 0) return watts;
+
+	// 3) Adapter-side live current/voltage estimate
+	watts = TT100WattsFromKeys(adapter, @"Current", @"Voltage");
+	if (watts > 0) return watts;
+
+	// 4) Adapter advertised/rated power fallback
+	NSNumber *w = TT100Number(adapter, @"Wattage");
+	if (!w) w = TT100Number(adapter, @"Watts");
+	if (!w) w = TT100Number(adapter, @"Power");
+	double ratedWatts = fabs(w.doubleValue);
+	if (!isfinite(ratedWatts) || ratedWatts <= 0 || ratedWatts > 240.0) return 0;
+	return ratedWatts;
 }
 
 + (instancetype)sharedInstance {
@@ -556,8 +581,9 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 
 	double liveEstimate = 0;
 	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
-	double adapterCurr = fabs([adapter[@"Current"] doubleValue]);
+	double adapterCurr = fabs([batteryInfo[@"InstantAmperage"] doubleValue]);
 	if (adapterCurr <= 0) adapterCurr = fabs([batteryInfo[@"Amperage"] doubleValue]);
+	if (adapterCurr <= 0) adapterCurr = fabs([adapter[@"Current"] doubleValue]);
 	if (adapterCurr > 1e-6) {
 		liveEstimate = ((rawMax_mAh - rawCurr_mAh) / adapterCurr) * 3600.0;
 	}

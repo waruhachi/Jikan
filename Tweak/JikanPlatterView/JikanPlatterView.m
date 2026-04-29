@@ -36,26 +36,6 @@ static UIView *TTFindFirstSubviewWithClassNameFragment(UIView *root, NSString *f
 	return nil;
 }
 
-static NSNumber *TTNumberFromDict(NSDictionary *dict, NSString *key) {
-	id value = dict[key];
-	return [value isKindOfClass:[NSNumber class]] ? (NSNumber *)value : nil;
-}
-
-static double TTWattsFromCurrentVoltage(double current, double voltage) {
-	if (!isfinite(current) || !isfinite(voltage)) return 0;
-	current = fabs(current);
-	voltage = fabs(voltage);
-	if (current <= 0 || voltage <= 0) return 0;
-
-	double amps = current;
-	if (amps > 20.0) amps /= 1000.0;
-	double volts = voltage;
-	if (volts > 100.0) volts /= 1000.0;
-
-	if (amps <= 0 || volts <= 0) return 0;
-	return amps * volts;
-}
-
 static BOOL TTTapToShowWattageEnabled(void) {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
 	if (![prefs objectForKey:@"tapToShowWattage"]) return NO;
@@ -615,24 +595,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		_latestBatteryInfo = batteryInfo;
 	}
 
-	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
-	double watts = 0;
-	if (adapter) {
-		NSNumber *w = TTNumberFromDict(adapter, @"Wattage");
-		if (!w) w = TTNumberFromDict(adapter, @"Watts");
-		if (!w) w = TTNumberFromDict(adapter, @"Power");
-		if (w) watts = fabs(w.doubleValue);
-	}
-	if (watts <= 0 && adapter) {
-		double current = fabs([TTNumberFromDict(adapter, @"Current") doubleValue]);
-		double voltage = fabs([TTNumberFromDict(adapter, @"Voltage") doubleValue]);
-		watts = TTWattsFromCurrentVoltage(current, voltage);
-	}
-	if (watts <= 0) {
-		double current = fabs([TTNumberFromDict(batteryInfo, @"Amperage") doubleValue]);
-		double voltage = fabs([TTNumberFromDict(batteryInfo, @"Voltage") doubleValue]);
-		watts = TTWattsFromCurrentVoltage(current, voltage);
-	}
+	double watts = [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
 
 	if (watts > 0) {
 		_timeRemainingLabel.text = [NSString stringWithFormat:@"%.1fW", watts];
