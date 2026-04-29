@@ -65,6 +65,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (NSArray *)specifiers {
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
+		[self _localizeSpecifiersInPlace:_specifiers];
 		[self collectDynamicSpecifiersFromArray:_specifiers];
 		[self _configureAxisSliderLeftImages];
 		CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
@@ -93,7 +94,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	self.navigationController.navigationBar.prefersLargeTitles = NO;
 	self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
 
-	NSArray<NSString *> *subtitles = @[@"Show time left to full charge on your lock screen"];
+	NSArray<NSString *> *subtitles = @[JikanLocalizedString(@"jikan.prefs.header.subtitle", @"Show time left to full charge on your lock screen")];
 	JikanHeaderView *header = [[JikanHeaderView alloc] initWithTitle:@"Jikan" subtitles:subtitles bundle:[self bundle]];
 	header.frame = CGRectMake(0.0, 0.0, CGRectGetWidth(self.view.bounds), 180.0);
 	UITableView *tableView = self.table ?: [self valueForKey:@"_table"];
@@ -134,6 +135,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	self.jikanLastReloadTime = CFAbsoluteTimeGetCurrent();
 	self.jikanReloadQueued = NO;
 	[super reloadSpecifiers];
+	[self _localizeSpecifiersInPlace:self.specifiers];
 	[self collectDynamicSpecifiersFromArray:self.specifiers];
 	[self _configureAxisSliderLeftImages];
 	[self _installSliderLongPressEditorsIfNeeded];
@@ -160,6 +162,74 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 
 	self.hasDynamicSpecifiers = (self.dynamicSpecifiers.count > 0);
+}
+
+- (NSString *)_localizedPreferenceText:(NSString *)text {
+	if (![text isKindOfClass:[NSString class]] || text.length == 0) return text;
+	static NSDictionary<NSString *, NSString *> *keyMap;
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^{
+		keyMap = @{
+			@"Enable": @"jikan.prefs.row.enable",
+			@"Pill Preview": @"jikan.prefs.section.pill_preview",
+			@"Lock X Axis": @"jikan.prefs.row.lock_x_axis",
+			@"Lock Y Axis": @"jikan.prefs.row.lock_y_axis",
+			@"Show Preview": @"jikan.prefs.row.show_preview",
+			@"Pill Display": @"jikan.prefs.section.pill_display",
+			@"Show after full charge": @"jikan.prefs.row.show_after_full_charge",
+			@"Show current wattage": @"jikan.prefs.row.show_current_wattage",
+			@"Tap and Hold the Slider Knob to Edit": @"jikan.prefs.footer.slider_hint",
+			@"Opacity": @"jikan.prefs.row.opacity",
+			@"Pill Background Opacity (%)": @"jikan.prefs.row.pill_background_opacity",
+			@"Pill Position": @"jikan.prefs.section.pill_position",
+			@"Portrait": @"jikan.prefs.row.portrait",
+			@"Portrait X": @"jikan.prefs.row.portrait_x",
+			@"Portrait Y": @"jikan.prefs.row.portrait_y",
+			@"Landscape": @"jikan.prefs.row.landscape",
+			@"Landscape X": @"jikan.prefs.row.landscape_x",
+			@"Landscape Y": @"jikan.prefs.row.landscape_y",
+			@"Miscellaneous": @"jikan.prefs.section.miscellaneous",
+			@"Hide Quick Action Buttons": @"jikan.prefs.row.hide_quick_action_buttons",
+			@"Only While Charging": @"jikan.prefs.row.only_while_charging",
+			@"Reset": @"jikan.prefs.section.reset",
+			@"Reset Pill Position": @"jikan.prefs.row.reset_pill_position",
+			@"Reset To Defaults": @"jikan.prefs.row.reset_to_defaults",
+			@"Reset Preferences": @"jikan.prefs.alert.reset_preferences.title",
+			@"Reset all Jikan settings to defaults?": @"jikan.prefs.alert.reset_preferences.prompt",
+			@"Reset portrait/landscape pill position and axis locks?": @"jikan.prefs.alert.reset_pill_position.prompt",
+			@"Cancel": @"jikan.common.action.cancel"
+		};
+	});
+
+	NSString *key = keyMap[text];
+	if (key.length == 0) return text;
+	return JikanLocalizedString(key, text);
+}
+
+- (void)_localizeSpecifiersInPlace:(NSArray<PSSpecifier *> *)specifiers {
+	for (PSSpecifier *specifier in specifiers) {
+		NSString *label = [specifier propertyForKey:@"label"];
+		if ([label isKindOfClass:[NSString class]] && label.length > 0) {
+			[specifier setProperty:[self _localizedPreferenceText:label] forKey:@"label"];
+		}
+
+		NSString *footerText = [specifier propertyForKey:@"footerText"];
+		if ([footerText isKindOfClass:[NSString class]] && footerText.length > 0) {
+			[specifier setProperty:[self _localizedPreferenceText:footerText] forKey:@"footerText"];
+		}
+
+		NSDictionary *confirmation = [specifier propertyForKey:@"confirmation"];
+		if ([confirmation isKindOfClass:[NSDictionary class]]) {
+			NSMutableDictionary *localizedConfirmation = [confirmation mutableCopy];
+			for (NSString *key in @[@"title", @"prompt", @"cancelTitle"]) {
+				NSString *value = confirmation[key];
+				if ([value isKindOfClass:[NSString class]] && value.length > 0) {
+					localizedConfirmation[key] = [self _localizedPreferenceText:value];
+				}
+			}
+			[specifier setProperty:localizedConfirmation forKey:@"confirmation"];
+		}
+	}
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -279,7 +349,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[container addSubview:stack];
 
 	NSArray<NSDictionary *> *legend = @[
-		@{@"color": UIColor.systemYellowColor, @"text": @"Slow charging"}
+		@{@"color": UIColor.systemYellowColor, @"text": JikanLocalizedString(@"jikan.prefs.legend.slow_charging", @"Slow charging")}
 	];
 
 	for (NSDictionary *entry in legend) {
@@ -371,11 +441,11 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (NSArray<NSDictionary *> *)_sliderEditorConfigs {
 	return @[
-		@{@"id": @"pillBackgroundOpacitySlider", @"key": kPillBackgroundOpacityKey, @"title": @"Pill Background Opacity", @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosXPortraitSlider", @"key": @"pillPosXPortraitPercent", @"title": @"Portrait X", @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosYPortraitSlider", @"key": @"pillPosYPortraitPercent", @"title": @"Portrait Y", @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosXLandscapeSlider", @"key": @"pillPosXLandscapePercent", @"title": @"Landscape X", @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosYLandscapeSlider", @"key": @"pillPosYLandscapePercent", @"title": @"Landscape Y", @"min": @0.0, @"max": @100.0, @"decimals": @1}
+		@{@"id": @"pillBackgroundOpacitySlider", @"key": kPillBackgroundOpacityKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.opacity.title", @"Pill Background Opacity"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosXPortraitSlider", @"key": @"pillPosXPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_x.title", @"Portrait X"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosYPortraitSlider", @"key": @"pillPosYPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_y.title", @"Portrait Y"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosXLandscapeSlider", @"key": @"pillPosXLandscapePercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_x.title", @"Landscape X"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
+		@{@"id": @"pillPosYLandscapeSlider", @"key": @"pillPosYLandscapePercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_y.title", @"Landscape Y"), @"min": @0.0, @"max": @100.0, @"decimals": @1}
 	];
 }
 
@@ -443,7 +513,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (!isfinite(currentValue)) currentValue = minValue;
 	currentValue = MAX(minValue, MIN(maxValue, currentValue));
 
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:[NSString stringWithFormat:@"Enter a value from %.0f to %.0f", minValue, maxValue] preferredStyle:UIAlertControllerStyleAlert];
+	NSString *messageFormat = JikanLocalizedString(@"jikan.prefs.alert.slider_range.message", @"Enter a value from %.0f to %.0f");
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:[NSString stringWithFormat:messageFormat, minValue, maxValue] preferredStyle:UIAlertControllerStyleAlert];
 	[alert addTextFieldWithConfigurationHandler:^(UITextField *_Nonnull textField) {
 		textField.keyboardType = UIKeyboardTypeDecimalPad;
 		textField.placeholder = [NSString stringWithFormat:@"%.0f-%.0f", minValue, maxValue];
@@ -451,7 +522,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}];
 
 	__typeof(self) weakSelf = self;
-	UIAlertAction *save = [UIAlertAction actionWithTitle:@"Save" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *_Nonnull action) {
+	UIAlertAction *save = [UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.save", @"Save") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *_Nonnull action) {
 		UITextField *tf = alert.textFields.firstObject;
 		double value = tf.text.doubleValue;
 		if (!isfinite(value)) value = currentValue;
@@ -465,7 +536,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		});
 	}];
 
-	[alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.cancel", @"Cancel") style:UIAlertActionStyleCancel handler:nil]];
 	[alert addAction:save];
 	[self presentViewController:alert animated:YES completion:nil];
 }

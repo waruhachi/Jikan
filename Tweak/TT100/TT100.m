@@ -209,7 +209,7 @@ static NSTimer *tt100PollingTimer = nil;
 
 	NSDictionary *userInfo = @{
 		@"batteryInfo": batteryInfo ?: @{},
-		@"timeString": timeString ?: @"N/A",
+		@"timeString": timeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A"),
 		@"hasEstimate": @(hasEstimate),
 		@"isFullyCharged": @(fullyCharged),
 		@"displayPercent": @(MAX(0, MIN(100, percent))),
@@ -223,7 +223,7 @@ static NSTimer *tt100PollingTimer = nil;
 + (BOOL)hasEstimateWithBatteryInfo:(NSDictionary *)batteryInfo {
 	NSString *estimate = [self estimatedTT100WithBatteryInfo:batteryInfo];
 	if (![estimate isKindOfClass:[NSString class]]) return NO;
-	return ![estimate isEqualToString:NSLocalizedString(@"N/A", @"Not available")];
+	return ![estimate isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 }
 
 + (BOOL)isFullyChargedWithBatteryInfo:(NSDictionary *)batteryInfo displayPercent:(NSInteger *)outPercent {
@@ -406,7 +406,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 }
 
 + (NSString *)estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo {
-	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NSLocalizedString(@"N/A", @"Not available");
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 
 	double rawMax_mAh = -1, rawCurr_mAh = -1;
 	NSNumber *designCap = batteryInfo[@"DesignCapacity"];
@@ -425,7 +425,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 		rawCurr_mAh = frac * design;
 	}
 	if (rawCurr_mAh < 0 || rawMax_mAh <= 0 || rawCurr_mAh >= rawMax_mAh) {
-		return NSLocalizedString(@"N/A", @"Not available");
+		return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}
 
 	double soc = NAN;
@@ -434,10 +434,10 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	} else {
 		soc = (rawCurr_mAh / rawMax_mAh) * 100.0;
 	}
-	if (!isfinite(soc)) return NSLocalizedString(@"N/A", @"Not available");
+	if (!isfinite(soc)) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	if (soc < 0) soc = 0;
 	if (soc > 100.0) soc = 100.0;
-	if (soc >= 100.0) return NSLocalizedString(@"N/A", @"Not available");
+	if (soc >= 100.0) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 
 	double frac = soc - floor(soc);
 	NSInteger lower = (NSInteger)floor(soc);
@@ -576,7 +576,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	} else if (liveEstimate > 0) {
 		remainingSeconds = liveEstimate;
 	} else {
-		return NSLocalizedString(@"N/A", @"Not available");
+		return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}
 
 	int hrs = (int)(remainingSeconds / 3600.0);
@@ -587,13 +587,13 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	}
 
 	if (hrs > 0 && mins > 0) {
-		return [NSString stringWithFormat:NSLocalizedString(@"%d hr %d min", @"hours and minutes"), hrs, mins];
+		return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.hr_min", @"%d hr %d min"), hrs, mins];
 	} else if (hrs > 0) {
-		return [NSString stringWithFormat:NSLocalizedString(@"%d hr", @"hours"), hrs];
+		return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.hr", @"%d hr"), hrs];
 	} else if (mins > 0) {
-		return [NSString stringWithFormat:NSLocalizedString(@"%d min", @"minutes"), mins];
+		return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.min", @"%d min"), mins];
 	} else {
-		return NSLocalizedString(@"<1 min", @"less than one minute");
+		return JikanLocalizedString(@"jikan.tt100.format.lt1min", @"<1 min");
 	}
 }
 

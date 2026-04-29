@@ -1,0 +1,56 @@
+"jikan.common.action.cancel" = "Cancel";
+"jikan.common.action.save" = "Save";
+
+"jikan.prefs.header.subtitle" = "Show time left to full charge on your lock screen";
+"jikan.prefs.legend.slow_charging" = "Slow charging";
+
+"jikan.prefs.section.pill_preview" = "Pill Preview";
+"jikan.prefs.section.pill_display" = "Pill Display";
+"jikan.prefs.section.pill_position" = "Pill Position";
+"jikan.prefs.section.miscellaneous" = "Miscellaneous";
+"jikan.prefs.section.reset" = "Reset";
+
+"jikan.prefs.row.enable" = "Enable";
+"jikan.prefs.row.lock_x_axis" = "Lock X Axis";
+"jikan.prefs.row.lock_y_axis" = "Lock Y Axis";
+"jikan.prefs.row.show_preview" = "Show Preview";
+"jikan.prefs.row.show_after_full_charge" = "Show after full charge";
+"jikan.prefs.row.show_current_wattage" = "Show current wattage";
+"jikan.prefs.row.opacity" = "Opacity";
+"jikan.prefs.row.pill_background_opacity" = "Pill Background Opacity (%)";
+"jikan.prefs.row.portrait" = "Portrait";
+"jikan.prefs.row.portrait_x" = "Portrait X";
+"jikan.prefs.row.portrait_y" = "Portrait Y";
+"jikan.prefs.row.landscape" = "Landscape";
+"jikan.prefs.row.landscape_x" = "Landscape X";
+"jikan.prefs.row.landscape_y" = "Landscape Y";
+"jikan.prefs.row.hide_quick_action_buttons" = "Hide Quick Action Buttons";
+"jikan.prefs.row.only_while_charging" = "Only While Charging";
+"jikan.prefs.row.reset_pill_position" = "Reset Pill Position";
+"jikan.prefs.row.reset_to_defaults" = "Reset To Defaults";
+
+"jikan.prefs.footer.slider_hint" = "Tap and Hold the Slider Knob to Edit";
+
+"jikan.prefs.slider.opacity.title" = "Pill Background Opacity";
+"jikan.prefs.slider.portrait_x.title" = "Portrait X";
+"jikan.prefs.slider.portrait_y.title" = "Portrait Y";
+"jikan.prefs.slider.landscape_x.title" = "Landscape X";
+"jikan.prefs.slider.landscape_y.title" = "Landscape Y";
+
+"jikan.prefs.alert.slider_range.message" = "Enter a value from %.0f to %.0f";
+"jikan.prefs.alert.reset_pill_position.title" = "Reset Pill Position";
+"jikan.prefs.alert.reset_pill_position.prompt" = "Reset portrait/landscape pill position and axis locks?";
+"jikan.prefs.alert.reset_preferences.title" = "Reset Preferences";
+"jikan.prefs.alert.reset_preferences.prompt" = "Reset all Jikan settings to defaults?";
+
+"jikan.tt100.value.na" = "N/A";
+"jikan.tt100.format.hr_min" = "%d hr %d min";
+"jikan.tt100.format.hr" = "%d hr";
+"jikan.tt100.format.min" = "%d min";
+"jikan.tt100.format.lt1min" = "<1 min";
+
+"jikan.platter.label.until_fully_charged" = "until fully charged";
+"jikan.platter.label.charged" = "charged";
+"jikan.platter.label.current_wattage" = "current wattage";
+"jikan.platter.preview.time" = "0 minutes";
+"jikan.platter.preview.eta" = "1 hr 23 min";

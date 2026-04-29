@@ -4,6 +4,8 @@
 #import <mach/mach_port.h>
 #import <roothide.h>
 
+#import "../../Localization/JikanLocalization.h"
+
 NS_ASSUME_NONNULL_BEGIN
 
 FOUNDATION_EXPORT NSString *_Nullable TT100PLSQLPath(void);

@@ -3,6 +3,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
+#import "../../Localization/JikanLocalization.h"
 #import "../Views/AnimatedTitleView.h"
 #import "../Views/JikanHeaderView.h"
 

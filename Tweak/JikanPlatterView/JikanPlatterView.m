@@ -1,6 +1,6 @@
-#import "../Jikan.h"
-#import "../TT100/TT100.h"
 #import "JikanPlatterView.h"
+
+extern BOOL isCharging;
 
 static void TTCopyLayerVisualProperties(CALayer *source, CALayer *target) {
 	if (!source || !target) return;
@@ -181,7 +181,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[self _updateWattageLabel];
 	} else if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
 		_timeRemainingLabel.text = @"100%";
-		_staticLabel.text = @"charged";
+		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
 	} else {
 		[self updateWithTimeString:timeString];
 	}
@@ -255,7 +255,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_timeRemainingLabel.adjustsFontSizeToFitWidth = YES;
 	_timeRemainingLabel.minimumScaleFactor = 0.75;
 	_timeRemainingLabel.textAlignment = NSTextAlignmentCenter;
-	_timeRemainingLabel.text = @"0 minutes";
+	_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.time", @"0 minutes");
 	[_containerView addSubview:_timeRemainingLabel];
 
 	_staticLabel = [[UILabel alloc] init];
@@ -265,7 +265,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_staticLabel.adjustsFontSizeToFitWidth = YES;
 	_staticLabel.minimumScaleFactor = 0.8;
 	_staticLabel.textAlignment = NSTextAlignmentCenter;
-	_staticLabel.text = @"until fully charged";
+	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 	[_containerView addSubview:_staticLabel];
 
 	_tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTap:)];
@@ -337,11 +337,11 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	}
 	if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
 		_timeRemainingLabel.text = @"100%";
-		_staticLabel.text = @"charged";
+		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
 		return;
 	}
 	_timeRemainingLabel.text = timeString;
-	_staticLabel.text = @"until fully charged";
+	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 }
 
 - (void)setPreviewMode:(BOOL)preview {
@@ -350,8 +350,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 			if (_showingWattage) {
 				[self _updateWattageLabel];
 			} else {
-				_timeRemainingLabel.text = @"1 hr 23 min";
-				_staticLabel.text = @"until fully charged";
+				_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
+				_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 			}
 		}
 		return;
@@ -359,10 +359,10 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_previewMode = preview;
 	if (_previewMode) {
 		_showingWattage = NO;
-		_timeRemainingLabel.text = @"1 hr 23 min";
-		_staticLabel.text = @"until fully charged";
+		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
+		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 	} else {
-		[self updateWithTimeString:_latestTimeString ?: @"N/A"];
+		[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 	}
 	[self _updateTapGestureState];
 	[self _updatePreviewOutlineAppearance];
@@ -565,8 +565,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[self _updateTapGestureState];
 		[self _stopRefreshTimer];
 		if (_previewMode) {
-			_timeRemainingLabel.text = @"1 hr 23 min";
-			_staticLabel.text = @"until fully charged";
+			_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
+			_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 		}
 	}
 }
@@ -577,11 +577,11 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	if (!TTTapToShowWattageEnabled()) {
 		_showingWattage = NO;
 		[self updateWithTimeString:_latestTimeString ?: _timeRemainingLabel.text ?
-																				 : @"N/A"];
+																				 : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 	} else if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
 		_showingWattage = NO;
 		_timeRemainingLabel.text = @"100%";
-		_staticLabel.text = @"charged";
+		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
 	}
 	[self _applyBackgroundOpacity];
 }
@@ -600,10 +600,10 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[self _updateWattageLabel];
 	} else {
 		if (_previewMode && !isCharging) {
-			_timeRemainingLabel.text = @"1 hr 23 min";
-			_staticLabel.text = @"until fully charged";
+			_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
+			_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 		} else {
-			[self updateWithTimeString:_latestTimeString ?: @"N/A"];
+			[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 		}
 	}
 }
@@ -639,9 +639,9 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	} else if (_previewMode && !isCharging) {
 		_timeRemainingLabel.text = @"20.0W";
 	} else {
-		_timeRemainingLabel.text = @"N/A";
+		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}
-	_staticLabel.text = @"current wattage";
+	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.current_wattage", @"current wattage");
 }
 
 - (void)_startRefreshTimer {

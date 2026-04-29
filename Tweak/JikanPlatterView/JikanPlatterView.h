@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
+#import "../../Localization/JikanLocalization.h"
 #import "../TT100/TT100.h"
 
 @interface JikanPlatterView : UIView {
