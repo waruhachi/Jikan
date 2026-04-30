@@ -1,0 +1,56 @@
+"jikan.common.action.cancel" = "Avbryt";
+"jikan.common.action.save" = "Spara";
+
+"jikan.prefs.header.subtitle" = "Visa återstående tid till full laddning på låsskärmen";
+"jikan.prefs.legend.slow_charging" = "Långsam laddning";
+
+"jikan.prefs.section.pill_preview" = "Pillförhandsvisning";
+"jikan.prefs.section.pill_display" = "Pillvisning";
+"jikan.prefs.section.pill_position" = "Pillposition";
+"jikan.prefs.section.miscellaneous" = "Övrigt";
+"jikan.prefs.section.reset" = "Återställ";
+
+"jikan.prefs.row.enable" = "Aktivera";
+"jikan.prefs.row.lock_x_axis" = "Lås X-axeln";
+"jikan.prefs.row.lock_y_axis" = "Lås Y-axeln";
+"jikan.prefs.row.show_preview" = "Visa förhandsgranskning";
+"jikan.prefs.row.show_after_full_charge" = "Visa efter full laddning";
+"jikan.prefs.row.show_current_wattage" = "Visa aktuell effekt";
+"jikan.prefs.row.opacity" = "Opacitet";
+"jikan.prefs.row.pill_background_opacity" = "Pillbakgrundens opacitet (%)";
+"jikan.prefs.row.portrait" = "Porträtt";
+"jikan.prefs.row.portrait_x" = "Porträtt X";
+"jikan.prefs.row.portrait_y" = "Porträtt Y";
+"jikan.prefs.row.landscape" = "Landskap";
+"jikan.prefs.row.landscape_x" = "Landskap X";
+"jikan.prefs.row.landscape_y" = "Landskap Y";
+"jikan.prefs.row.hide_quick_action_buttons" = "Dölj snabbåtgärdsknappar";
+"jikan.prefs.row.only_while_charging" = "Endast under laddning";
+"jikan.prefs.row.reset_pill_position" = "Återställ pillposition";
+"jikan.prefs.row.reset_to_defaults" = "Återställ standardinställningar";
+
+"jikan.prefs.footer.slider_hint" = "Tryck och håll ned för att redigera";
+
+"jikan.prefs.slider.opacity.title" = "Pillbakgrundens opacitet";
+"jikan.prefs.slider.portrait_x.title" = "Porträtt X";
+"jikan.prefs.slider.portrait_y.title" = "Porträtt Y";
+"jikan.prefs.slider.landscape_x.title" = "Landskap X";
+"jikan.prefs.slider.landscape_y.title" = "Landskap Y";
+
+"jikan.prefs.alert.slider_range.message" = "Ange ett värde mellan %.0f och %.0f";
+"jikan.prefs.alert.reset_pill_position.title" = "Återställ pillposition";
+"jikan.prefs.alert.reset_pill_position.prompt" = "Vill du återställa pillrets position i stående/liggande läge och axellås?";
+"jikan.prefs.alert.reset_preferences.title" = "Återställ inställningar";
+"jikan.prefs.alert.reset_preferences.prompt" = "Vill du återställa alla Jikan-inställningar till standardvärden?";
+
+"jikan.tt100.value.na" = "Ej tillämpligt";
+"jikan.tt100.format.hr_min" = "%d tim %d min";
+"jikan.tt100.format.hr" = "%d tim";
+"jikan.tt100.format.min" = "%d min";
+"jikan.tt100.format.lt1min" = "<1 min";
+
+"jikan.platter.label.until_fully_charged" = "till full laddning";
+"jikan.platter.label.charged" = "laddad";
+"jikan.platter.label.current_wattage" = "Aktuell effekt";
+"jikan.platter.preview.time" = "0 min";
+"jikan.platter.preview.eta" = "1 tim 23 min";
