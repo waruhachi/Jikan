@@ -1,4 +1,5 @@
 "jikan.common.action.cancel" = "Cancel";
+"jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Save";
 
 "jikan.prefs.header.subtitle" = "Show time left to full charge on your lock screen";
@@ -8,6 +9,7 @@
 "jikan.prefs.section.pill_display" = "Pill Display";
 "jikan.prefs.section.pill_position" = "Pill Position";
 "jikan.prefs.section.miscellaneous" = "Miscellaneous";
+"jikan.prefs.section.battery_estimate" = "Time Estimate";
 "jikan.prefs.section.reset" = "Reset";
 
 "jikan.prefs.row.enable" = "Enable";
@@ -18,6 +20,9 @@
 "jikan.prefs.row.show_current_wattage" = "Show current wattage";
 "jikan.prefs.row.opacity" = "Opacity";
 "jikan.prefs.row.pill_background_opacity" = "Pill Background Opacity (%)";
+"jikan.prefs.row.estimate_target_percent" = "Estimate Target (%)";
+"jikan.prefs.row.charge_limit" = "Charge Limit";
+"jikan.prefs.row.sync_with_chargelimiter" = "Sync with ChargeLimiter";
 "jikan.prefs.row.portrait" = "Portrait";
 "jikan.prefs.row.portrait_x" = "Portrait X";
 "jikan.prefs.row.portrait_y" = "Portrait Y";
@@ -32,6 +37,7 @@
 "jikan.prefs.footer.slider_hint" = "Tap and Hold the Slider Knob to Edit";
 
 "jikan.prefs.slider.opacity.title" = "Pill Background Opacity";
+"jikan.prefs.slider.estimate_target.title" = "Estimate Target";
 "jikan.prefs.slider.portrait_x.title" = "Portrait X";
 "jikan.prefs.slider.portrait_y.title" = "Portrait Y";
 "jikan.prefs.slider.landscape_x.title" = "Landscape X";
@@ -42,6 +48,11 @@
 "jikan.prefs.alert.reset_pill_position.prompt" = "Reset portrait/landscape pill position and axis locks?";
 "jikan.prefs.alert.reset_preferences.title" = "Reset Preferences";
 "jikan.prefs.alert.reset_preferences.prompt" = "Reset all Jikan settings to defaults?";
+"jikan.prefs.alert.detect_limit.none.title" = "No battery limit found";
+"jikan.prefs.alert.detect_limit.none.message" = "No ChargeLimiter limit was detected. Using 100%.";
+"jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter detected";
+"jikan.prefs.alert.detect_limit.single.message" = "Applied battery limit of: %ld%%";
+"jikan.prefs.alert.limit_sources.title" = "Synced with ChargeLimiter";
 
 "jikan.tt100.value.na" = "N/A";
 "jikan.tt100.format.hr_min" = "%d hr %d min";
