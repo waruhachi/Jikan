@@ -5,7 +5,7 @@
 <h1 align="center">Jikan</h1>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0--rc.2-0a84ff?style=for-the-badge" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0--rc.3-0a84ff?style=for-the-badge" />
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS-111111?style=for-the-badge" />
   <img alt="Language" src="https://img.shields.io/badge/language-Objective--C%20%26%20Logos-2b2b2b?style=for-the-badge" />
   <img alt="License" src="https://img.shields.io/badge/license-GPLv3-blue?style=for-the-badge" />
