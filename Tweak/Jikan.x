@@ -275,9 +275,6 @@ static void TTLoadPreferences(void) {
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
 	hideQuickActionButtonsOnlyWhenCharging = [preferences objectForKey:@"hideQuickActionButtonsOnlyWhenCharging"] ? [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"] : NO;
 	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
-	// Preview is session-based (triggered from "Show Preview" button) and does not persist.
-	// previewPlatter = [preferences objectForKey:@"previewPlatter"] ? [preferences boolForKey:@"previewPlatter"] : NO;
-	previewPlatter = NO;
 	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
 	lockPreviewXAxis = [preferences objectForKey:@"lockPreviewXAxis"] ? [preferences boolForKey:@"lockPreviewXAxis"] : NO;
 	lockPreviewYAxis = [preferences objectForKey:@"lockPreviewYAxis"] ? [preferences boolForKey:@"lockPreviewYAxis"] : NO;
@@ -770,7 +767,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 %new
 - (void)_jikanHandlePlatterLongPress:(UILongPressGestureRecognizer *)gesture {
-	BOOL previewEnabled = (previewPlatter || _ttPreviewSessionActive);
+	BOOL previewEnabled = _ttPreviewSessionActive;
 	if (!previewEnabled || !self.remainingTimePlatter) return;
 	JikanPlatterView *pill = self.remainingTimePlatter;
 	CGPoint location = [gesture locationInView:self];
@@ -893,7 +890,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
 	BOOL hasEstimate = [TT100 hasEstimateWithBatteryInfo:batteryInfo];
 	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:NULL];
-	BOOL previewEnabled = (previewPlatter || _ttPreviewSessionActive);
+	BOOL previewEnabled = _ttPreviewSessionActive;
 
 	BOOL shouldShow = previewEnabled || (isCharging && (hasEstimate || (showAfterFullCharge && fullyCharged)));
 	[self.remainingTimePlatter setPreviewMode:(previewEnabled && !isCharging)];

@@ -588,11 +588,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[self presentViewController:alert animated:YES completion:nil];
 }
 
-- (void)openPillBackgroundOpacityEditor {
-	NSDictionary *config = [self _sliderEditorConfigs].firstObject;
-	[self _presentSliderEditorWithConfig:config fallbackValue:100.0];
-}
-
 - (NSInteger)_clampedBatteryLimit:(NSInteger)limit {
 	return MAX(0, MIN(100, limit));
 }
@@ -727,7 +722,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		@"tapToShowWattage",
 		kBatteryEstimateTargetKey,
 		kBatteryEstimateSyncedKey,
-		@"previewPlatter",
 		@"showAfterFullCharge",
 		@"lockPreviewXAxis",
 		@"lockPreviewYAxis"
