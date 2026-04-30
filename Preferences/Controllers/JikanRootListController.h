@@ -22,4 +22,5 @@ typedef NS_ENUM(NSInteger, JikanDynamicSpecifierOperatorType) {
 - (void)resetPillPosition;
 - (void)openPillBackgroundOpacityEditor;
 - (void)openNotificationCenterPreview;
+- (void)showBatteryLimitSourceInfo;
 @end

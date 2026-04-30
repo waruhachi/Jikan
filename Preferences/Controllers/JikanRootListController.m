@@ -17,6 +17,8 @@ static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
 static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferences.reload";
 static NSString *const kJikanOpenNCPreviewNotification = @"moe.waru.jikan.preview.nc.request";
 static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercent";
+static NSString *const kBatteryEstimateTargetKey = @"batteryEstimateTargetPercent";
+static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithChargeLimiter";
 static const void *kJikanSliderEditorInstalledKey = &kJikanSliderEditorInstalledKey;
 static const void *kJikanSliderEditorConfigKey = &kJikanSliderEditorConfigKey;
 static const void *kJikanSliderThumbOnlyKey = &kJikanSliderThumbOnlyKey;
@@ -66,6 +68,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[self _localizeSpecifiersInPlace:_specifiers];
+		[self _updateBatteryLimitInfoSpecifier];
 		[self collectDynamicSpecifiersFromArray:_specifiers];
 		[self _configureAxisSliderLeftImages];
 		CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
@@ -90,6 +93,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)viewDidLoad {
 	[super viewDidLoad];
+	[self _seedBatteryEstimateTargetIfNeeded];
 
 	self.navigationController.navigationBar.prefersLargeTitles = NO;
 	self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
@@ -115,6 +119,26 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
+	NSString *key = [specifier propertyForKey:@"key"];
+	NSSet<NSString *> *integerSliderKeys = [NSSet setWithArray:@[
+		kPillBackgroundOpacityKey,
+		kBatteryEstimateTargetKey,
+		@"pillPosXPortraitPercent",
+		@"pillPosYPortraitPercent",
+		@"pillPosXLandscapePercent",
+		@"pillPosYLandscapePercent"
+	]];
+	if ([integerSliderKeys containsObject:key]) {
+		double raw = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 100.0;
+		NSInteger rounded = (NSInteger)llround(raw);
+		rounded = MAX(0, MIN(100, rounded));
+		value = @(rounded);
+		if ([key isEqualToString:kBatteryEstimateTargetKey]) {
+			NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+			[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
+			[prefs synchronize];
+		}
+	}
 	[super setPreferenceValue:value specifier:specifier];
 
 	if (self.hasDynamicSpecifiers) {
@@ -136,9 +160,22 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	self.jikanReloadQueued = NO;
 	[super reloadSpecifiers];
 	[self _localizeSpecifiersInPlace:self.specifiers];
+	[self _updateBatteryLimitInfoSpecifier];
 	[self collectDynamicSpecifiersFromArray:self.specifiers];
 	[self _configureAxisSliderLeftImages];
 	[self _installSliderLongPressEditorsIfNeeded];
+}
+
+- (void)_updateBatteryLimitInfoSpecifier {
+	PSSpecifier *spec = [self specifierForID:@"batteryLimitInfoRow"];
+	if (!spec) return;
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	BOOL synced = [prefs objectForKey:kBatteryEstimateSyncedKey] ? [prefs boolForKey:kBatteryEstimateSyncedKey] : NO;
+	if (synced) {
+		[spec setProperty:@"showBatteryLimitSourceInfo" forKey:@"infoAction"];
+	} else {
+		[spec removePropertyForKey:@"infoAction"];
+	}
 }
 
 - (void)collectDynamicSpecifiersFromArray:(NSArray *)array {
@@ -189,6 +226,11 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 			@"Landscape X": @"jikan.prefs.row.landscape_x",
 			@"Landscape Y": @"jikan.prefs.row.landscape_y",
 			@"Miscellaneous": @"jikan.prefs.section.miscellaneous",
+			@"Time Estimate": @"jikan.prefs.section.battery_estimate",
+			@"Battery Limit": @"jikan.prefs.row.charge_limit",
+			@"Charge Limit": @"jikan.prefs.row.charge_limit",
+			@"Estimate Target (%)": @"jikan.prefs.row.estimate_target_percent",
+			@"Sync with ChargeLimiter": @"jikan.prefs.row.sync_with_chargelimiter",
 			@"Hide Quick Action Buttons": @"jikan.prefs.row.hide_quick_action_buttons",
 			@"Only While Charging": @"jikan.prefs.row.only_while_charging",
 			@"Reset": @"jikan.prefs.section.reset",
@@ -233,8 +275,9 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+	PSSpecifier *specifier = [self specifierAtIndexPath:indexPath];
 	if (self.hasDynamicSpecifiers) {
-		PSSpecifier *dynamicSpecifier = [self specifierAtIndexPath:indexPath];
+		PSSpecifier *dynamicSpecifier = specifier;
 		if ([self.dynamicSpecifiers.allValues containsObject:dynamicSpecifier]) {
 			BOOL shouldHide = [self shouldHideSpecifier:dynamicSpecifier];
 			UITableViewCell *specifierCell = [dynamicSpecifier propertyForKey:PSTableCellKey];
@@ -441,11 +484,12 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (NSArray<NSDictionary *> *)_sliderEditorConfigs {
 	return @[
-		@{@"id": @"pillBackgroundOpacitySlider", @"key": kPillBackgroundOpacityKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.opacity.title", @"Pill Background Opacity"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosXPortraitSlider", @"key": @"pillPosXPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_x.title", @"Portrait X"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosYPortraitSlider", @"key": @"pillPosYPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_y.title", @"Portrait Y"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosXLandscapeSlider", @"key": @"pillPosXLandscapePercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_x.title", @"Landscape X"), @"min": @0.0, @"max": @100.0, @"decimals": @1},
-		@{@"id": @"pillPosYLandscapeSlider", @"key": @"pillPosYLandscapePercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_y.title", @"Landscape Y"), @"min": @0.0, @"max": @100.0, @"decimals": @1}
+		@{@"id": @"pillBackgroundOpacitySlider", @"key": kPillBackgroundOpacityKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.opacity.title", @"Pill Background Opacity"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
+		@{@"id": @"batteryEstimateTargetSlider", @"key": kBatteryEstimateTargetKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.estimate_target.title", @"Estimate Target"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
+		@{@"id": @"pillPosXPortraitSlider", @"key": @"pillPosXPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_x.title", @"Portrait X"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
+		@{@"id": @"pillPosYPortraitSlider", @"key": @"pillPosYPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_y.title", @"Portrait Y"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
+		@{@"id": @"pillPosXLandscapeSlider", @"key": @"pillPosXLandscapePercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_x.title", @"Landscape X"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
+		@{@"id": @"pillPosYLandscapeSlider", @"key": @"pillPosYLandscapePercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_y.title", @"Landscape Y"), @"min": @0.0, @"max": @100.0, @"decimals": @0}
 	];
 }
 
@@ -529,6 +573,9 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		value = MAX(minValue, MIN(maxValue, value));
 
 		[prefs setDouble:value forKey:prefsKey];
+		if ([prefsKey isEqualToString:kBatteryEstimateTargetKey]) {
+			[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
+		}
 		[prefs synchronize];
 		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 		dispatch_async(dispatch_get_main_queue(), ^{
@@ -544,6 +591,106 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)openPillBackgroundOpacityEditor {
 	NSDictionary *config = [self _sliderEditorConfigs].firstObject;
 	[self _presentSliderEditorWithConfig:config fallbackValue:100.0];
+}
+
+- (NSInteger)_clampedBatteryLimit:(NSInteger)limit {
+	return MAX(0, MIN(100, limit));
+}
+
+- (NSNumber *)_detectChargeLimiterLimit {
+	NSArray<NSString *> *installMarkers = @[
+		@"/Applications/ChargeLimiter.app",
+		@"/var/jb/Applications/ChargeLimiter.app",
+		@"/var/containers/Bundle/Application/.jbroot-*/Applications/ChargeLimiter.app"
+	];
+	BOOL installed = NO;
+	NSFileManager *fm = [NSFileManager defaultManager];
+	for (NSString *marker in installMarkers) {
+		if ([marker containsString:@"*"]) {
+			NSArray<NSString *> *matches = [fm contentsOfDirectoryAtPath:@"/var/containers/Bundle/Application" error:nil];
+			for (NSString *entry in matches) {
+				if (![entry hasPrefix:@".jbroot-"]) continue;
+				NSString *candidate = [@"/var/containers/Bundle/Application" stringByAppendingPathComponent:entry];
+				candidate = [candidate stringByAppendingPathComponent:@"Applications/ChargeLimiter.app"];
+				if ([fm fileExistsAtPath:candidate]) {
+					installed = YES;
+					break;
+				}
+			}
+		} else if ([fm fileExistsAtPath:marker]) {
+			installed = YES;
+		}
+		if (installed) break;
+	}
+	if (!installed) return nil;
+
+	NSDictionary *conf = [NSDictionary dictionaryWithContentsOfFile:@"/var/root/aldente.conf"];
+	if (![conf isKindOfClass:[NSDictionary class]]) return nil;
+	id value = conf[@"charge_above"];
+	if (![value respondsToSelector:@selector(integerValue)]) return nil;
+	NSInteger limit = [self _clampedBatteryLimit:[value integerValue]];
+	return @(limit);
+}
+
+- (void)_setBatteryEstimateTargetPercent:(NSInteger)percent {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	if (!prefs) return;
+	[prefs setInteger:[self _clampedBatteryLimit:percent] forKey:kBatteryEstimateTargetKey];
+	[prefs synchronize];
+	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self _scheduleSpecifiersReload:YES];
+	});
+}
+
+- (void)_setBatteryEstimateSyncedState:(BOOL)synced {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	if (!prefs) return;
+	[prefs setBool:synced forKey:kBatteryEstimateSyncedKey];
+	[prefs synchronize];
+	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[self _scheduleSpecifiersReload:YES];
+	});
+}
+
+- (void)_seedBatteryEstimateTargetIfNeeded {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	if (!prefs) return;
+	if ([prefs objectForKey:kBatteryEstimateTargetKey]) return;
+	NSNumber *detected = [self _detectChargeLimiterLimit];
+	NSInteger value = detected ? detected.integerValue : 100;
+	[prefs setInteger:[self _clampedBatteryLimit:value] forKey:kBatteryEstimateTargetKey];
+	[prefs synchronize];
+}
+
+- (void)detectBatteryLimit {
+	NSNumber *detected = [self _detectChargeLimiterLimit];
+	if (!detected) {
+		[self _setBatteryEstimateTargetPercent:100];
+		[self _setBatteryEstimateSyncedState:NO];
+		UIAlertController *alert = [UIAlertController alertControllerWithTitle:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.none.title", @"No battery limit found") message:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.none.message", @"No ChargeLimiter limit was detected. Using 100%.") preferredStyle:UIAlertControllerStyleAlert];
+		[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.ok", @"OK") style:UIAlertActionStyleDefault handler:nil]];
+		[self presentViewController:alert animated:YES completion:nil];
+		return;
+	}
+	NSInteger value = detected.integerValue;
+	[self _setBatteryEstimateTargetPercent:value];
+	[self _setBatteryEstimateSyncedState:YES];
+	NSString *format = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.message", @"ChargeLimiter detected Applied battery limit of: %ld%%");
+	NSString *message = [NSString stringWithFormat:format, (long)value];
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.title", @"ChargeLimiter detected") message:message preferredStyle:UIAlertControllerStyleAlert];
+	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.ok", @"OK") style:UIAlertActionStyleDefault handler:nil]];
+	[self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)showBatteryLimitSourceInfo {
+	NSNumber *detected = [self _detectChargeLimiterLimit];
+	if (!detected) return;
+	NSString *message = [NSString stringWithFormat:@"ChargeLimiter: %ld%%", (long)detected.integerValue];
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:JikanLocalizedString(@"jikan.prefs.alert.limit_sources.title", @"Synced with ChargeLimiter") message:message preferredStyle:UIAlertControllerStyleAlert];
+	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.ok", @"OK") style:UIAlertActionStyleDefault handler:nil]];
+	[self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)openNotificationCenterPreview {
@@ -578,6 +725,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		@"showRemainingBatteryTime",
 		@"autoResizeRemainingBatteryTime",
 		@"tapToShowWattage",
+		kBatteryEstimateTargetKey,
+		kBatteryEstimateSyncedKey,
 		@"previewPlatter",
 		@"showAfterFullCharge",
 		@"lockPreviewXAxis",

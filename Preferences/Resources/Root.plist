@@ -22,54 +22,6 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Pill Preview</string>
-		</dict>		
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>lockPreviewXAxis</string>
-			<key>label</key>
-			<string>Lock X Axis</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>lockPreviewYAxis</string>
-			<key>label</key>
-			<string>Lock Y Axis</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string> </string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>label</key>
-			<string>Show Preview</string>
-			<key>action</key>
-			<string>openNotificationCenterPreview</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
 			<string>Pill Display</string>
 		</dict>
 		<dict>
@@ -139,8 +91,60 @@
 			<true/>
 			<key>isContinuous</key>
 			<true/>
+			<key>isSegmented</key>
+			<true/>
+			<key>segmentCount</key>
+			<integer>100</integer>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Pill Preview</string>
+		</dict>		
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>lockPreviewXAxis</string>
+			<key>label</key>
+			<string>Lock X Axis</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>lockPreviewYAxis</string>
+			<key>label</key>
+			<string>Lock Y Axis</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string> </string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Show Preview</string>
+			<key>action</key>
+			<string>openNotificationCenterPreview</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -181,6 +185,10 @@
 			<true/>
 			<key>isContinuous</key>
 			<true/>
+			<key>isSegmented</key>
+			<true/>
+			<key>segmentCount</key>
+			<integer>100</integer>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
@@ -205,6 +213,10 @@
 			<true/>
 			<key>isContinuous</key>
 			<true/>
+			<key>isSegmented</key>
+			<true/>
+			<key>segmentCount</key>
+			<integer>100</integer>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
@@ -239,6 +251,10 @@
 			<true/>
 			<key>isContinuous</key>
 			<true/>
+			<key>isSegmented</key>
+			<true/>
+			<key>segmentCount</key>
+			<integer>100</integer>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
@@ -263,8 +279,74 @@
 			<true/>
 			<key>isContinuous</key>
 			<true/>
+			<key>isSegmented</key>
+			<true/>
+			<key>segmentCount</key>
+			<integer>100</integer>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Time Estimate</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSStaticTextCell</string>
+			<key>id</key>
+			<string>batteryLimitInfoRow</string>
+			<key>cellClass</key>
+			<string>TextCellWithIcon</string>
+			<key>label</key>
+			<string>Charge Limit</string>
+			<key>sfIcon</key>
+			<string>battery.75percent</string>
+			<key>infoAction</key>
+			<string>showBatteryLimitSourceInfo</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>batteryEstimateTargetSlider</string>
+			<key>default</key>
+			<real>100</real>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>batteryEstimateTargetPercent</string>
+			<key>label</key>
+			<string>Estimate Target (%)</string>
+			<key>min</key>
+			<real>0</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
+			<key>isSegmented</key>
+			<true/>
+			<key>segmentCount</key>
+			<integer>100</integer>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string> </string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Sync with ChargeLimiter</string>
+			<key>action</key>
+			<string>detectBatteryLimit</string>
 		</dict>
 		<dict>
 			<key>cell</key>

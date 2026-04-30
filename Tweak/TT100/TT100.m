@@ -48,6 +48,17 @@ static BOOL TT100Bool(NSDictionary *dict, NSString *key, BOOL *outHasValue) {
 	return NO;
 }
 
+static NSInteger TT100EstimateTargetPercent(void) {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSInteger target = 100;
+	if ([prefs objectForKey:@"batteryEstimateTargetPercent"]) {
+		target = [prefs integerForKey:@"batteryEstimateTargetPercent"];
+	}
+	if (target < 0) target = 0;
+	if (target > 100) target = 100;
+	return target;
+}
+
 static double TT100WattsFromCurrentVoltage(double current, double voltage) {
 	if (!isfinite(current) || !isfinite(voltage)) return 0;
 	current = fabs(current);
@@ -277,10 +288,12 @@ static NSTimer *tt100PollingTimer = nil;
 	}
 
 	BOOL fullyFlag = [batteryInfo[@"FullyCharged"] respondsToSelector:@selector(boolValue)] ? [batteryInfo[@"FullyCharged"] boolValue] : NO;
-	BOOL fullBySoc = isfinite(soc) && soc >= 99.5;
+	NSInteger targetPercent = TT100EstimateTargetPercent();
+	double fullThreshold = (targetPercent >= 100) ? 99.5 : ((double)targetPercent - 0.5);
+	BOOL fullBySoc = isfinite(soc) && soc >= fullThreshold;
 	BOOL isFull = fullyFlag || fullBySoc;
 
-	if (isFull && percent < 100) percent = 100;
+	if (isFull && percent < targetPercent) percent = targetPercent;
 	if (outPercent) *outPercent = MAX(0, MIN(100, percent));
 	return isFull;
 }
@@ -462,7 +475,9 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	if (!isfinite(soc)) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	if (soc < 0) soc = 0;
 	if (soc > 100.0) soc = 100.0;
-	if (soc >= 100.0) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	NSInteger targetPercent = TT100EstimateTargetPercent();
+	double targetSoc = (double)targetPercent;
+	if (soc >= targetSoc) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 
 	double frac = soc - floor(soc);
 	NSInteger lower = (NSInteger)floor(soc);
@@ -566,7 +581,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 		missingBucket = YES;
 	}
 
-	for (NSInteger pct = upper + 1; pct < 100; pct++) {
+	for (NSInteger pct = upper + 1; pct < targetPercent; pct++) {
 		double sec = bucketSeconds(pct);
 		if (!isnan(sec)) {
 			double w = bucketWeight(pct);
