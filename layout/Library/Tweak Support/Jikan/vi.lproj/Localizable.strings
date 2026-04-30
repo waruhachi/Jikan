@@ -1,4 +1,5 @@
 "jikan.common.action.cancel" = "Huỷ";
+"jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Lưu";
 
 "jikan.prefs.header.subtitle" = "Hiển thị thời gian sạc còn lại đến lúc đầy pin";
@@ -8,6 +9,7 @@
 "jikan.prefs.section.pill_display" = "Tuỳ chỉnh hình bo tròn";
 "jikan.prefs.section.pill_position" = "Vị trí hình bo tròn";
 "jikan.prefs.section.miscellaneous" = "Linh tinh";
+"jikan.prefs.section.battery_estimate" = "Dự đoán thời gian";
 "jikan.prefs.section.reset" = "Đặt lại";
 
 "jikan.prefs.row.enable" = "Bật";
@@ -18,6 +20,9 @@
 "jikan.prefs.row.show_current_wattage" = "Hiện số watt";
 "jikan.prefs.row.opacity" = "Độ mờ đục";
 "jikan.prefs.row.pill_background_opacity" = "Độ mờ đục nền hình bo tròn (%)";
+"jikan.prefs.row.estimate_target_percent" = "Mục tiêu dự đoán (%)";
+"jikan.prefs.row.charge_limit" = "Giới hạn sạc";
+"jikan.prefs.row.sync_with_chargelimiter" = "Đồng bộ với ChargeLimiter";
 "jikan.prefs.row.portrait" = "Dọc";
 "jikan.prefs.row.portrait_x" = "Dọc X";
 "jikan.prefs.row.portrait_y" = "Dọc Y";
@@ -32,6 +37,7 @@
 "jikan.prefs.footer.slider_hint" = "Ấn và giữ nút trượt để tuỳ chỉnh";
 
 "jikan.prefs.slider.opacity.title" = "Độ mờ đục hình bo tròn";
+"jikan.prefs.slider.estimate_target.title" = "Mục tiêu dự đoán";
 "jikan.prefs.slider.portrait_x.title" = "Dọc X";
 "jikan.prefs.slider.portrait_y.title" = "Dọc Y";
 "jikan.prefs.slider.landscape_x.title" = "Ngang X";
@@ -42,6 +48,11 @@
 "jikan.prefs.alert.reset_pill_position.prompt" = "Đặt lại vị trí ngang/dọc của hình bo tròn và các khoá trục?";
 "jikan.prefs.alert.reset_preferences.title" = "Đặt lại tuỳ chỉnh";
 "jikan.prefs.alert.reset_preferences.prompt" = "Đặt lại tất cả tuỳ chỉnh Jikan về mặc định?";
+"jikan.prefs.alert.detect_limit.none.title" = "Không tìm thấy giới hạn pin";
+"jikan.prefs.alert.detect_limit.none.message" = "Không tìm thấy ChargeLimiter. Sẽ dùng 100%.";
+"jikan.prefs.alert.detect_limit.single.title" = "Phát hiện ChargeLimiter";
+"jikan.prefs.alert.detect_limit.single.message" = "Phát hiện ChargeLimiter. Áp dụng giới hạn pin mức: %ld%%";
+"jikan.prefs.alert.limit_sources.title" = "Đã đồng bộ với ChargeLimiter";
 
 "jikan.tt100.value.na" = "N/A";
 "jikan.tt100.format.hr_min" = "%d giờ %d phút";

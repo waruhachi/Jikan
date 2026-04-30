@@ -1,4 +1,5 @@
 "jikan.common.action.cancel" = "Avbryt";
+"jikan.common.action.ok" = "OK";	
 "jikan.common.action.save" = "Spara";
 
 "jikan.prefs.header.subtitle" = "Visa återstående tid till full laddning på låsskärmen";
@@ -8,6 +9,7 @@
 "jikan.prefs.section.pill_display" = "Pillvisning";
 "jikan.prefs.section.pill_position" = "Pillposition";
 "jikan.prefs.section.miscellaneous" = "Övrigt";
+"jikan.prefs.section.battery_estimate" = "Tidsuppskattning";
 "jikan.prefs.section.reset" = "Återställ";
 
 "jikan.prefs.row.enable" = "Aktivera";
@@ -18,6 +20,9 @@
 "jikan.prefs.row.show_current_wattage" = "Visa aktuell effekt";
 "jikan.prefs.row.opacity" = "Opacitet";
 "jikan.prefs.row.pill_background_opacity" = "Pillbakgrundens opacitet (%)";
+"jikan.prefs.row.estimate_target_percent" = "Målnivå för uppskattning (%)";
+"jikan.prefs.row.charge_limit" = "Laddningsgräns";
+"jikan.prefs.row.sync_with_chargelimiter" = "Synkronisera med ChargeLimiter";
 "jikan.prefs.row.portrait" = "Porträtt";
 "jikan.prefs.row.portrait_x" = "Porträtt X";
 "jikan.prefs.row.portrait_y" = "Porträtt Y";
@@ -32,6 +37,7 @@
 "jikan.prefs.footer.slider_hint" = "Tryck och håll ned för att redigera";
 
 "jikan.prefs.slider.opacity.title" = "Pillbakgrundens opacitet";
+"jikan.prefs.slider.estimate_target.title" = "Målnivå för uppskattning";
 "jikan.prefs.slider.portrait_x.title" = "Porträtt X";
 "jikan.prefs.slider.portrait_y.title" = "Porträtt Y";
 "jikan.prefs.slider.landscape_x.title" = "Landskap X";
@@ -42,6 +48,11 @@
 "jikan.prefs.alert.reset_pill_position.prompt" = "Vill du återställa pillrets position i stående/liggande läge och axellås?";
 "jikan.prefs.alert.reset_preferences.title" = "Återställ inställningar";
 "jikan.prefs.alert.reset_preferences.prompt" = "Vill du återställa alla Jikan-inställningar till standardvärden?";
+"jikan.prefs.alert.detect_limit.none.title" = "Ingen laddningsgräns hittades";
+"jikan.prefs.alert.detect_limit.none.message" = "Ingen ChargeLimiter-gräns upptäcktes. Använder 100%.";
+"jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter upptäckt";
+"jikan.prefs.alert.detect_limit.single.message" = "Tillämpad laddningsgräns: %ld%%";
+"jikan.prefs.alert.limit_sources.title" = "Synkroniserad med ChargeLimiter";
 
 "jikan.tt100.value.na" = "Ej tillämpligt";
 "jikan.tt100.format.hr_min" = "%d tim %d min";
