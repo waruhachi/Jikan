@@ -593,29 +593,30 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (NSNumber *)_detectChargeLimiterLimit {
-	NSArray<NSString *> *installMarkers = @[
-		@"/Applications/ChargeLimiter.app",
-		@"/var/jb/Applications/ChargeLimiter.app",
-		@"/var/containers/Bundle/Application/.jbroot-*/Applications/ChargeLimiter.app"
-	];
 	BOOL installed = NO;
 	NSFileManager *fm = [NSFileManager defaultManager];
-	for (NSString *marker in installMarkers) {
-		if ([marker containsString:@"*"]) {
-			NSArray<NSString *> *matches = [fm contentsOfDirectoryAtPath:@"/var/containers/Bundle/Application" error:nil];
-			for (NSString *entry in matches) {
-				if (![entry hasPrefix:@".jbroot-"]) continue;
-				NSString *candidate = [@"/var/containers/Bundle/Application" stringByAppendingPathComponent:entry];
-				candidate = [candidate stringByAppendingPathComponent:@"Applications/ChargeLimiter.app"];
+
+	// Jailbreak variants (rootless/roothide/rootful) via jbroot path translation.
+	NSString *jbPath = jbroot(@"/Applications/ChargeLimiter.app");
+	if ([jbPath isKindOfClass:[NSString class]] && jbPath.length > 0 && [fm fileExistsAtPath:jbPath]) {
+		installed = YES;
+	}
+
+	// TrollStore variant inside app container path.
+	if (!installed) {
+		NSArray<NSString *> *containerRoots = @[@"/var/containers/Bundle/Application", @"/private/var/containers/Bundle/Application"];
+		for (NSString *root in containerRoots) {
+			NSArray<NSString *> *entries = [fm contentsOfDirectoryAtPath:root error:nil];
+			for (NSString *entry in entries) {
+				NSString *candidate = [root stringByAppendingPathComponent:entry];
+				candidate = [candidate stringByAppendingPathComponent:@"ChargeLimiter.app"];
 				if ([fm fileExistsAtPath:candidate]) {
 					installed = YES;
 					break;
 				}
 			}
-		} else if ([fm fileExistsAtPath:marker]) {
-			installed = YES;
+			if (installed) break;
 		}
-		if (installed) break;
 	}
 	if (!installed) return nil;
 
