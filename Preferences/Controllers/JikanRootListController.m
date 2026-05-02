@@ -608,9 +608,10 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		for (NSString *root in containerRoots) {
 			NSArray<NSString *> *entries = [fm contentsOfDirectoryAtPath:root error:nil];
 			for (NSString *entry in entries) {
-				NSString *candidate = [root stringByAppendingPathComponent:entry];
-				candidate = [candidate stringByAppendingPathComponent:@"ChargeLimiter.app"];
-				if ([fm fileExistsAtPath:candidate]) {
+				NSString *containerPath = [root stringByAppendingPathComponent:entry];
+				NSString *appPath = [containerPath stringByAppendingPathComponent:@"ChargeLimiter.app"];
+				NSString *trollStoreMarker = [containerPath stringByAppendingPathComponent:@"_TrollStore"];
+				if ([fm fileExistsAtPath:appPath] || [fm fileExistsAtPath:trollStoreMarker]) {
 					installed = YES;
 					break;
 				}
@@ -621,10 +622,42 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (!installed) return nil;
 
 	NSDictionary *conf = [NSDictionary dictionaryWithContentsOfFile:@"/var/root/aldente.conf"];
-	if (![conf isKindOfClass:[NSDictionary class]]) return nil;
-	id value = conf[@"charge_above"];
-	if (![value respondsToSelector:@selector(integerValue)]) return nil;
-	NSInteger limit = [self _clampedBatteryLimit:[value integerValue]];
+	if ([conf isKindOfClass:[NSDictionary class]]) {
+		id value = conf[@"charge_above"];
+		if ([value respondsToSelector:@selector(integerValue)]) {
+			NSInteger limit = [self _clampedBatteryLimit:[value integerValue]];
+			return @(limit);
+		}
+	}
+
+	// Fallback for environments where /var/root/aldente.conf is unreadable.
+	NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:1230"];
+	NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
+	req.HTTPMethod = @"POST";
+	req.timeoutInterval = 1.5;
+	[req setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+	NSData *body = [NSJSONSerialization dataWithJSONObject:@{@"api": @"get_conf", @"key": @"charge_above"} options:0 error:nil];
+	req.HTTPBody = body;
+
+	__block NSData *data = nil;
+	__block NSError *requestError = nil;
+	dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+	NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req completionHandler:^(NSData *responseData, NSURLResponse *response, NSError *error) {
+		data = responseData;
+		requestError = error;
+		dispatch_semaphore_signal(sem);
+	}];
+	[task resume];
+	dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC));
+	long waitResult = dispatch_semaphore_wait(sem, timeout);
+	if (waitResult != 0 || requestError || data.length == 0) return nil;
+	NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+	if (![json isKindOfClass:[NSDictionary class]]) return nil;
+	id status = json[@"status"];
+	if (![status respondsToSelector:@selector(integerValue)] || [status integerValue] != 0) return nil;
+	id val = json[@"data"];
+	if (![val respondsToSelector:@selector(integerValue)]) return nil;
+	NSInteger limit = [self _clampedBatteryLimit:[val integerValue]];
 	return @(limit);
 }
 
