@@ -55,7 +55,7 @@
 "jikan.prefs.alert.limit_sources.title" = "Synchronisiert mit ChargeLimiter";
 
 "jikan.tt100.value.na" = "N/A";
-"jikan.tt100.format.hr_min" = "%d:%d Stunden";
+"jikan.tt100.format.hr_min" = "%d St. %d Min.";
 "jikan.tt100.format.hr" = "%d Stunden";
 "jikan.tt100.format.min" = "%d Minuten";
 "jikan.tt100.format.lt1min" = "<1 Minute";
@@ -64,4 +64,4 @@
 "jikan.platter.label.charged" = "geladen";
 "jikan.platter.label.current_wattage" = "Ladeleistung";
 "jikan.platter.preview.time" = "0 Minuten";
-"jikan.platter.preview.eta" = "1:23 Stunden";
+"jikan.platter.preview.eta" = "1 St. 23 Min.";
