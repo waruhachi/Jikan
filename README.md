@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Preferences/Resources/icon@3x.png" alt="Jikan" width="96" height="96" />
+  <img src="Preferences/Resources/icon.png" alt="Jikan" width="96" height="96" />
 </p>
 
 <h1 align="center">Jikan</h1>
