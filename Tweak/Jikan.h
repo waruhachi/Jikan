@@ -30,12 +30,20 @@ extern BOOL isCharging;
 @interface NCNotificationListCountIndicatorView : UIView
 @end
 
-@interface CSQuickActionsButton : UIControl
+@interface CSProminentButtonControl : UIControl
+@property (nonatomic, retain) UIVisualEffectView *backgroundEffectView;
+@property (nonatomic, readonly) UIView *backgroundView;
+@property (nonatomic) BOOL usesGlassMaterial;
+@end
+
+@interface CSProminentButtonsView : UIView
+@property (nonatomic, retain) CSProminentButtonControl *leadingButton;
+@property (nonatomic, retain) CSProminentButtonControl *trailingButton;
 @end
 
 @interface CSQuickActionsView : UIView
-@property (nonatomic, retain) CSQuickActionsButton *cameraButton;
-@property (nonatomic, retain) CSQuickActionsButton *flashlightButton;
+@property (nonatomic, retain) CSProminentButtonsView *buttonContainerView;
+@property (nonatomic, retain) NSArray *buttons;
 
 - (void)refreshSupportedButtons;
 - (UIEdgeInsets)_buttonOutsets;

@@ -25,6 +25,8 @@ static const void *kTTPlatterDragStartTouchKey = &kTTPlatterDragStartTouchKey;
 static const void *kTTPlatterDefaultCenterComputedPortraitKey = &kTTPlatterDefaultCenterComputedPortraitKey;
 static const void *kTTPlatterDefaultCenterComputedLandscapeKey = &kTTPlatterDefaultCenterComputedLandscapeKey;
 static const void *kTTPlatterDraggingKey = &kTTPlatterDraggingKey;
+static const void *kTTQuickActionOriginalHiddenKey = &kTTQuickActionOriginalHiddenKey;
+static const void *kTTQuickActionHiddenByJikanKey = &kTTQuickActionHiddenByJikanKey;
 static BOOL _ttLastResolvedChargingValid = NO;
 static BOOL _ttAllowSBUIControllerFallback = NO;
 static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
@@ -366,18 +368,132 @@ static CSQuickActionsView *TTFindQuickActionsView(UIView *root) {
 	return nil;
 }
 
-static BOOL TTQuickActionButtonFramesInView(CSCoverSheetView *coverSheet, CGRect *flashRectOut, CGRect *cameraRectOut) {
+static id TTObjectForSelector(id target, NSString *selectorName) {
+	if (!target || selectorName.length == 0) return nil;
+	SEL selector = NSSelectorFromString(selectorName);
+	if (!selector || ![target respondsToSelector:selector]) return nil;
+
+	@try {
+		// A selector name alone does not establish the private method's ABI.
+		NSMethodSignature *signature = [target methodSignatureForSelector:selector];
+		if (signature.numberOfArguments != 2 || signature.methodReturnType[0] != '@') return nil;
+		return ((id (*)(id, SEL))objc_msgSend)(target, selector);
+	}
+	@catch (__unused NSException *exception) {
+		return nil;
+	}
+}
+
+static UIView *TTViewForSelector(id target, NSString *selectorName) {
+	id object = TTObjectForSelector(target, selectorName);
+	return [object isKindOfClass:[UIView class]] ? (UIView *)object : nil;
+}
+
+static BOOL TTResolveQuickActionButtons(CSQuickActionsView *quickActions, UIView **leadingOut, UIView **trailingOut) {
+	if (leadingOut) *leadingOut = nil;
+	if (trailingOut) *trailingOut = nil;
+	if (!quickActions) return NO;
+
+	UIView *leading = nil;
+	UIView *trailing = nil;
+	id container = TTObjectForSelector(quickActions, @"buttonContainerView");
+	if (container) {
+		leading = TTViewForSelector(container, @"leadingButton");
+		trailing = TTViewForSelector(container, @"trailingButton");
+	}
+
+	// Older CoreSpringBoard versions expose the two controls directly.
+	if (!leading) leading = TTViewForSelector(quickActions, @"flashlightButton");
+	if (!trailing) trailing = TTViewForSelector(quickActions, @"cameraButton");
+
+	// Last-resort collection fallback. Sort by on-screen position instead of
+	// assuming the private array has a stable flashlight/camera ordering.
+	if (!leading || !trailing) {
+		id buttonsObject = TTObjectForSelector(quickActions, @"buttons");
+		if ([buttonsObject isKindOfClass:[NSArray class]]) {
+			NSMutableArray<UIView *> *buttonViews = [NSMutableArray array];
+			for (id object in (NSArray *)buttonsObject) {
+				if (![object isKindOfClass:[UIView class]]) continue;
+				UIView *view = (UIView *)object;
+				if (![view isDescendantOfView:quickActions]) continue;
+				if (![buttonViews containsObject:view]) [buttonViews addObject:view];
+			}
+
+			[buttonViews sortUsingComparator:^NSComparisonResult(UIView *a, UIView *b) {
+				CGRect aRect = [a convertRect:a.bounds toView:quickActions];
+				CGRect bRect = [b convertRect:b.bounds toView:quickActions];
+				CGFloat aX = CGRectGetMidX(aRect);
+				CGFloat bX = CGRectGetMidX(bRect);
+				if (aX < bX) return NSOrderedAscending;
+				if (aX > bX) return NSOrderedDescending;
+				return NSOrderedSame;
+			}];
+
+			// Semantic leading/trailing can be reversed on screen in RTL. Never
+			// fill a missing slot with the button already resolved for the other.
+			for (UIView *view in buttonViews) {
+				if (!leading && view != trailing) leading = view;
+			}
+			for (UIView *view in buttonViews.reverseObjectEnumerator) {
+				if (!trailing && view != leading) trailing = view;
+			}
+		}
+	}
+	if (leading == trailing) trailing = nil;
+
+	if (leadingOut) *leadingOut = leading;
+	if (trailingOut) *trailingOut = trailing;
+	return leading || trailing;
+}
+
+static void TTSetQuickActionControlHidden(UIView *control, BOOL shouldHide) {
+	if (!control) return;
+	BOOL hiddenByJikan = [objc_getAssociatedObject(control, kTTQuickActionHiddenByJikanKey) boolValue];
+
+	if (shouldHide) {
+		if (!hiddenByJikan) {
+			objc_setAssociatedObject(control, kTTQuickActionOriginalHiddenKey, @(control.hidden), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+			objc_setAssociatedObject(control, kTTQuickActionHiddenByJikanKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		}
+		control.hidden = YES;
+		return;
+	}
+
+	if (!hiddenByJikan) return;
+	NSNumber *originalHidden = (NSNumber *)objc_getAssociatedObject(control, kTTQuickActionOriginalHiddenKey);
+	if (originalHidden) control.hidden = originalHidden.boolValue;
+	objc_setAssociatedObject(control, kTTQuickActionOriginalHiddenKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	objc_setAssociatedObject(control, kTTQuickActionHiddenByJikanKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+static void TTSetQuickActionButtonsHidden(CSQuickActionsView *quickActions, BOOL shouldHide) {
+	UIView *leading = nil;
+	UIView *trailing = nil;
+	if (!TTResolveQuickActionButtons(quickActions, &leading, &trailing)) return;
+
+	TTSetQuickActionControlHidden(leading, shouldHide);
+	if (trailing && trailing != leading) TTSetQuickActionControlHidden(trailing, shouldHide);
+}
+
+static BOOL TTQuickActionButtonFramesInView(CSCoverSheetView *coverSheet, CGRect *leadingRectOut, CGRect *trailingRectOut) {
 	CSQuickActionsView *quickActions = TTFindQuickActionsView(coverSheet);
-	if (!quickActions.flashlightButton || !quickActions.cameraButton) return NO;
+	UIView *leading = nil;
+	UIView *trailing = nil;
+	if (!TTResolveQuickActionButtons(quickActions, &leading, &trailing) || !leading || !trailing) return NO;
+	if (![leading isDescendantOfView:coverSheet] || ![trailing isDescendantOfView:coverSheet]) return NO;
 
-	UIView *flashSuper = quickActions.flashlightButton.superview ?: quickActions;
-	UIView *cameraSuper = quickActions.cameraButton.superview ?: quickActions;
-	CGRect flashRect = [flashSuper convertRect:quickActions.flashlightButton.frame toView:coverSheet];
-	CGRect cameraRect = [cameraSuper convertRect:quickActions.cameraButton.frame toView:coverSheet];
-
-	if (CGRectIsEmpty(flashRect) || CGRectIsEmpty(cameraRect)) return NO;
-	if (flashRectOut) *flashRectOut = flashRect;
-	if (cameraRectOut) *cameraRectOut = cameraRect;
+	CGRect leadingRect = [leading convertRect:leading.bounds toView:coverSheet];
+	CGRect trailingRect = [trailing convertRect:trailing.bounds toView:coverSheet];
+	if (CGRectIsEmpty(leadingRect) || CGRectIsEmpty(trailingRect)) return NO;
+	if (!isfinite(leadingRect.origin.x) || !isfinite(leadingRect.origin.y) || !isfinite(leadingRect.size.width) || !isfinite(leadingRect.size.height) ||
+		!isfinite(trailingRect.origin.x) || !isfinite(trailingRect.origin.y) || !isfinite(trailingRect.size.width) || !isfinite(trailingRect.size.height)) return NO;
+	if (CGRectGetMidX(leadingRect) > CGRectGetMidX(trailingRect)) {
+		CGRect swap = leadingRect;
+		leadingRect = trailingRect;
+		trailingRect = swap;
+	}
+	if (leadingRectOut) *leadingRectOut = leadingRect;
+	if (trailingRectOut) *trailingRectOut = trailingRect;
 	return YES;
 }
 
@@ -404,17 +520,24 @@ static UIView *TTFindNearestQuickActionMaterialView(UIView *root) {
 	if (!root) return nil;
 	CSQuickActionsView *quickActions = TTFindQuickActionsView(root);
 	if (!quickActions) return nil;
-	NSArray<UIView *> *candidates = @[];
-	if (quickActions.flashlightButton && quickActions.cameraButton) {
-		candidates = @[quickActions.flashlightButton, quickActions.cameraButton];
-	}
+	UIView *leading = nil;
+	UIView *trailing = nil;
+	TTResolveQuickActionButtons(quickActions, &leading, &trailing);
+	NSMutableArray<UIView *> *candidates = [NSMutableArray array];
+	if (leading) [candidates addObject:leading];
+	if (trailing && trailing != leading) [candidates addObject:trailing];
 	for (UIView *button in candidates) {
 		if (!button) continue;
+		UIView *backgroundEffectView = TTViewForSelector(button, @"backgroundEffectView");
+		UIView *backgroundView = TTViewForSelector(button, @"backgroundView");
+
 		NSMutableArray<UIView *> *buttonStack = [NSMutableArray arrayWithObject:button];
+		if (backgroundView) [buttonStack addObject:backgroundView];
+		if (backgroundEffectView) [buttonStack addObject:backgroundEffectView];
 		while (buttonStack.count) {
 			UIView *v = buttonStack.lastObject;
 			[buttonStack removeLastObject];
-			if ([v isKindOfClass:[UIVisualEffectView class]]) return v;
+			if ([v isKindOfClass:[UIVisualEffectView class]] && ((UIVisualEffectView *)v).effect) return v;
 			if ([NSStringFromClass(v.class) containsString:@"MTMaterial"]) return v;
 			for (UIView *sub in v.subviews) {
 				[buttonStack addObject:sub];
@@ -428,7 +551,10 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 	if (!coverSheet.remainingTimePlatter) return;
 	if (TTPlatterStyleCaptured(coverSheet)) return;
 	CSQuickActionsView *quickActions = TTFindQuickActionsView(coverSheet);
-	CSQuickActionsButton *referenceButton = quickActions.flashlightButton ?: quickActions.cameraButton;
+	UIView *leading = nil;
+	UIView *trailing = nil;
+	TTResolveQuickActionButtons(quickActions, &leading, &trailing);
+	UIView *referenceButton = leading ?: trailing;
 
 	UIView *sourceMaterialView = TTFindNearestQuickActionMaterialView(coverSheet);
 	if (!sourceMaterialView) return;
@@ -444,7 +570,7 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 		return;
 	}
 
-	[coverSheet.remainingTimePlatter applyQuickActionBackgroundStyleFromView:(referenceButton ?: sourceMaterialView)];
+	[coverSheet.remainingTimePlatter applyQuickActionBackgroundStyleFromView:sourceMaterialView];
 	if (!TTPlatterStyleCaptured(coverSheet)) {
 		TTSetPlatterStyleCaptured(coverSheet, YES);
 	}
@@ -656,10 +782,11 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 %hook CSQuickActionsView
 
 - (void)refreshSupportedButtons {
+	// Let the system refresh its own visibility before capturing a new override.
+	TTSetQuickActionButtonsHidden(self, NO);
 	%orig;
 	BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
-	self.cameraButton.hidden = shouldHide;
-	self.flashlightButton.hidden = shouldHide;
+	TTSetQuickActionButtonsHidden(self, shouldHide);
 }
 
 %end
@@ -757,8 +884,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	CSQuickActionsView *quickActions = TTFindQuickActionsView(self);
 	if (quickActions) {
 		BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
-		quickActions.cameraButton.hidden = shouldHide;
-		quickActions.flashlightButton.hidden = shouldHide;
+		TTSetQuickActionButtonsHidden(quickActions, shouldHide);
 	}
 	[self _configureRemainingTimePlatterConstraints];
 	[self setNeedsLayout];
@@ -956,16 +1082,16 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	CGFloat defaultBottomOffset = TTShouldHideQuickActionButtonsNow() ? -28.0 : -76.0;
 	CGFloat defaultCenterXOffset = 0.0;
 
-	CGRect flashRect = CGRectZero;
-	CGRect cameraRect = CGRectZero;
-	if (TTQuickActionButtonFramesInView(self, &flashRect, &cameraRect)) {
-		CGFloat targetCenterY = (CGRectGetMidY(flashRect) + CGRectGetMidY(cameraRect)) * 0.5;
+	CGRect leadingRect = CGRectZero;
+	CGRect trailingRect = CGRectZero;
+	if (TTQuickActionButtonFramesInView(self, &leadingRect, &trailingRect)) {
+		CGFloat targetCenterY = (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5;
 		CGFloat safeBottomY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom;
 		defaultBottomOffset = (targetCenterY + (kPlatterHeight * 0.5)) - safeBottomY;
-		CGFloat targetCenterX = (CGRectGetMidX(flashRect) + CGRectGetMidX(cameraRect)) * 0.5;
+		CGFloat targetCenterX = (CGRectGetMidX(leadingRect) + CGRectGetMidX(trailingRect)) * 0.5;
 		defaultCenterXOffset = targetCenterX - CGRectGetMidX(self.bounds);
 
-		CGFloat innerGap = CGRectGetMinX(cameraRect) - CGRectGetMaxX(flashRect);
+		CGFloat innerGap = CGRectGetMinX(trailingRect) - CGRectGetMaxX(leadingRect);
 		if (innerGap > 0) {
 			CGFloat targetWidth = innerGap - 12.0;
 			platterWidth = MAX(136.0, MIN(220.0, targetWidth));

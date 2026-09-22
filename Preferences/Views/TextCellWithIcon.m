@@ -6,7 +6,6 @@
 @interface TextCellWithIcon ()
 @property (nonatomic, strong) UIImageView *iconView;
 @property (nonatomic, strong) UILabel *iconTitleLabel;
-@property (nonatomic, assign) PSSpecifier *jikanSpecifier;
 @end
 
 @implementation TextCellWithIcon
@@ -23,10 +22,40 @@
 	return [UIColor systemBlueColor];
 }
 
+- (void)_jikanApplySpecifier:(PSSpecifier *)specifier {
+	if (!specifier || !_iconView || !_iconTitleLabel) return;
+
+	_iconView.tintColor = [self _iconColorFromSpecifier:specifier];
+	NSString *symbolName = [specifier propertyForKey:@"sfIcon"];
+	UIImage *symbol = nil;
+	if ([symbolName isKindOfClass:[NSString class]] && symbolName.length > 0) {
+		UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:22.0 weight:UIImageSymbolWeightRegular];
+		symbol = [UIImage systemImageNamed:symbolName withConfiguration:config];
+		if (!symbol && [symbolName isEqualToString:@"battery.75percent"]) {
+			symbol = [UIImage systemImageNamed:@"battery.75" withConfiguration:config];
+		}
+	}
+	_iconView.image = symbol;
+
+	NSString *title = [specifier propertyForKey:@"CCELabel"];
+	if (![title isKindOfClass:[NSString class]] || title.length == 0) {
+		title = [specifier propertyForKey:@"label"];
+	}
+	_iconTitleLabel.text = [title isKindOfClass:[NSString class]] ? title : @"";
+
+	NSString *infoAction = [specifier propertyForKey:@"infoAction"];
+	if ([infoAction isKindOfClass:[NSString class]] && infoAction.length > 0) {
+		UIButton *infoButton = [UIButton buttonWithType:UIButtonTypeInfoLight];
+		[infoButton addTarget:self action:@selector(_jikanInfoTapped) forControlEvents:UIControlEventTouchUpInside];
+		self.accessoryView = infoButton;
+	} else {
+		self.accessoryView = nil;
+	}
+}
+
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)identifier specifier:(PSSpecifier *)specifier {
 	self = [super initWithStyle:style reuseIdentifier:identifier specifier:specifier];
 	if (!self) return nil;
-	self.jikanSpecifier = specifier;
 
 	self.selectionStyle = UITableViewCellSelectionStyleNone;
 	self.backgroundColor = UIColor.clearColor;
@@ -42,7 +71,6 @@
 	_iconView = [[UIImageView alloc] initWithFrame:CGRectZero];
 	_iconView.translatesAutoresizingMaskIntoConstraints = NO;
 	_iconView.contentMode = UIViewContentModeScaleAspectFit;
-	_iconView.tintColor = [self _iconColorFromSpecifier:specifier];
 	[self.contentView addSubview:_iconView];
 
 	_iconTitleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
@@ -61,43 +89,21 @@
 		[_iconTitleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.contentView.trailingAnchor constant:-16.0],
 	]];
 
-	NSString *symbolName = [specifier propertyForKey:@"sfIcon"];
-	if ([symbolName isKindOfClass:[NSString class]] && symbolName.length > 0) {
-		UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:22.0 weight:UIImageSymbolWeightRegular];
-		UIImage *symbol = [UIImage systemImageNamed:symbolName withConfiguration:config];
-		if (!symbol && [symbolName isEqualToString:@"battery.75percent"]) {
-			symbol = [UIImage systemImageNamed:@"battery.75" withConfiguration:config];
-		}
-		_iconView.image = symbol;
-	}
-
-	NSString *title = [specifier propertyForKey:@"CCELabel"];
-	if (![title isKindOfClass:[NSString class]] || title.length == 0) {
-		title = [specifier propertyForKey:@"label"];
-	}
-	_iconTitleLabel.text = title;
-
-	NSString *infoAction = [specifier propertyForKey:@"infoAction"];
-	if ([infoAction isKindOfClass:[NSString class]] && infoAction.length > 0) {
-		UIButton *infoButton;
-		if (@available(iOS 13.0, *)) {
-			infoButton = [UIButton buttonWithType:UIButtonTypeInfoLight];
-		} else {
-			infoButton = [UIButton buttonWithType:UIButtonTypeDetailDisclosure];
-		}
-		[infoButton addTarget:self action:@selector(_jikanInfoTapped) forControlEvents:UIControlEventTouchUpInside];
-		self.accessoryView = infoButton;
-	} else {
-		self.accessoryView = nil;
-	}
+	[self _jikanApplySpecifier:specifier];
 
 	return self;
 }
 
+- (void)refreshCellContentsWithSpecifier:(PSSpecifier *)specifier {
+	[super refreshCellContentsWithSpecifier:specifier];
+	[self _jikanApplySpecifier:specifier];
+}
+
 - (void)_jikanInfoTapped {
-	NSString *actionName = [self.jikanSpecifier propertyForKey:@"infoAction"];
+	PSSpecifier *specifier = self.specifier;
+	NSString *actionName = [specifier propertyForKey:@"infoAction"];
 	if (![actionName isKindOfClass:[NSString class]] || actionName.length == 0) return;
-	id target = [self.jikanSpecifier target];
+	id target = [specifier target];
 	SEL action = NSSelectorFromString(actionName);
 	if (!target || !action || ![target respondsToSelector:action]) return;
 #pragma clang diagnostic push
@@ -115,10 +121,6 @@
 	if (self.textLabel) {
 		self.textLabel.hidden = YES;
 		self.textLabel.text = @"";
-	}
-	NSString *infoAction = [self.jikanSpecifier propertyForKey:@"infoAction"];
-	if (![infoAction isKindOfClass:[NSString class]] || infoAction.length == 0) {
-		self.accessoryView = nil;
 	}
 }
 

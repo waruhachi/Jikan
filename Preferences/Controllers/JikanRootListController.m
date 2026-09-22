@@ -11,6 +11,8 @@
 @interface JikanRootListController ()
 @property (nonatomic, assign) BOOL jikanReloadQueued;
 @property (nonatomic, assign) CFAbsoluteTime jikanLastReloadTime;
+@property (nonatomic, assign) NSUInteger jikanReloadGeneration;
+@property (nonatomic, assign) BOOL jikanObservingPreferences;
 @end
 
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
@@ -71,8 +73,11 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		[self _updateBatteryLimitInfoSpecifier];
 		[self collectDynamicSpecifiersFromArray:_specifiers];
 		[self _configureAxisSliderLeftImages];
-		CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_appDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
+		if (!self.jikanObservingPreferences) {
+			CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_appDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
+			self.jikanObservingPreferences = YES;
+		}
 	}
 
 	return _specifiers;
@@ -156,6 +161,12 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)reloadSpecifiers {
+	// Cover direct framework reloads as well as notification-driven reloads.
+	if ([self _isAnyPreferenceSliderTracking]) {
+		[self _scheduleSpecifiersReload:NO];
+		return;
+	}
+	self.jikanReloadGeneration++;
 	self.jikanLastReloadTime = CFAbsoluteTimeGetCurrent();
 	self.jikanReloadQueued = NO;
 	[super reloadSpecifiers];
@@ -349,20 +360,47 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[self _scheduleSpecifiersReload:NO];
 }
 
+- (BOOL)_viewContainsTrackingSlider:(UIView *)view {
+	if ([view isKindOfClass:[UISlider class]] && [(UISlider *)view isTracking]) return YES;
+	for (UIView *subview in view.subviews) {
+		if ([self _viewContainsTrackingSlider:subview]) return YES;
+	}
+	return NO;
+}
+
+- (BOOL)_isAnyPreferenceSliderTracking {
+	return [self _viewContainsTrackingSlider:self.viewIfLoaded];
+}
+
 - (void)_scheduleSpecifiersReload:(BOOL)immediate {
-	if (immediate) {
+	// PSSliderCell posts the shared Darwin notification continuously while its
+	// thumb is moving. Rebuilding the specifier table during that tracking can
+	// recycle/rebind slider cells while UIKit is still delivering the same
+	// touch, allowing subsequent value changes to land on another specifier.
+	// Keep live Darwin notifications for SpringBoard, but defer the Settings UI
+	// reload until the active slider has finished tracking.
+	BOOL tracking = [self _isAnyPreferenceSliderTracking];
+	if (immediate && !tracking) {
 		[self reloadSpecifiers];
 		return;
 	}
 
 	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
-	if ((now - self.jikanLastReloadTime) < 0.25) return;
 	if (self.jikanReloadQueued) return;
 
+	NSTimeInterval delay = tracking ? 0.10 : MAX(0.08, 0.25 - (now - self.jikanLastReloadTime));
 	self.jikanReloadQueued = YES;
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.08 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+	NSUInteger generation = ++self.jikanReloadGeneration;
+	__weak typeof(self) weakSelf = self;
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+		__strong typeof(weakSelf) self = weakSelf;
+		if (!self || generation != self.jikanReloadGeneration) return;
+		self.jikanReloadQueued = NO;
 		if (!self.viewIfLoaded.window) {
-			self.jikanReloadQueued = NO;
+			return;
+		}
+		if ([self _isAnyPreferenceSliderTracking]) {
+			[self _scheduleSpecifiersReload:NO];
 			return;
 		}
 		[self reloadSpecifiers];
@@ -505,26 +543,42 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)_installSliderLongPressEditorsIfNeeded {
 	JikanInstallSliderTrackingGuardIfNeeded();
 
-	for (NSDictionary *config in [self _sliderEditorConfigs]) {
-		PSSpecifier *specifier = [self specifierForID:config[@"id"]];
-		if (!specifier) continue;
-
-		UITableViewCell *cell = [specifier propertyForKey:PSTableCellKey];
-		if (!cell) continue;
-
-		UISlider *slider = [self _firstSliderInView:cell.contentView];
-		if (!slider) continue;
-		objc_setAssociatedObject(slider, kJikanSliderThumbOnlyKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		if ([objc_getAssociatedObject(slider, kJikanSliderEditorInstalledKey) boolValue]) continue;
-
-		UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleSliderKnobHold:)];
-		hold.minimumPressDuration = 0.35;
-		hold.cancelsTouchesInView = NO;
-		[slider addGestureRecognizer:hold];
-
-		objc_setAssociatedObject(slider, kJikanSliderEditorInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		objc_setAssociatedObject(slider, kJikanSliderEditorConfigKey, config, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	// A specifier's cached cell may have been reused for another row. Resolve
+	// the displayed row through the table instead of following PSTableCellKey.
+	UITableView *tableView = self.table;
+	for (UITableViewCell *cell in tableView.visibleCells) {
+		NSIndexPath *indexPath = [tableView indexPathForCell:cell];
+		if (!indexPath) continue;
+		[self _configureSliderEditorForCell:cell specifier:[self specifierAtIndexPath:indexPath]];
 	}
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+	UITableViewCell *cell = [super tableView:tableView cellForRowAtIndexPath:indexPath];
+	[self _configureSliderEditorForCell:cell specifier:[self specifierAtIndexPath:indexPath]];
+	return cell;
+}
+
+- (void)_configureSliderEditorForCell:(UITableViewCell *)cell specifier:(PSSpecifier *)specifier {
+	UISlider *slider = [self _firstSliderInView:cell.contentView];
+	if (!slider) return;
+	NSDictionary *config = nil;
+	for (NSDictionary *candidate in [self _sliderEditorConfigs]) {
+		if ([candidate[@"id"] isEqual:[specifier propertyForKey:PSIDKey]]) {
+			config = candidate;
+			break;
+		}
+	}
+	objc_setAssociatedObject(slider, kJikanSliderEditorConfigKey, config, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	objc_setAssociatedObject(slider, kJikanSliderThumbOnlyKey, @(config != nil), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	if (!config || [objc_getAssociatedObject(slider, kJikanSliderEditorInstalledKey) boolValue]) return;
+	JikanInstallSliderTrackingGuardIfNeeded();
+
+	UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleSliderKnobHold:)];
+	hold.minimumPressDuration = 0.35;
+	hold.cancelsTouchesInView = NO;
+	[slider addGestureRecognizer:hold];
+	objc_setAssociatedObject(slider, kJikanSliderEditorInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 - (void)_handleSliderKnobHold:(UILongPressGestureRecognizer *)gesture {
