@@ -13,9 +13,9 @@
 
 	self.backgroundColor = UIColor.clearColor;
 
-	UIImage *icon = [UIImage imageNamed:@"icon" inBundle:bundle compatibleWithTraitCollection:nil];
+	UIImage *icon = [UIImage imageNamed:@"headerIcon" inBundle:bundle compatibleWithTraitCollection:nil];
 	if (!icon) {
-		icon = [UIImage imageNamed:@"icon" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
+		icon = [UIImage imageNamed:@"headerIcon" inBundle:[NSBundle bundleForClass:[self class]] compatibleWithTraitCollection:nil];
 	}
 	_iconView = [[UIImageView alloc] initWithImage:icon];
 	_iconView.translatesAutoresizingMaskIntoConstraints = NO;
