@@ -10,7 +10,7 @@ AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: DontAlign
 AlignOperands: false
 AlignTrailingComments: false
-AllowShortBlocksOnASingleLine : Always
+AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: Always
@@ -61,9 +61,9 @@ ObjCSpaceAfterProperty: true
 ObjCSpaceBeforeProtocolList: true
 SortIncludes: true
 IncludeCategories:
-  - Regex: '^<.*>'
+  - Regex: "^<.*>"
     Priority: 1
   - Regex: '^".*"'
     Priority: 2
 IncludeBlocks: Regroup
-IncludeIsMainRegex: '$.'
+IncludeIsMainRegex: "$."
