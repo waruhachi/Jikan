@@ -6,4 +6,4 @@ Description: Show time left to full charge on your lock screen
 Maintainer: waruhachi
 Author: waruhachi
 Section: Tweaks
-Depends: mobilesubstrate (>= 0.9.5000)
+Depends: firmware (>= 14.5), mobilesubstrate (>= 0.9.5000), preferenceloader
