@@ -16,7 +16,7 @@
 "jikan.prefs.row.lock_x_axis" = "Khoá trục X";
 "jikan.prefs.row.lock_y_axis" = "Khoá trục Y";
 "jikan.prefs.row.show_preview" = "Hiện xem trước";
-"jikan.prefs.row.show_after_full_charge" = "Hiện sau khi sạc đầy";
+"jikan.prefs.row.show_after_full_charge" = "Hiển thị sau khi đạt mức sạc mục tiêu";
 "jikan.prefs.row.show_current_wattage" = "Hiện số watt";
 "jikan.prefs.row.opacity" = "Độ mờ đục";
 "jikan.prefs.row.pill_background_opacity" = "Độ mờ đục nền hình bo tròn (%)";
@@ -43,6 +43,7 @@
 "jikan.prefs.slider.landscape_x.title" = "Ngang X";
 "jikan.prefs.slider.landscape_y.title" = "Ngang Y";
 
+"jikan.prefs.alert.slider_invalid.message" = "Nhập số hợp lệ từ %.0f đến %.0f.";
 "jikan.prefs.alert.slider_range.message" = "Nhập một giá trị từ %.0f đến %.0f";
 "jikan.prefs.alert.reset_pill_position.title" = "Đặt lại vị trí hình bo tròn";
 "jikan.prefs.alert.reset_pill_position.prompt" = "Đặt lại vị trí ngang/dọc của hình bo tròn và các khoá trục?";
@@ -52,6 +53,8 @@
 "jikan.prefs.alert.detect_limit.none.message" = "Không tìm thấy ChargeLimiter. Sẽ dùng 100%.";
 "jikan.prefs.alert.detect_limit.single.title" = "Phát hiện ChargeLimiter";
 "jikan.prefs.alert.detect_limit.single.message" = "Phát hiện ChargeLimiter. Áp dụng giới hạn pin mức: %ld%%";
+"jikan.prefs.alert.detect_limit.unchanged.message" = "Không tìm thấy giới hạn ChargeLimiter. Mức sạc mục tiêu của bạn không thay đổi.";
+"jikan.prefs.alert.limit_sources.applied.message" = "Lần áp dụng gần nhất từ ChargeLimiter: %ld%%";
 "jikan.prefs.alert.limit_sources.title" = "Đã đồng bộ với ChargeLimiter";
 
 "jikan.tt100.value.na" = "N/A";
@@ -61,6 +64,7 @@
 "jikan.tt100.format.lt1min" = "<1 phút";
 
 "jikan.platter.label.until_fully_charged" = "cho đến lúc đầy";
+"jikan.platter.label.until_target" = "đến khi sạc %ld%%";
 "jikan.platter.label.charged" = "đã sạc";
 "jikan.platter.label.current_wattage" = "số watt hiện tại";
 "jikan.platter.preview.time" = "0 phút";

@@ -16,7 +16,7 @@
 "jikan.prefs.row.lock_x_axis" = "X-Achse sperren";
 "jikan.prefs.row.lock_y_axis" = "Y-Achse sperren";
 "jikan.prefs.row.show_preview" = "Vorschau";
-"jikan.prefs.row.show_after_full_charge" = "Dauerhaft anzeigen";
+"jikan.prefs.row.show_after_full_charge" = "Nach Erreichen des Ladeziels anzeigen";
 "jikan.prefs.row.show_current_wattage" = "Ladeleistung anzeigen";
 "jikan.prefs.row.opacity" = "Hintergrunddeckkraft";
 "jikan.prefs.row.pill_background_opacity" = "Deckkraft des Hintergrunds (in %)";
@@ -43,6 +43,7 @@
 "jikan.prefs.slider.landscape_x.title" = "Querformat X-Position";
 "jikan.prefs.slider.landscape_y.title" = "Querformat Y-Position";
 
+"jikan.prefs.alert.slider_invalid.message" = "Gib eine gültige Zahl zwischen %.0f und %.0f ein.";
 "jikan.prefs.alert.slider_range.message" = "Gib einen Wert von %.0f bis %.0f ein.";
 "jikan.prefs.alert.reset_pill_position.title" = "Position zurücksetzen";
 "jikan.prefs.alert.reset_pill_position.prompt" = "Möchtest du die Position im Hoch- und Querformat sowie die Achsenarretierungen zurücksetzen?";
@@ -52,6 +53,8 @@
 "jikan.prefs.alert.detect_limit.none.message" = "Es wurde kein Maximum mittels ChargeLimiter definiert. Verwende 100% als Maximum.";
 "jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter gefunden";
 "jikan.prefs.alert.detect_limit.single.message" = "Verwende %ld%% als Maximum.";
+"jikan.prefs.alert.detect_limit.unchanged.message" = "Kein ChargeLimiter-Limit erkannt. Dein Ladeziel bleibt unverändert.";
+"jikan.prefs.alert.limit_sources.applied.message" = "Zuletzt von ChargeLimiter übernommen: %ld%%";
 "jikan.prefs.alert.limit_sources.title" = "Synchronisiert mit ChargeLimiter";
 
 "jikan.tt100.value.na" = "N/A";
@@ -61,6 +64,7 @@
 "jikan.tt100.format.lt1min" = "<1 Minute";
 
 "jikan.platter.label.until_fully_charged" = "bis vollständig geladen";
+"jikan.platter.label.until_target" = "bis auf %ld%% geladen";
 "jikan.platter.label.charged" = "geladen";
 "jikan.platter.label.current_wattage" = "Ladeleistung";
 "jikan.platter.preview.time" = "0 Minuten";

@@ -103,16 +103,11 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	self = [super init];
 	if (self) {
 		self.translatesAutoresizingMaskIntoConstraints = NO;
+		self.isAccessibilityElement = YES;
 
 		[self _setupSubviews];
 
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_tt100BatteryInfoUpdated:) name:TT100BatteryInfoUpdatedNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_chargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
-
-		if (isCharging) {
-			[self _startRefreshTimer];
-		}
-		[[TT100 sharedInstance] _refreshBatteryInfo];
 	}
 
 	return self;
@@ -120,7 +115,6 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 - (void)dealloc {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	[self _stopRefreshTimer];
 #if !__has_feature(objc_arc)
 	[super dealloc];
 #endif
@@ -130,41 +124,27 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	[super didMoveToWindow];
 
 	if (!self.window) {
-		[self _stopRefreshTimer];
 		_showingWattage = NO;
 		return;
 	}
 
-	if (isCharging) {
-		[self _startRefreshTimer];
-	}
+	[self applyBatterySnapshot:[TT100 latestSnapshot]];
 	[self _preferencesPossiblyChanged:nil];
 	[self _updateTapGestureState];
 	[self _applyBackgroundOpacity];
 }
 
-- (void)_tt100BatteryInfoUpdated:(NSNotification *)notification {
-	NSString *timeString = notification.userInfo[@"timeString"];
-	NSDictionary *batteryInfo = [notification.userInfo[@"batteryInfo"] isKindOfClass:[NSDictionary class]] ? notification.userInfo[@"batteryInfo"] : nil;
-	_latestBatteryInfo = batteryInfo;
-	_latestTimeString = timeString;
-	_latestHasEstimate = [notification.userInfo[@"hasEstimate"] respondsToSelector:@selector(boolValue)] ? [notification.userInfo[@"hasEstimate"] boolValue] : [TT100 hasEstimateWithBatteryInfo:batteryInfo];
-	_latestFullyCharged = [notification.userInfo[@"isFullyCharged"] respondsToSelector:@selector(boolValue)] ? [notification.userInfo[@"isFullyCharged"] boolValue] : [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&_latestDisplayPercent];
-	if ([notification.userInfo[@"displayPercent"] respondsToSelector:@selector(integerValue)]) {
-		_latestDisplayPercent = [notification.userInfo[@"displayPercent"] integerValue];
-	}
-	_latestDisplayPercent = MAX(0, MIN(100, _latestDisplayPercent));
-	NSString *speed = [notification.userInfo[@"chargingSpeed"] isKindOfClass:[NSString class]] ? notification.userInfo[@"chargingSpeed"] : @"normal";
+- (void)applyBatterySnapshot:(NSDictionary *)snapshot {
+	_latestBatteryInfo = [snapshot[@"batteryInfo"] isKindOfClass:[NSDictionary class]] ? snapshot[@"batteryInfo"] : nil;
+	_latestTimeString = [snapshot[@"timeString"] isKindOfClass:[NSString class]] ? snapshot[@"timeString"] : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	_latestHasEstimate = [snapshot[@"hasEstimate"] boolValue];
+	_latestTargetReached = [snapshot[@"targetReached"] boolValue];
+	_latestDisplayPercent = MAX(0, MIN(100, [snapshot[@"displayPercent"] integerValue]));
+	_latestTargetPercent = MAX(1, MIN(100, snapshot[@"targetPercent"] ? [snapshot[@"targetPercent"] integerValue] : [TT100 targetPercent]));
+	if (!self.window) return;
+	NSString *speed = [snapshot[@"chargingSpeed"] isKindOfClass:[NSString class]] ? snapshot[@"chargingSpeed"] : @"normal";
 	_boltImageView.tintColor = TTBoltColorForSpeed(speed);
-
-	if (_showingWattage && TTTapToShowWattageEnabled()) {
-		[self _updateWattageLabel];
-	} else if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
-		_timeRemainingLabel.text = @"100%";
-		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
-	} else {
-		[self updateWithTimeString:timeString];
-	}
+	[self updateWithTimeString:_latestTimeString];
 	[self _applyBackgroundOpacity];
 }
 
@@ -245,7 +225,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_staticLabel.adjustsFontSizeToFitWidth = YES;
 	_staticLabel.minimumScaleFactor = 0.8;
 	_staticLabel.textAlignment = NSTextAlignmentCenter;
-	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
+	_staticLabel.text = [self _estimateSubtitle];
 	[_containerView addSubview:_staticLabel];
 
 	_tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTap:)];
@@ -267,8 +247,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	UIFont *primaryBase = [UIFont monospacedDigitSystemFontOfSize:primarySize weight:UIFontWeightSemibold];
 	UIFont *secondaryBase = [UIFont systemFontOfSize:secondarySize weight:UIFontWeightMedium];
 
-	_timeRemainingLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:primaryBase compatibleWithTraitCollection:self.traitCollection];
-	_staticLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:secondaryBase compatibleWithTraitCollection:self.traitCollection];
+	_timeRemainingLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:primaryBase maximumPointSize:32.0 compatibleWithTraitCollection:self.traitCollection];
+	_staticLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:secondaryBase maximumPointSize:24.0 compatibleWithTraitCollection:self.traitCollection];
 }
 
 - (void)setupConstraints {
@@ -289,7 +269,10 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[_contentTintReplicaView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
 
 		[_containerView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-		[_containerView.bottomAnchor constraintEqualToAnchor:self.centerYAnchor constant:-8],
+		[_containerView.bottomAnchor constraintEqualToAnchor:self.centerYAnchor constant:-2],
+		[_containerView.topAnchor constraintEqualToAnchor:self.topAnchor constant:6],
+		[_containerView.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:10],
+		[_containerView.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-10],
 
 		[_boltImageView.leadingAnchor constraintEqualToAnchor:_containerView.leadingAnchor],
 		[_boltImageView.centerYAnchor constraintEqualToAnchor:_containerView.centerYAnchor],
@@ -299,29 +282,36 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[_timeRemainingLabel.leadingAnchor constraintEqualToAnchor:_boltImageView.trailingAnchor constant:4],
 		[_timeRemainingLabel.trailingAnchor constraintEqualToAnchor:_containerView.trailingAnchor],
 		[_timeRemainingLabel.centerYAnchor constraintEqualToAnchor:_containerView.centerYAnchor],
-		[_timeRemainingLabel.heightAnchor constraintEqualToConstant:20],
+		[_timeRemainingLabel.heightAnchor constraintLessThanOrEqualToAnchor:_containerView.heightAnchor],
 
 		[_staticLabel.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
 		[_staticLabel.topAnchor constraintEqualToAnchor:self.centerYAnchor],
-		[_staticLabel.heightAnchor constraintEqualToConstant:20],
+		[_staticLabel.bottomAnchor constraintLessThanOrEqualToAnchor:self.bottomAnchor constant:-6],
+		[_staticLabel.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:10],
+		[_staticLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-10],
 	]];
 }
 
+- (NSString *)_estimateSubtitle {
+	NSInteger target = _latestTargetPercent > 0 ? _latestTargetPercent : [TT100 targetPercent];
+	if (target < 100) return [NSString stringWithFormat:JikanLocalizedString(@"jikan.platter.label.until_target", @"until %ld%% charged"), (long)target];
+	return JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
+}
+
 - (void)updateWithTimeString:(NSString *)timeString {
-	if (timeString.length > 0) {
-		_latestTimeString = timeString;
-	}
+	if (timeString.length > 0) _latestTimeString = timeString;
 	if (_showingWattage && TTTapToShowWattageEnabled()) {
 		[self _updateWattageLabel];
 		return;
 	}
-	if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
-		_timeRemainingLabel.text = @"100%";
+	if (_latestTargetReached && TTShowAfterFullChargeEnabled() && !_previewMode) {
+		_timeRemainingLabel.text = [NSString stringWithFormat:@"%ld%%", (long)_latestDisplayPercent];
 		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
-		return;
+	} else {
+		_timeRemainingLabel.text = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : _latestTimeString;
+		_staticLabel.text = [self _estimateSubtitle];
 	}
-	_timeRemainingLabel.text = timeString;
-	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
+	self.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", _timeRemainingLabel.text ?: @"", _staticLabel.text ?: @""];
 }
 
 - (void)setPreviewMode:(BOOL)preview {
@@ -331,7 +321,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 				[self _updateWattageLabel];
 			} else {
 				_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-				_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
+				_staticLabel.text = [self _estimateSubtitle];
 			}
 		}
 		return;
@@ -340,7 +330,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	if (_previewMode) {
 		_showingWattage = NO;
 		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
+		_staticLabel.text = [self _estimateSubtitle];
 	} else {
 		[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 	}
@@ -375,6 +365,13 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 - (void)enterEditMode:(BOOL)editing {
 	if (_editingMode == editing) return;
 	_editingMode = editing;
+	if (UIAccessibilityIsReduceMotionEnabled()) {
+		[self.layer removeAnimationForKey:@"jikan.wiggle.rotation"];
+		[self.layer removeAnimationForKey:@"jikan.wiggle.bob"];
+		self.transform = CGAffineTransformIdentity;
+		[self _updateTapGestureState];
+		return;
+	}
 	if (editing) {
 		_showingWattage = NO;
 		[self.layer removeAnimationForKey:@"jikan.wiggle.rotation"];
@@ -530,39 +527,21 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 }
 
 - (void)_chargingStateChanged:(NSNotification *)notification {
-	[self _preferencesPossiblyChanged:nil];
-	BOOL charging = [notification.userInfo[@"isCharging"] boolValue];
-	if (charging) {
+#pragma unused(notification)
+	if (!self.window) return;
+	if (!isCharging) {
 		[self enterEditMode:NO];
 		_showingWattage = NO;
-		[self _updateTapGestureState];
-		[self _startRefreshTimer];
-		[[TT100 sharedInstance] _refreshBatteryInfo];
-	} else {
-		[self enterEditMode:NO];
-		_showingWattage = NO;
-		_boltImageView.tintColor = [UIColor systemGreenColor];
-		[self _updateTapGestureState];
-		[self _stopRefreshTimer];
-		if (_previewMode) {
-			_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-			_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
-		}
 	}
+	[self _preferencesPossiblyChanged:nil];
 }
 
 - (void)_preferencesPossiblyChanged:(NSNotification *)notification {
 #pragma unused(notification)
 	[self _updateTapGestureState];
-	if (!TTTapToShowWattageEnabled()) {
-		_showingWattage = NO;
-		[self updateWithTimeString:_latestTimeString ?: _timeRemainingLabel.text ?
-																				 : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
-	} else if (_latestFullyCharged && TTShowAfterFullChargeEnabled() && !_previewMode) {
-		_showingWattage = NO;
-		_timeRemainingLabel.text = @"100%";
-		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
-	}
+	if (!TTTapToShowWattageEnabled()) _showingWattage = NO;
+	_latestTargetPercent = [TT100 targetPercent];
+	[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 	[self _applyBackgroundOpacity];
 }
 
@@ -581,7 +560,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	} else {
 		if (_previewMode && !isCharging) {
 			_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-			_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
+			_staticLabel.text = [self _estimateSubtitle];
 		} else {
 			[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 		}
@@ -590,10 +569,6 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 - (void)_updateWattageLabel {
 	NSDictionary *batteryInfo = _latestBatteryInfo;
-	if (!batteryInfo.count) {
-		batteryInfo = [TT100 fetchBatteryInfo];
-		_latestBatteryInfo = batteryInfo;
-	}
 
 	double watts = [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
 
@@ -605,22 +580,6 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}
 	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.current_wattage", @"current wattage");
-}
-
-- (void)_startRefreshTimer {
-	if (!_refreshTimer) {
-		_refreshTimer = [NSTimer scheduledTimerWithTimeInterval:15.0 target:self selector:@selector(_triggerBatteryRefresh) userInfo:nil repeats:YES];
-		_refreshTimer.tolerance = 3.0;
-	}
-}
-
-- (void)_stopRefreshTimer {
-	[_refreshTimer invalidate];
-	_refreshTimer = nil;
-}
-
-- (void)_triggerBatteryRefresh {
-	[[TT100 sharedInstance] _refreshBatteryInfo];
 }
 
 @end

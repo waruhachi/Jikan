@@ -16,7 +16,7 @@
 "jikan.prefs.row.lock_x_axis" = "Lock X Axis";
 "jikan.prefs.row.lock_y_axis" = "Lock Y Axis";
 "jikan.prefs.row.show_preview" = "Show Preview";
-"jikan.prefs.row.show_after_full_charge" = "Show after full charge";
+"jikan.prefs.row.show_after_full_charge" = "Show after reaching target";
 "jikan.prefs.row.show_current_wattage" = "Show current wattage";
 "jikan.prefs.row.opacity" = "Opacity";
 "jikan.prefs.row.pill_background_opacity" = "Pill Background Opacity (%)";
@@ -43,6 +43,7 @@
 "jikan.prefs.slider.landscape_x.title" = "Landscape X";
 "jikan.prefs.slider.landscape_y.title" = "Landscape Y";
 
+"jikan.prefs.alert.slider_invalid.message" = "Enter a valid number from %.0f to %.0f.";
 "jikan.prefs.alert.slider_range.message" = "Enter a value from %.0f to %.0f";
 "jikan.prefs.alert.reset_pill_position.title" = "Reset Pill Position";
 "jikan.prefs.alert.reset_pill_position.prompt" = "Reset portrait/landscape pill position and axis locks?";
@@ -52,6 +53,8 @@
 "jikan.prefs.alert.detect_limit.none.message" = "No ChargeLimiter limit was detected. Using 100%.";
 "jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter detected";
 "jikan.prefs.alert.detect_limit.single.message" = "Applied battery limit of: %ld%%";
+"jikan.prefs.alert.detect_limit.unchanged.message" = "No ChargeLimiter limit was detected. Your estimate target has not changed.";
+"jikan.prefs.alert.limit_sources.applied.message" = "Last applied from ChargeLimiter: %ld%%";
 "jikan.prefs.alert.limit_sources.title" = "Synced with ChargeLimiter";
 
 "jikan.tt100.value.na" = "N/A";
@@ -61,6 +64,7 @@
 "jikan.tt100.format.lt1min" = "<1 min";
 
 "jikan.platter.label.until_fully_charged" = "until fully charged";
+"jikan.platter.label.until_target" = "until %ld%% charged";
 "jikan.platter.label.charged" = "charged";
 "jikan.platter.label.current_wattage" = "current wattage";
 "jikan.platter.preview.time" = "0 minutes";

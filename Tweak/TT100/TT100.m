@@ -1,3 +1,6 @@
+#import <limits.h>
+#import <math.h>
+
 #import "TT100.h"
 #import "TT100Database.h"
 
@@ -31,9 +34,14 @@ NSString *TT100PLSQLPath(void) {
 	return cachedPath;
 }
 
+@interface TT100 ()
++ (NSString *)_estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo targetPercent:(NSInteger)targetPercent;
+@end
+
 @implementation TT100
 
 static NSNumber *TT100Number(NSDictionary *dict, NSString *key) {
+	if (![dict isKindOfClass:[NSDictionary class]]) return nil;
 	id v = dict[key];
 	return [v isKindOfClass:[NSNumber class]] ? (NSNumber *)v : nil;
 }
@@ -48,13 +56,24 @@ static BOOL TT100Bool(NSDictionary *dict, NSString *key, BOOL *outHasValue) {
 	return NO;
 }
 
+static double TT100DisplaySOC(NSDictionary *batteryInfo) {
+	double maximum = TT100Number(batteryInfo, @"MaxCapacity").doubleValue;
+	NSNumber *current = TT100Number(batteryInfo, @"CurrentCapacity");
+	if (!isfinite(maximum) || maximum <= 0 || !current) {
+		maximum = TT100Number(batteryInfo, @"AppleRawMaxCapacity").doubleValue;
+		current = TT100Number(batteryInfo, @"AppleRawCurrentCapacity");
+	}
+	if (!isfinite(maximum) || maximum <= 0 || !current || !isfinite(current.doubleValue)) return NAN;
+	return MAX(0, MIN(100, current.doubleValue / maximum * 100.0));
+}
+
 static NSInteger TT100EstimateTargetPercent(void) {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
 	NSInteger target = 100;
 	if ([prefs objectForKey:@"batteryEstimateTargetPercent"]) {
 		target = [prefs integerForKey:@"batteryEstimateTargetPercent"];
 	}
-	if (target < 0) target = 0;
+	if (target < 1) target = 1;
 	if (target > 100) target = 100;
 	return target;
 }
@@ -65,12 +84,11 @@ static double TT100WattsFromCurrentVoltage(double current, double voltage) {
 	voltage = fabs(voltage);
 	if (current <= 0 || voltage <= 0) return 0;
 
-	// Convert current to amps
 	double amps = current;
-	if (amps > 20.0) amps = amps / 1000.0;	// likely mA
-	// Convert voltage to volts
+	if (amps > 20.0) amps = amps / 1000.0;
+
 	double volts = voltage;
-	if (volts > 100.0) volts = volts / 1000.0;	// likely mV
+	if (volts > 100.0) volts = volts / 1000.0;
 
 	if (amps <= 0 || volts <= 0) return 0;
 	return amps * volts;
@@ -121,37 +139,37 @@ static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) 
 
 	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
 
-	// Wireless detection: try a few common keys (varies by iOS / power source).
-	BOOL tmpHas = NO;
-	if (TT100Bool(batteryInfo, @"IsWirelessCharging", &tmpHas) || TT100Bool(batteryInfo, @"IsWireless", &tmpHas) || TT100Bool(batteryInfo, @"WirelessCharging", &tmpHas)) {
-		if (tmpHas) {
-			hasWireless = YES;
-			isWireless = TT100Bool(batteryInfo, @"IsWirelessCharging", NULL) || TT100Bool(batteryInfo, @"IsWireless", NULL) || TT100Bool(batteryInfo, @"WirelessCharging", NULL);
-		}
-	}
-	if (!hasWireless && adapter) {
+	for (NSString *key in @[@"IsWirelessCharging", @"IsWireless", @"WirelessCharging"]) {
 		BOOL has = NO;
-		BOOL v = TT100Bool(adapter, @"IsWireless", &has);
+		BOOL value = TT100Bool(batteryInfo, key, &has);
 		if (has) {
 			hasWireless = YES;
-			isWireless = v;
+			isWireless = value;
+			break;
 		}
 	}
+	if (!hasWireless) isWireless = TT100Bool(adapter, @"IsWireless", NULL);
 
-	// Wattage detection.
-	double watts = TT100ExtractWattage(batteryInfo);
+	double watts = 0;
+	for (NSString *key in @[@"Wattage", @"Watts", @"Power"]) {
+		double value = TT100Number(adapter, key).doubleValue;
+		if (isfinite(value) && value > 0 && value <= 240) {
+			watts = value;
+			break;
+		}
+	}
+	if (watts <= 0) watts = TT100WattsFromKeys(adapter, @"MaxCurrent", @"MaxVoltage");
 
 	NSString *prefix = isWireless ? @"wireless" : @"wired";
 	NSString *tier = @"unknown";
 
-	// Buckets are intentionally coarse and stable to prevent DB fragmentation.
 	if (watts > 0) {
 		if (isWireless) {
 			if (watts >= 13.5) tier = @"15w";
 			else if (watts >= 9.0)
 				tier = @"10w";
 			else if (watts >= 6.8)
-				tier = @"7w";  // "7.5W" class
+				tier = @"7w";
 			else if (watts >= 4.5)
 				tier = @"5w";
 			else
@@ -176,27 +194,36 @@ static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) 
 	}
 
 	if (outIsWireless) *outIsWireless = isWireless;
-	if ([tier isEqualToString:@"unknown"]) return @"unknown";
+	if ([tier isEqualToString:@"unknown"]) return isWireless ? @"wireless_unknown" : @"unknown";
 	return [NSString stringWithFormat:@"%@_%@", prefix, tier];
+}
+
++ (NSString *)chargerIdentityWithBatteryInfo:(NSDictionary *)batteryInfo {
+	NSString *chargerClass = [self chargerClassWithBatteryInfo:batteryInfo outIsWireless:NULL];
+	NSDictionary *adapter = [batteryInfo isKindOfClass:[NSDictionary class]] && [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
+	NSMutableArray *parts = [NSMutableArray arrayWithObject:chargerClass];
+	for (NSString *key in @[@"SerialNumber", @"AdapterID", @"ID", @"Manufacturer", @"Model", @"Name"]) {
+		id value = adapter[key];
+		if (![value isKindOfClass:[NSString class]] && ![value isKindOfClass:[NSNumber class]]) continue;
+		NSString *text = [value description];
+		if (text.length) [parts addObject:[NSString stringWithFormat:@"%@:%lu:%@", key, (unsigned long)text.length, text]];
+	}
+	return [parts componentsJoinedByString:@"|"];
 }
 
 + (double)effectiveChargingWattageWithBatteryInfo:(NSDictionary *)batteryInfo {
 	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return 0;
 	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
 
-	// 1) Real-time battery-side flow (preferred)
 	double watts = TT100WattsFromKeys(batteryInfo, @"InstantAmperage", @"Voltage");
 	if (watts > 0) return watts;
 
-	// 2) Battery-side fallback
 	watts = TT100WattsFromKeys(batteryInfo, @"Amperage", @"Voltage");
 	if (watts > 0) return watts;
 
-	// 3) Adapter-side live current/voltage estimate
 	watts = TT100WattsFromKeys(adapter, @"Current", @"Voltage");
 	if (watts > 0) return watts;
 
-	// 4) Adapter advertised/rated power fallback
 	NSNumber *w = TT100Number(adapter, @"Wattage");
 	if (!w) w = TT100Number(adapter, @"Watts");
 	if (!w) w = TT100Number(adapter, @"Power");
@@ -215,44 +242,95 @@ static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) 
 }
 
 static NSTimer *tt100PollingTimer = nil;
+static dispatch_queue_t tt100RefreshQueue;
+static NSDictionary *tt100LatestSnapshot;
+static BOOL tt100Monitoring;
+static BOOL tt100RefreshInFlight;
+static BOOL tt100RefreshPending;
+static NSUInteger tt100Generation;
+
++ (NSDictionary *)latestSnapshot {
+	NSAssert([NSThread isMainThread], @"latestSnapshot must be read on the main thread");
+	return tt100LatestSnapshot;
+}
 
 + (void)startMonitoring {
-	if (tt100PollingTimer) {
-		[tt100PollingTimer invalidate];
-		tt100PollingTimer = nil;
+	if (![NSThread isMainThread]) {
+		dispatch_async(dispatch_get_main_queue(), ^{ [self startMonitoring]; });
+		return;
 	}
-	tt100PollingTimer = [NSTimer scheduledTimerWithTimeInterval:60.0
-														 target:[self sharedInstance]
-													   selector:@selector(_refreshBatteryInfo)
-													   userInfo:nil
-														repeats:YES];
+	if (tt100Monitoring) return;
+	tt100Monitoring = YES;
+	tt100Generation++;
+	tt100PollingTimer = [NSTimer timerWithTimeInterval:15.0 target:[self sharedInstance] selector:@selector(_refreshBatteryInfo) userInfo:nil repeats:YES];
+	tt100PollingTimer.tolerance = 1.0;
+	[[NSRunLoop mainRunLoop] addTimer:tt100PollingTimer forMode:NSRunLoopCommonModes];
+	[[self sharedInstance] _refreshBatteryInfo];
+}
+
++ (void)stopMonitoring {
+	if (![NSThread isMainThread]) {
+		dispatch_async(dispatch_get_main_queue(), ^{ [self stopMonitoring]; });
+		return;
+	}
+	tt100Monitoring = NO;
+	tt100Generation++;
+	[tt100PollingTimer invalidate];
+	tt100PollingTimer = nil;
+	tt100RefreshPending = NO;
+	tt100LatestSnapshot = nil;
 }
 
 - (void)_refreshBatteryInfo {
-	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-
-	extern BOOL isCharging;
-	if (isCharging && batteryInfo) {
-		[[NSNotificationCenter defaultCenter] postNotificationName:TT100InternalDidRefreshBatteryInfoNotification object:nil userInfo:@{@"batteryInfo": batteryInfo}];
+	if (![NSThread isMainThread]) {
+		dispatch_async(dispatch_get_main_queue(), ^{ [self _refreshBatteryInfo]; });
+		return;
 	}
-	NSString *timeString = [TT100 estimatedTT100WithBatteryInfo:batteryInfo];
-	BOOL hasEstimate = [TT100 hasEstimateWithBatteryInfo:batteryInfo];
-	NSInteger percent = 0;
-	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
-	BOOL isWireless = NO;
-	[TT100 chargerClassWithBatteryInfo:batteryInfo outIsWireless:&isWireless];
-	NSString *chargingSpeed = TT100ChargingSpeed(batteryInfo, isWireless);
-
-	NSDictionary *userInfo = @{
-		@"batteryInfo": batteryInfo ?: @{},
-		@"timeString": timeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A"),
-		@"hasEstimate": @(hasEstimate),
-		@"isFullyCharged": @(fullyCharged),
-		@"displayPercent": @(MAX(0, MIN(100, percent))),
-		@"chargingSpeed": chargingSpeed ?: @"normal"
-	};
-	dispatch_async(dispatch_get_main_queue(), ^{
-		[[NSNotificationCenter defaultCenter] postNotificationName:TT100BatteryInfoUpdatedNotification object:self userInfo:userInfo];
+	if (!tt100Monitoring) return;
+	if (tt100RefreshInFlight) {
+		tt100RefreshPending = YES;
+		return;
+	}
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{ tt100RefreshQueue = dispatch_queue_create("moe.waru.jikan.refresh", DISPATCH_QUEUE_SERIAL); });
+	tt100RefreshInFlight = YES;
+	tt100RefreshPending = NO;
+	NSUInteger generation = tt100Generation;
+	dispatch_async(tt100RefreshQueue, ^{
+		@autoreleasepool {
+			NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
+			NSInteger target = [TT100 targetPercent];
+			NSString *timeString = [TT100 _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:target];
+			BOOL hasEstimate = ![timeString isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
+			NSInteger percent = 0;
+			BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
+			BOOL targetReached = fullyCharged || (isfinite(TT100DisplaySOC(batteryInfo)) && TT100DisplaySOC(batteryInfo) >= target);
+			BOOL wireless = NO;
+			NSString *chargerClass = [TT100 chargerClassWithBatteryInfo:batteryInfo outIsWireless:&wireless];
+			NSDictionary *snapshot = @{
+				@"batteryInfo": batteryInfo ?: @{},
+				@"timeString": timeString,
+				@"hasEstimate": @(hasEstimate && !targetReached),
+				@"isFullyCharged": @(fullyCharged),
+				@"targetReached": @(targetReached),
+				@"displayPercent": @(percent),
+				@"targetPercent": @(target),
+				@"chargingSpeed": TT100ChargingSpeed(batteryInfo, wireless),
+				@"chargerClass": chargerClass,
+				@"chargerIdentity": [TT100 chargerIdentityWithBatteryInfo:batteryInfo]
+			};
+			dispatch_async(dispatch_get_main_queue(), ^{
+				if (tt100Monitoring && generation == tt100Generation) {
+					tt100LatestSnapshot = snapshot;
+					[[NSNotificationCenter defaultCenter] postNotificationName:TT100InternalDidRefreshBatteryInfoNotification object:self userInfo:snapshot];
+					if (tt100Monitoring && generation == tt100Generation) {
+						[[NSNotificationCenter defaultCenter] postNotificationName:TT100BatteryInfoUpdatedNotification object:self userInfo:snapshot];
+					}
+				}
+				tt100RefreshInFlight = NO;
+				if (tt100Monitoring && tt100RefreshPending) [self _refreshBatteryInfo];
+			});
+		}
 	});
 }
 
@@ -262,40 +340,22 @@ static NSTimer *tt100PollingTimer = nil;
 	return ![estimate isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 }
 
++ (NSInteger)targetPercent {
+	return TT100EstimateTargetPercent();
+}
+
 + (BOOL)isFullyChargedWithBatteryInfo:(NSDictionary *)batteryInfo displayPercent:(NSInteger *)outPercent {
+	double soc = TT100DisplaySOC(batteryInfo);
+	BOOL full = TT100Bool(batteryInfo, @"FullyCharged", NULL) || (isfinite(soc) && soc >= 100.0);
+	if (outPercent) *outPercent = isfinite(soc) ? (NSInteger)llround(soc) : (full ? 100 : 0);
+	return full;
+}
+
++ (BOOL)isTargetReachedWithBatteryInfo:(NSDictionary *)batteryInfo displayPercent:(NSInteger *)outPercent {
 	NSInteger percent = 0;
-	if (![batteryInfo isKindOfClass:[NSDictionary class]]) {
-		if (outPercent) *outPercent = percent;
-		return NO;
-	}
-
-	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
-	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
-	NSNumber *rawMaxNum = batteryInfo[@"AppleRawMaxCapacity"];
-	NSNumber *rawCurrNum = batteryInfo[@"AppleRawCurrentCapacity"];
-
-	double soc = NAN;
-	if ([pctMax respondsToSelector:@selector(doubleValue)] && [pctCurr respondsToSelector:@selector(doubleValue)] && pctMax.doubleValue > 0) {
-		soc = (pctCurr.doubleValue / pctMax.doubleValue) * 100.0;
-	} else if ([rawMaxNum respondsToSelector:@selector(doubleValue)] && [rawCurrNum respondsToSelector:@selector(doubleValue)] && rawMaxNum.doubleValue > 0) {
-		soc = (rawCurrNum.doubleValue / rawMaxNum.doubleValue) * 100.0;
-	}
-
-	if (isfinite(soc)) {
-		if (soc < 0) soc = 0;
-		if (soc > 100) soc = 100;
-		percent = (NSInteger)llround(soc);
-	}
-
-	BOOL fullyFlag = [batteryInfo[@"FullyCharged"] respondsToSelector:@selector(boolValue)] ? [batteryInfo[@"FullyCharged"] boolValue] : NO;
-	NSInteger targetPercent = TT100EstimateTargetPercent();
-	double fullThreshold = (targetPercent >= 100) ? 99.5 : ((double)targetPercent - 0.5);
-	BOOL fullBySoc = isfinite(soc) && soc >= fullThreshold;
-	BOOL isFull = fullyFlag || fullBySoc;
-
-	if (isFull && percent < targetPercent) percent = targetPercent;
-	if (outPercent) *outPercent = MAX(0, MIN(100, percent));
-	return isFull;
+	BOOL full = [self isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
+	if (outPercent) *outPercent = percent;
+	return full || (isfinite(TT100DisplaySOC(batteryInfo)) && TT100DisplaySOC(batteryInfo) >= [self targetPercent]);
 }
 
 + (NSDictionary *)fetchBatteryInfo {
@@ -444,181 +504,47 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 }
 
 + (NSString *)estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo {
-	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	return [self _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:[self targetPercent]];
+}
 
-	double rawMax_mAh = -1, rawCurr_mAh = -1;
-	NSNumber *designCap = batteryInfo[@"DesignCapacity"];
-	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
-	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
-	NSNumber *rawMaxNum = batteryInfo[@"AppleRawMaxCapacity"];
-	NSNumber *rawCurrNum = batteryInfo[@"AppleRawCurrentCapacity"];
-
-	if (rawMaxNum && rawCurrNum) {
-		rawMax_mAh = rawMaxNum.doubleValue;
-		rawCurr_mAh = rawCurrNum.doubleValue;
-	} else if (designCap && pctMax && pctCurr) {
-		double design = designCap.doubleValue;
-		double frac = pctCurr.doubleValue / pctMax.doubleValue;
-		rawMax_mAh = design;
-		rawCurr_mAh = frac * design;
++ (NSString *)_estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo targetPercent:(NSInteger)targetPercent {
+	NSString *unavailable = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return unavailable;
+	BOOL hasCharging = NO;
+	BOOL charging = TT100Bool(batteryInfo, @"IsCharging", &hasCharging);
+	if (hasCharging && !charging) return unavailable;
+	double soc = TT100DisplaySOC(batteryInfo);
+	if (!isfinite(soc) || soc >= targetPercent || TT100Bool(batteryInfo, @"FullyCharged", NULL)) return unavailable;
+	double rawMax = TT100Number(batteryInfo, @"AppleRawMaxCapacity").doubleValue;
+	double rawCurrent = TT100Number(batteryInfo, @"AppleRawCurrentCapacity").doubleValue;
+	if (!isfinite(rawMax) || rawMax <= 0 || !TT100Number(batteryInfo, @"AppleRawCurrentCapacity")) {
+		rawMax = TT100Number(batteryInfo, @"DesignCapacity").doubleValue;
+		rawCurrent = rawMax * soc / 100.0;
 	}
-	if (rawCurr_mAh < 0 || rawMax_mAh <= 0 || rawCurr_mAh >= rawMax_mAh) {
-		return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-	}
-
-	double soc = NAN;
-	if (pctMax && pctCurr && pctMax.doubleValue > 0) {
-		soc = (pctCurr.doubleValue / pctMax.doubleValue) * 100.0;
-	} else {
-		soc = (rawCurr_mAh / rawMax_mAh) * 100.0;
-	}
-	if (!isfinite(soc)) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-	if (soc < 0) soc = 0;
-	if (soc > 100.0) soc = 100.0;
-	NSInteger targetPercent = TT100EstimateTargetPercent();
-	double targetSoc = (double)targetPercent;
-	if (soc >= targetSoc) return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-
-	double frac = soc - floor(soc);
-	NSInteger lower = (NSInteger)floor(soc);
-	NSInteger upper = (NSInteger)ceil(soc);
-	if (lower < 0) lower = 0;
-	if (upper < 0) upper = 0;
-	if (lower > 99) lower = 99;
-	if (upper > 99) upper = 99;
-
-	double median[100];
-	double spread[100];
-	int sampleCounts[100];
-	double lastUpdated[100];
-	BOOL isWireless = NO;
-	NSString *chargerClass = [self chargerClassWithBatteryInfo:batteryInfo outIsWireless:&isWireless];
-	BOOL haveDB = NO;
-	if (chargerClass.length && ![chargerClass isEqualToString:@"unknown"]) {
-		haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:chargerClass intoEstimate:median uncertainty:spread sampleCounts:sampleCounts lastUpdated:lastUpdated];
-	}
-	if (!haveDB) {
-		haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:@"unknown" intoEstimate:median uncertainty:spread sampleCounts:sampleCounts lastUpdated:lastUpdated];
-	}
-	NSDictionary<NSString *, NSNumber *> *buckets = haveDB ? nil : [self cachedHistoryBuckets];
-	double logEstimate = 0;
-	double totalBucketWeight = 0;
-	NSInteger weightedBucketCount = 0;
-	BOOL usedBuckets = NO;
-	BOOL missingBucket = NO;
-
-	double *medianPtr = median;
-	double *spreadPtr = spread;
-	int *sampleCountsPtr = sampleCounts;
-	double *updatedPtr = lastUpdated;
-	double nowEpoch = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
-	double (^bucketWeight)(NSInteger) = ^double(NSInteger percent) {
-		if (!haveDB) return 1.0;
-		if (percent < 0 || percent >= 100) return 0.0;
-		int n = sampleCountsPtr[percent];
-		double confidenceFromN = log1p(MAX(0, n)) / log1p(20.0);
-		if (confidenceFromN < 0.0) confidenceFromN = 0.0;
-		if (confidenceFromN > 1.0) confidenceFromN = 1.0;
-
-		double s = spreadPtr[percent];
-		double uncertaintyFactor = 0.6;
-		if (isfinite(s) && s > 0) {
-			uncertaintyFactor = 1.0 - (s / 180.0);
-			if (uncertaintyFactor < 0.2) uncertaintyFactor = 0.2;
-			if (uncertaintyFactor > 1.0) uncertaintyFactor = 1.0;
-		}
-
-		double ageSeconds = nowEpoch - updatedPtr[percent];
-		if (!isfinite(ageSeconds) || ageSeconds < 0) ageSeconds = 0;
-		double ageFactor = exp(-ageSeconds / (14.0 * 24.0 * 3600.0));
-		if (ageFactor < 0.3) ageFactor = 0.3;
-
-		double w = confidenceFromN * uncertaintyFactor * ageFactor;
-		if (w < 0.05) w = 0.05;
-		if (w > 1.0) w = 1.0;
-		return w;
-	};
-	double (^bucketSeconds)(NSInteger) = ^double(NSInteger percent) {
-		if (percent < 0 || percent >= 100) return NAN;
-		if (haveDB) {
-			double v = medianPtr[percent];
-			return isnan(v) ? NAN : v;
-		} else {
-			NSNumber *n = buckets[@(percent).stringValue];
-			return n ? n.doubleValue : NAN;
-		}
-	};
-
-	double interpolated = 0;
-	double lowerSec = bucketSeconds(lower);
-	double upperSec = bucketSeconds(upper);
-	if (!isnan(lowerSec) && !isnan(upperSec)) {
-		double lw = bucketWeight(lower);
-		double uw = bucketWeight(upper);
-		double wsum = MAX(0.0001, lw + uw);
-		interpolated = lowerSec * (1.0 - frac) + upperSec * frac;
-		usedBuckets = YES;
-		logEstimate += interpolated;
-		totalBucketWeight += (wsum * 0.5);
-		weightedBucketCount += 1;
-	} else if (!isnan(lowerSec)) {
-		interpolated = lowerSec;
-		usedBuckets = YES;
-		double w = bucketWeight(lower);
-		logEstimate += interpolated;
-		totalBucketWeight += w;
-		weightedBucketCount += 1;
-		missingBucket = YES;
-	} else if (!isnan(upperSec)) {
-		interpolated = upperSec;
-		usedBuckets = YES;
-		double w = bucketWeight(upper);
-		logEstimate += interpolated;
-		totalBucketWeight += w;
-		weightedBucketCount += 1;
-		missingBucket = YES;
-	} else {
-		missingBucket = YES;
+	double current = fabs(TT100Number(batteryInfo, @"InstantAmperage").doubleValue);
+	if (!isfinite(current) || current <= 0) current = fabs(TT100Number(batteryInfo, @"Amperage").doubleValue);
+	double liveSecondsPerPercent = NAN;
+	if (isfinite(rawMax) && isfinite(rawCurrent) && rawMax > rawCurrent && rawCurrent >= 0 && isfinite(current) && current > 0) {
+		liveSecondsPerPercent = ((rawMax - rawCurrent) / (100.0 - soc)) / current * 3600.0;
 	}
 
-	for (NSInteger pct = upper + 1; pct < targetPercent; pct++) {
-		double sec = bucketSeconds(pct);
-		if (!isnan(sec)) {
-			double w = bucketWeight(pct);
-			logEstimate += sec;
-			totalBucketWeight += w;
-			weightedBucketCount += 1;
-		} else {
-			missingBucket = YES;
-			break;
-		}
+	double estimate[100], uncertainty[100], updated[100];
+	int counts[100];
+	NSString *chargerClass = [self chargerClassWithBatteryInfo:batteryInfo outIsWireless:NULL];
+	BOOL haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:chargerClass intoEstimate:estimate uncertainty:uncertainty sampleCounts:counts lastUpdated:updated];
+	if (!haveDB && ![chargerClass isEqualToString:@"unknown"]) {
+		haveDB = [[TT100Database shared] fetchPercentStatsForChargerClass:@"unknown" intoEstimate:estimate uncertainty:uncertainty sampleCounts:counts lastUpdated:updated];
 	}
-
-	double liveEstimate = 0;
-	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
-	double adapterCurr = fabs([batteryInfo[@"InstantAmperage"] doubleValue]);
-	if (adapterCurr <= 0) adapterCurr = fabs([batteryInfo[@"Amperage"] doubleValue]);
-	if (adapterCurr <= 0) adapterCurr = fabs([adapter[@"Current"] doubleValue]);
-	if (adapterCurr > 1e-6) {
-		liveEstimate = ((rawMax_mAh - rawCurr_mAh) / adapterCurr) * 3600.0;
-	}
-
+	NSDictionary *buckets = haveDB ? nil : [self cachedHistoryBuckets];
 	double remainingSeconds = 0;
-	double dbConfidence = (weightedBucketCount > 0) ? (totalBucketWeight / (double)weightedBucketCount) : 0;
-	if (dbConfidence < 0) dbConfidence = 0;
-	if (dbConfidence > 1) dbConfidence = 1;
-	if (usedBuckets && logEstimate > 0 && !missingBucket) {
-		remainingSeconds = logEstimate;
-	} else if (usedBuckets && logEstimate > 0 && liveEstimate > 0) {
-		double alpha = 0.35 + (0.55 * dbConfidence);
-		if (alpha < 0.25) alpha = 0.25;
-		if (alpha > 0.90) alpha = 0.90;
-		remainingSeconds = alpha * logEstimate + (1.0 - alpha) * liveEstimate;
-	} else if (liveEstimate > 0) {
-		remainingSeconds = liveEstimate;
-	} else {
-		return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	for (NSInteger percent = (NSInteger)floor(soc); percent < targetPercent; percent++) {
+		double fraction = MIN((double)percent + 1.0, (double)targetPercent) - MAX((double)percent, soc);
+		double seconds = haveDB ? estimate[percent] : [buckets[@(percent).stringValue] doubleValue];
+		if (!isfinite(seconds) || seconds <= 0 || (haveDB && counts[percent] <= 0)) seconds = liveSecondsPerPercent;
+		if (!isfinite(seconds) || seconds <= 0) return unavailable;
+		remainingSeconds += seconds * fraction;
 	}
+	if (!isfinite(remainingSeconds) || remainingSeconds <= 0 || remainingSeconds > INT_MAX) return unavailable;
 
 	int hrs = (int)(remainingSeconds / 3600.0);
 	int mins = (int)round(fmod(remainingSeconds, 3600.0) / 60.0);

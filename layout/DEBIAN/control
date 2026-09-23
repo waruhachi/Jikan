@@ -1,9 +1,9 @@
 Package: moe.waru.jikan
 Name: Jikan
-Version: 1.0.0-rc.4
+Version: 1.0.0-rc.5
 Architecture: iphoneos-arm
 Description: Show time left to full charge on your lock screen
 Maintainer: waruhachi
 Author: waruhachi
 Section: Tweaks
-Depends: firmware (>= 14.5), mobilesubstrate (>= 0.9.5000), preferenceloader
+Depends: firmware (>= 14.0), mobilesubstrate (>= 0.9.5000), preferenceloader

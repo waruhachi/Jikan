@@ -2,8 +2,6 @@
 #import <Foundation/NSObjCRuntime.h>
 #import <sqlite3.h>
 
-NS_ASSUME_NONNULL_BEGIN
-
 @interface TT100Database : NSObject
 + (instancetype)shared;
 - (BOOL)openIfNeeded;
@@ -32,5 +30,3 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)pruneOldTickDataKeepingRecentSessions:(NSUInteger)recentCount;
 
 @end
-
-NS_ASSUME_NONNULL_END

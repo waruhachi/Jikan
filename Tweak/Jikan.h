@@ -27,7 +27,7 @@ static BOOL platterHasCustomPositionLandscape;
 
 extern BOOL isCharging;
 
-@interface NCNotificationListCountIndicatorView : UIView
+@interface JikanQuickActionControl : UIControl
 @end
 
 @interface CSProminentButtonControl : UIControl
@@ -60,16 +60,8 @@ extern BOOL isCharging;
 - (void)_addOrRemoveRemainingTimePlatterIfNecessary;
 - (void)_setRemainingTimePlatterVisible:(BOOL)visible;
 - (void)_jikanChargingStateChanged:(NSNotification *)notification;
-- (void)_jikanStartChargingBootstrap;
-- (void)_jikanStopChargingBootstrap;
-- (void)_jikanBootstrapTick:(NSTimer *)timer;
 - (void)_jikanHandlePlatterLongPress:(UILongPressGestureRecognizer *)gesture;
 @end
 
 @interface CSCoverSheetViewController : UIViewController
-@end
-
-@interface SBUIController : NSObject
-+ (id)sharedInstance;
-- (BOOL)isOnAC;
 @end

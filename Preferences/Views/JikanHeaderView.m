@@ -38,6 +38,9 @@
 	_subtitleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
 	_subtitleLabel.textColor = [UIColor secondaryLabelColor];
 	_subtitleLabel.alpha = 0.0;
+	_subtitleLabel.numberOfLines = 2;
+	_subtitleLabel.adjustsFontSizeToFitWidth = YES;
+	_subtitleLabel.minimumScaleFactor = 0.8;
 	if (subtitles.count > 0) {
 		_subtitleLabel.text = subtitles[arc4random_uniform((u_int32_t)subtitles.count)];
 	}
@@ -54,7 +57,10 @@
 		[_iconView.widthAnchor constraintEqualToConstant:70.0],
 		[_iconView.heightAnchor constraintEqualToConstant:70.0],
 		[_titleLabel.heightAnchor constraintEqualToConstant:42.0],
-		[_subtitleLabel.heightAnchor constraintEqualToConstant:16.0],
+		[_subtitleLabel.heightAnchor constraintLessThanOrEqualToConstant:40.0],
+		[_subtitleLabel.widthAnchor constraintLessThanOrEqualToAnchor:self.widthAnchor constant:-32.0],
+		[_stackView.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:16.0],
+		[_stackView.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-16.0],
 
 		[_stackView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
 		[_stackView.centerYAnchor constraintEqualToAnchor:self.centerYAnchor constant:2.0],
@@ -65,6 +71,7 @@
 }
 
 - (void)_addInterpolatingMotion {
+	if (UIAccessibilityIsReduceMotionEnabled()) return;
 	UIInterpolatingMotionEffect *horizontal = [[UIInterpolatingMotionEffect alloc] initWithKeyPath:@"center.x" type:UIInterpolatingMotionEffectTypeTiltAlongHorizontalAxis];
 	horizontal.minimumRelativeValue = @(-4.0);
 	horizontal.maximumRelativeValue = @(4.0);
@@ -80,6 +87,10 @@
 
 - (void)didMoveToSuperview {
 	[super didMoveToSuperview];
+	if (UIAccessibilityIsReduceMotionEnabled()) {
+		_iconView.alpha = _titleLabel.alpha = _subtitleLabel.alpha = 1.0;
+		return;
+	}
 
 	[UIView animateWithDuration:0.55 delay:0.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
 		_iconView.alpha = 1.0;

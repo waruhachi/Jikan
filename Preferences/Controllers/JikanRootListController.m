@@ -1,3 +1,5 @@
+#import <math.h>
+
 #import "JikanRootListController.h"
 
 @interface PSListController (Private)
@@ -13,6 +15,14 @@
 @property (nonatomic, assign) CFAbsoluteTime jikanLastReloadTime;
 @property (nonatomic, assign) NSUInteger jikanReloadGeneration;
 @property (nonatomic, assign) BOOL jikanObservingPreferences;
+@property (nonatomic, assign) BOOL jikanPageActive;
+@property (nonatomic, assign) NSUInteger jikanDetectionGeneration;
+@property (nonatomic, strong) NSOperation *jikanDetectionOperation;
+@property (nonatomic, strong) NSURLSessionDataTask *jikanDetectionTask;
+@property (nonatomic, weak) UIAlertController *jikanSliderEditorAlert;
+@property (nonatomic, weak) UIAlertAction *jikanSliderEditorSave;
+@property (nonatomic, copy) NSDictionary *jikanSliderEditorConfig;
+@property (nonatomic, strong) NSLocale *jikanSliderEditorLocale;
 @end
 
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
@@ -24,6 +34,85 @@ static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithCh
 static const void *kJikanSliderEditorInstalledKey = &kJikanSliderEditorInstalledKey;
 static const void *kJikanSliderEditorConfigKey = &kJikanSliderEditorConfigKey;
 static const void *kJikanSliderThumbOnlyKey = &kJikanSliderThumbOnlyKey;
+
+static NSDictionary<NSString *, NSNumber *> *JikanSliderDefaults(void) {
+	return @{
+		kPillBackgroundOpacityKey: @100,
+		kBatteryEstimateTargetKey: @100,
+		@"pillPosXPortraitPercent": @50,
+		@"pillPosYPortraitPercent": @84,
+		@"pillPosXLandscapePercent": @50,
+		@"pillPosYLandscapePercent": @84
+	};
+}
+
+static BOOL JikanParseNumber(NSString *text, NSLocale *locale, double *result) {
+	if (![text isKindOfClass:NSString.class]) return NO;
+	NSString *input = [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+	if (!input.length) return NO;
+	NSNumberFormatter *formatter = [NSNumberFormatter new];
+	formatter.locale = locale;
+	formatter.numberStyle = NSNumberFormatterDecimalStyle;
+	formatter.usesGroupingSeparator = NO;
+	formatter.lenient = NO;
+	NSString *decimal = formatter.decimalSeparator;
+	NSString *unsignedInput = input;
+	if ([input hasPrefix:@"+"] || [input hasPrefix:@"-"]) unsignedInput = [input substringFromIndex:1];
+	NSArray<NSString *> *parts = [unsignedInput componentsSeparatedByString:decimal];
+	if (parts.count > 2) return NO;
+	NSUInteger digitCount = 0;
+	for (NSString *part in parts) {
+		if ([part rangeOfCharacterFromSet:NSCharacterSet.decimalDigitCharacterSet.invertedSet].location != NSNotFound) return NO;
+		digitCount += part.length;
+	}
+	if (!digitCount) return NO;
+	NSNumber *number = [formatter numberFromString:input];
+	if (!number || !isfinite(number.doubleValue)) return NO;
+	if (result) *result = number.doubleValue;
+	return YES;
+}
+
+static NSNumber *JikanNormalizedSliderValue(id value, NSString *key) {
+	NSNumber *fallback = JikanSliderDefaults()[key];
+	if (!fallback) return nil;
+	double raw = fallback.doubleValue;
+	if ([value isKindOfClass:NSNumber.class]) raw = [value doubleValue];
+	else if ([value isKindOfClass:NSString.class]) {
+		JikanParseNumber(value, [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"], &raw);
+	}
+	if (!isfinite(raw)) raw = fallback.doubleValue;
+	double minimum = [key isEqualToString:kBatteryEstimateTargetKey] ? 1.0 : 0.0;
+	return @((NSInteger)llround(MAX(minimum, MIN(100.0, raw))));
+}
+
+static NSNumber *JikanDetectedLimit(id value) {
+	double raw = 0;
+	if ([value isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)value) != CFBooleanGetTypeID()) raw = [value doubleValue];
+	else if (![value isKindOfClass:NSString.class] || !JikanParseNumber(value, [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"], &raw))
+		return nil;
+	if (!isfinite(raw) || raw < 1 || raw > 100) return nil;
+	return JikanNormalizedSliderValue(@(raw), kBatteryEstimateTargetKey);
+}
+
+static BOOL JikanIsChargeLimiterApp(NSString *path) {
+	BOOL directory = NO;
+	return [path.lastPathComponent isEqualToString:@"ChargeLimiter.app"] &&
+		[NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&directory] && directory;
+}
+
+static BOOL JikanChargeLimiterInstalled(NSOperation *operation) {
+	if (operation.cancelled) return NO;
+	if (JikanIsChargeLimiterApp(jbroot(@"/Applications/ChargeLimiter.app")) || JikanIsChargeLimiterApp(@"/Applications/ChargeLimiter.app")) return YES;
+	for (NSString *root in @[@"/var/containers/Bundle/Application", @"/private/var/containers/Bundle/Application"]) {
+		if (operation.cancelled) return NO;
+		for (NSString *entry in [NSFileManager.defaultManager contentsOfDirectoryAtPath:root error:nil]) {
+			if (operation.cancelled) return NO;
+			NSString *path = [[root stringByAppendingPathComponent:entry] stringByAppendingPathComponent:@"ChargeLimiter.app"];
+			if (JikanIsChargeLimiterApp(path)) return YES;
+		}
+	}
+	return NO;
+}
 
 @interface UISlider (JikanThumbOnlyTracking)
 - (BOOL)jikan_beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event;
@@ -86,8 +175,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)viewDidAppear:(BOOL)animated {
 	[super viewDidAppear:animated];
 
-	// Create view and set as titleView of your navigation bar
-	// Set the title and the minimum scroll offset before starting the animation
 	if (!self.navigationItem.titleView) {
 		AnimatedTitleView *titleView = [[AnimatedTitleView alloc] initWithTitle:@"Jikan" minimumScrollOffsetRequired:100];
 		self.navigationItem.titleView = titleView;
@@ -98,7 +185,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)viewDidLoad {
 	[super viewDidLoad];
-	[self _seedBatteryEstimateTargetIfNeeded];
+	[self _normalizeStoredSliderValues];
 
 	self.navigationController.navigationBar.prefersLargeTitles = NO;
 	self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
@@ -111,38 +198,35 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-	// Send scroll offset updates to view
 	if ([self.navigationItem.titleView respondsToSelector:@selector(adjustLabelPositionToScrollOffset:)]) {
 		[(AnimatedTitleView *)self.navigationItem.titleView adjustLabelPositionToScrollOffset:scrollView.contentOffset.y];
 	}
 	[self _installSliderLongPressEditorsIfNeeded];
 }
 
+- (void)viewWillDisappear:(BOOL)animated {
+	[super viewWillDisappear:animated];
+	self.jikanPageActive = NO;
+	[self _cancelChargeLimiterDetection];
+	[self _dismissSliderEditor];
+}
+
 - (void)dealloc {
+	[_jikanDetectionOperation cancel];
+	[_jikanDetectionTask cancel];
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidBecomeActiveNotification object:nil];
 	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL);
 }
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	NSString *key = [specifier propertyForKey:@"key"];
-	NSSet<NSString *> *integerSliderKeys = [NSSet setWithArray:@[
-		kPillBackgroundOpacityKey,
-		kBatteryEstimateTargetKey,
-		@"pillPosXPortraitPercent",
-		@"pillPosYPortraitPercent",
-		@"pillPosXLandscapePercent",
-		@"pillPosYLandscapePercent"
-	]];
-	if ([integerSliderKeys containsObject:key]) {
-		double raw = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 100.0;
-		NSInteger rounded = (NSInteger)llround(raw);
-		rounded = MAX(0, MIN(100, rounded));
-		value = @(rounded);
-		if ([key isEqualToString:kBatteryEstimateTargetKey]) {
-			NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-			[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
-			[prefs synchronize];
-		}
+	[self _cancelChargeLimiterDetection];
+	NSNumber *normalized = JikanNormalizedSliderValue(value, key);
+	if (normalized) value = normalized;
+	if ([key isEqualToString:kBatteryEstimateTargetKey]) {
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+		[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
+		[prefs synchronize];
 	}
 	[super setPreferenceValue:value specifier:specifier];
 
@@ -161,7 +245,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)reloadSpecifiers {
-	// Cover direct framework reloads as well as notification-driven reloads.
 	if ([self _isAnyPreferenceSliderTracking]) {
 		[self _scheduleSpecifiersReload:NO];
 		return;
@@ -263,7 +346,9 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	for (PSSpecifier *specifier in specifiers) {
 		NSString *label = [specifier propertyForKey:@"label"];
 		if ([label isKindOfClass:[NSString class]] && label.length > 0) {
-			[specifier setProperty:[self _localizedPreferenceText:label] forKey:@"label"];
+			NSString *localized = [self _localizedPreferenceText:label];
+			specifier.name = localized;
+			[specifier setProperty:localized forKey:@"label"];
 		}
 
 		NSString *footerText = [specifier propertyForKey:@"footerText"];
@@ -352,6 +437,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)viewWillAppear:(BOOL)animated {
 	[super viewWillAppear:animated];
+	self.jikanPageActive = YES;
+	[self _normalizeStoredSliderValues];
 	[self _scheduleSpecifiersReload:YES];
 }
 
@@ -373,12 +460,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)_scheduleSpecifiersReload:(BOOL)immediate {
-	// PSSliderCell posts the shared Darwin notification continuously while its
-	// thumb is moving. Rebuilding the specifier table during that tracking can
-	// recycle/rebind slider cells while UIKit is still delivering the same
-	// touch, allowing subsequent value changes to land on another specifier.
-	// Keep live Darwin notifications for SpringBoard, but defer the Settings UI
-	// reload until the active slider has finished tracking.
 	BOOL tracking = [self _isAnyPreferenceSliderTracking];
 	if (immediate && !tracking) {
 		[self reloadSpecifiers];
@@ -523,7 +604,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (NSArray<NSDictionary *> *)_sliderEditorConfigs {
 	return @[
 		@{@"id": @"pillBackgroundOpacitySlider", @"key": kPillBackgroundOpacityKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.opacity.title", @"Pill Background Opacity"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
-		@{@"id": @"batteryEstimateTargetSlider", @"key": kBatteryEstimateTargetKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.estimate_target.title", @"Estimate Target"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
+		@{@"id": @"batteryEstimateTargetSlider", @"key": kBatteryEstimateTargetKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.estimate_target.title", @"Estimate Target"), @"min": @1.0, @"max": @100.0, @"decimals": @0},
 		@{@"id": @"pillPosXPortraitSlider", @"key": @"pillPosXPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_x.title", @"Portrait X"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
 		@{@"id": @"pillPosYPortraitSlider", @"key": @"pillPosYPortraitPercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_y.title", @"Portrait Y"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
 		@{@"id": @"pillPosXLandscapeSlider", @"key": @"pillPosXLandscapePercent", @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_x.title", @"Landscape X"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
@@ -543,8 +624,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)_installSliderLongPressEditorsIfNeeded {
 	JikanInstallSliderTrackingGuardIfNeeded();
 
-	// A specifier's cached cell may have been reused for another row. Resolve
-	// the displayed row through the table instead of following PSTableCellKey.
 	UITableView *tableView = self.table;
 	for (UITableViewCell *cell in tableView.visibleCells) {
 		NSIndexPath *indexPath = [tableView indexPathForCell:cell];
@@ -596,181 +675,203 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[self _presentSliderEditorWithConfig:config fallbackValue:slider.value];
 }
 
+- (void)_dismissSliderEditor {
+	UIAlertController *alert = self.jikanSliderEditorAlert;
+	self.jikanSliderEditorAlert = nil;
+	self.jikanSliderEditorSave = nil;
+	self.jikanSliderEditorConfig = nil;
+	self.jikanSliderEditorLocale = nil;
+	if (alert) [alert dismissViewControllerAnimated:NO completion:nil];
+}
+
+- (BOOL)_sliderEditorValue:(double *)value {
+	NSString *text = self.jikanSliderEditorAlert.textFields.firstObject.text;
+	double parsed = 0;
+	if (!JikanParseNumber(text, self.jikanSliderEditorLocale, &parsed)) return NO;
+	if (parsed < [self.jikanSliderEditorConfig[@"min"] doubleValue] || parsed > [self.jikanSliderEditorConfig[@"max"] doubleValue]) return NO;
+	if (value) *value = parsed;
+	return YES;
+}
+
+- (void)_sliderEditorTextChanged:(UITextField *)field {
+#pragma unused(field)
+	BOOL valid = [self _sliderEditorValue:NULL];
+	self.jikanSliderEditorSave.enabled = valid;
+	NSString *format = valid ? JikanLocalizedString(@"jikan.prefs.alert.slider_range.message", @"Enter a value from %.0f to %.0f") : JikanLocalizedString(@"jikan.prefs.alert.slider_invalid.message", @"Enter a valid number from %.0f to %.0f.");
+	self.jikanSliderEditorAlert.message = [NSString stringWithFormat:format, [self.jikanSliderEditorConfig[@"min"] doubleValue], [self.jikanSliderEditorConfig[@"max"] doubleValue]];
+}
+
 - (void)_presentSliderEditorWithConfig:(NSDictionary *)config fallbackValue:(double)fallback {
 	NSString *prefsKey = config[@"key"];
 	NSString *title = config[@"title"];
-	double minValue = [config[@"min"] doubleValue];
-	double maxValue = [config[@"max"] doubleValue];
-	NSInteger decimals = [config[@"decimals"] integerValue];
-
-	if (prefsKey.length == 0 || title.length == 0) return;
-
+	if (!JikanSliderDefaults()[prefsKey] || !title.length || !self.jikanPageActive || self.presentedViewController) return;
+	[self _cancelChargeLimiterDetection];
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	double currentValue = [prefs objectForKey:prefsKey] ? [prefs doubleForKey:prefsKey] : fallback;
-	if (!isfinite(currentValue)) currentValue = fallback;
-	if (!isfinite(currentValue)) currentValue = minValue;
-	currentValue = MAX(minValue, MIN(maxValue, currentValue));
-
-	NSString *messageFormat = JikanLocalizedString(@"jikan.prefs.alert.slider_range.message", @"Enter a value from %.0f to %.0f");
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:[NSString stringWithFormat:messageFormat, minValue, maxValue] preferredStyle:UIAlertControllerStyleAlert];
-	[alert addTextFieldWithConfigurationHandler:^(UITextField *_Nonnull textField) {
+	NSNumber *currentValue = JikanNormalizedSliderValue([prefs objectForKey:prefsKey] ?: @(fallback), prefsKey);
+	NSLocale *locale = NSLocale.currentLocale;
+	NSNumberFormatter *formatter = [NSNumberFormatter new];
+	formatter.locale = locale;
+	formatter.numberStyle = NSNumberFormatterDecimalStyle;
+	formatter.usesGroupingSeparator = NO;
+	formatter.maximumFractionDigits = 0;
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:nil preferredStyle:UIAlertControllerStyleAlert];
+	[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
 		textField.keyboardType = UIKeyboardTypeDecimalPad;
-		textField.placeholder = [NSString stringWithFormat:@"%.0f-%.0f", minValue, maxValue];
-		textField.text = [NSString stringWithFormat:[NSString stringWithFormat:@"%%.%ldf", (long)decimals], currentValue];
+		textField.text = [formatter stringFromNumber:currentValue];
+		[textField addTarget:self action:@selector(_sliderEditorTextChanged:) forControlEvents:UIControlEventEditingChanged];
 	}];
-
-	__typeof(self) weakSelf = self;
-	UIAlertAction *save = [UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.save", @"Save") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *_Nonnull action) {
-		UITextField *tf = alert.textFields.firstObject;
-		double value = tf.text.doubleValue;
-		if (!isfinite(value)) value = currentValue;
-		value = MAX(minValue, MIN(maxValue, value));
-
-		[prefs setDouble:value forKey:prefsKey];
-		if ([prefsKey isEqualToString:kBatteryEstimateTargetKey]) {
-			[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
+	self.jikanSliderEditorAlert = alert;
+	self.jikanSliderEditorConfig = config;
+	self.jikanSliderEditorLocale = locale;
+	__weak typeof(self) weakSelf = self;
+	__weak UIAlertController *weakAlert = alert;
+	UIAlertAction *save = [UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.save", @"Save") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+		__strong typeof(weakSelf) self = weakSelf;
+		if (!self || !self.jikanPageActive || self.jikanSliderEditorAlert != weakAlert) return;
+		double value = 0;
+		if (![self _sliderEditorValue:&value]) return;
+		PSSpecifier *specifier = [self specifierForID:config[@"id"]];
+		if (!specifier) return;
+		[self setPreferenceValue:JikanNormalizedSliderValue(@(value), prefsKey) specifier:specifier];
+		self.jikanSliderEditorAlert = nil;
+		self.jikanSliderEditorSave = nil;
+		self.jikanSliderEditorConfig = nil;
+		self.jikanSliderEditorLocale = nil;
+		[self _scheduleSpecifiersReload:YES];
+	}];
+	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.cancel", @"Cancel") style:UIAlertActionStyleCancel handler:^(__unused UIAlertAction *action) {
+		if (weakSelf.jikanSliderEditorAlert == weakAlert) {
+			weakSelf.jikanSliderEditorAlert = nil;
+			weakSelf.jikanSliderEditorSave = nil;
+			weakSelf.jikanSliderEditorConfig = nil;
+			weakSelf.jikanSliderEditorLocale = nil;
 		}
-		[prefs synchronize];
-		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
-		dispatch_async(dispatch_get_main_queue(), ^{
-			[weakSelf _scheduleSpecifiersReload:YES];
-		});
-	}];
-
-	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.cancel", @"Cancel") style:UIAlertActionStyleCancel handler:nil]];
+	}]];
 	[alert addAction:save];
+	self.jikanSliderEditorSave = save;
+	[self _sliderEditorTextChanged:alert.textFields.firstObject];
 	[self presentViewController:alert animated:YES completion:nil];
 }
 
-- (NSInteger)_clampedBatteryLimit:(NSInteger)limit {
-	return MAX(0, MIN(100, limit));
-}
-
-- (NSNumber *)_detectChargeLimiterLimit {
-	BOOL installed = NO;
-	NSFileManager *fm = [NSFileManager defaultManager];
-
-	// Jailbreak variants (rootless/roothide/rootful) via jbroot path translation.
-	NSString *jbPath = jbroot(@"/Applications/ChargeLimiter.app");
-	if ([jbPath isKindOfClass:[NSString class]] && jbPath.length > 0 && [fm fileExistsAtPath:jbPath]) {
-		installed = YES;
-	}
-
-	// TrollStore variant inside app container path.
-	if (!installed) {
-		NSArray<NSString *> *containerRoots = @[@"/var/containers/Bundle/Application", @"/private/var/containers/Bundle/Application"];
-		for (NSString *root in containerRoots) {
-			NSArray<NSString *> *entries = [fm contentsOfDirectoryAtPath:root error:nil];
-			for (NSString *entry in entries) {
-				NSString *containerPath = [root stringByAppendingPathComponent:entry];
-				NSString *appPath = [containerPath stringByAppendingPathComponent:@"ChargeLimiter.app"];
-				NSString *trollStoreMarker = [containerPath stringByAppendingPathComponent:@"_TrollStore"];
-				if ([fm fileExistsAtPath:appPath] || [fm fileExistsAtPath:trollStoreMarker]) {
-					installed = YES;
-					break;
-				}
-			}
-			if (installed) break;
+- (void)_normalizeStoredSliderValues {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	BOOL changed = NO;
+	for (NSString *key in JikanSliderDefaults()) {
+		id stored = [prefs objectForKey:key];
+		if (!stored && ![key isEqualToString:kBatteryEstimateTargetKey]) continue;
+		NSNumber *normalized = JikanNormalizedSliderValue(stored, key);
+		if (![stored isEqual:normalized]) {
+			[prefs setObject:normalized forKey:key];
+			if ([key isEqualToString:kBatteryEstimateTargetKey]) [prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
+			changed = YES;
 		}
 	}
-	if (!installed) return nil;
-
-	NSDictionary *conf = [NSDictionary dictionaryWithContentsOfFile:@"/var/root/aldente.conf"];
-	if ([conf isKindOfClass:[NSDictionary class]]) {
-		id value = conf[@"charge_above"];
-		if ([value respondsToSelector:@selector(integerValue)]) {
-			NSInteger limit = [self _clampedBatteryLimit:[value integerValue]];
-			return @(limit);
-		}
+	if (changed) {
+		[prefs synchronize];
+		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 	}
-
-	// Fallback for environments where /var/root/aldente.conf is unreadable.
-	NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:1230"];
-	NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:url];
-	req.HTTPMethod = @"POST";
-	req.timeoutInterval = 1.5;
-	[req setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-	NSData *body = [NSJSONSerialization dataWithJSONObject:@{@"api": @"get_conf", @"key": @"charge_above"} options:0 error:nil];
-	req.HTTPBody = body;
-
-	__block NSData *data = nil;
-	__block NSError *requestError = nil;
-	dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-	NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req completionHandler:^(NSData *responseData, NSURLResponse *response, NSError *error) {
-		data = responseData;
-		requestError = error;
-		dispatch_semaphore_signal(sem);
-	}];
-	[task resume];
-	dispatch_time_t timeout = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC));
-	long waitResult = dispatch_semaphore_wait(sem, timeout);
-	if (waitResult != 0 || requestError || data.length == 0) return nil;
-	NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-	if (![json isKindOfClass:[NSDictionary class]]) return nil;
-	id status = json[@"status"];
-	if (![status respondsToSelector:@selector(integerValue)] || [status integerValue] != 0) return nil;
-	id val = json[@"data"];
-	if (![val respondsToSelector:@selector(integerValue)]) return nil;
-	NSInteger limit = [self _clampedBatteryLimit:[val integerValue]];
-	return @(limit);
 }
 
-- (void)_setBatteryEstimateTargetPercent:(NSInteger)percent {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	if (!prefs) return;
-	[prefs setInteger:[self _clampedBatteryLimit:percent] forKey:kBatteryEstimateTargetKey];
-	[prefs synchronize];
-	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
-	dispatch_async(dispatch_get_main_queue(), ^{
+- (void)_cancelChargeLimiterDetection {
+	self.jikanDetectionGeneration++;
+	[self.jikanDetectionOperation cancel];
+	[self.jikanDetectionTask cancel];
+	self.jikanDetectionOperation = nil;
+	self.jikanDetectionTask = nil;
+}
+
+- (void)_finishChargeLimiterDetection:(NSNumber *)detected generation:(NSUInteger)generation {
+	if (generation != self.jikanDetectionGeneration) return;
+	[self _cancelChargeLimiterDetection];
+	if (!self.jikanPageActive || !self.viewIfLoaded.window || self.presentedViewController || [self _isAnyPreferenceSliderTracking]) return;
+	NSString *title;
+	NSString *message;
+	if (detected) {
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+		NSNumber *value = JikanNormalizedSliderValue(detected, kBatteryEstimateTargetKey);
+		[prefs setObject:value forKey:kBatteryEstimateTargetKey];
+		[prefs setBool:YES forKey:kBatteryEstimateSyncedKey];
+		[prefs synchronize];
+		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 		[self _scheduleSpecifiersReload:YES];
-	});
-}
-
-- (void)_setBatteryEstimateSyncedState:(BOOL)synced {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	if (!prefs) return;
-	[prefs setBool:synced forKey:kBatteryEstimateSyncedKey];
-	[prefs synchronize];
-	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
-	dispatch_async(dispatch_get_main_queue(), ^{
-		[self _scheduleSpecifiersReload:YES];
-	});
-}
-
-- (void)_seedBatteryEstimateTargetIfNeeded {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	if (!prefs) return;
-	if ([prefs objectForKey:kBatteryEstimateTargetKey]) return;
-	NSNumber *detected = [self _detectChargeLimiterLimit];
-	NSInteger value = detected ? detected.integerValue : 100;
-	[prefs setInteger:[self _clampedBatteryLimit:value] forKey:kBatteryEstimateTargetKey];
-	[prefs synchronize];
-}
-
-- (void)detectBatteryLimit {
-	NSNumber *detected = [self _detectChargeLimiterLimit];
-	if (!detected) {
-		[self _setBatteryEstimateTargetPercent:100];
-		[self _setBatteryEstimateSyncedState:NO];
-		UIAlertController *alert = [UIAlertController alertControllerWithTitle:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.none.title", @"No battery limit found") message:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.none.message", @"No ChargeLimiter limit was detected. Using 100%.") preferredStyle:UIAlertControllerStyleAlert];
-		[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.ok", @"OK") style:UIAlertActionStyleDefault handler:nil]];
-		[self presentViewController:alert animated:YES completion:nil];
-		return;
+		title = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.title", @"ChargeLimiter detected");
+		message = [NSString stringWithFormat:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.message", @"ChargeLimiter detected Applied battery limit of: %ld%%"), (long)value.integerValue];
+	} else {
+		title = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.none.title", @"No battery limit found");
+		message = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.unchanged.message", @"No ChargeLimiter limit was detected. Your estimate target has not changed.");
 	}
-	NSInteger value = detected.integerValue;
-	[self _setBatteryEstimateTargetPercent:value];
-	[self _setBatteryEstimateSyncedState:YES];
-	NSString *format = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.message", @"ChargeLimiter detected Applied battery limit of: %ld%%");
-	NSString *message = [NSString stringWithFormat:format, (long)value];
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.title", @"ChargeLimiter detected") message:message preferredStyle:UIAlertControllerStyleAlert];
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
 	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.ok", @"OK") style:UIAlertActionStyleDefault handler:nil]];
 	[self presentViewController:alert animated:YES completion:nil];
 }
 
+- (void)_requestChargeLimiterLimitForGeneration:(NSUInteger)generation {
+	if (generation != self.jikanDetectionGeneration || !self.jikanPageActive) return;
+	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:1230"]];
+	request.HTTPMethod = @"POST";
+	request.timeoutInterval = 1.5;
+	[request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+	request.HTTPBody = [NSJSONSerialization dataWithJSONObject:@{@"api": @"get_conf", @"key": @"charge_above"} options:0 error:nil];
+	__weak typeof(self) weakSelf = self;
+	self.jikanDetectionTask = [NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+		NSNumber *detected = nil;
+		if (!error && data.length && [response isKindOfClass:NSHTTPURLResponse.class] && ((NSHTTPURLResponse *)response).statusCode == 200) {
+			id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+			if ([json isKindOfClass:NSDictionary.class]) {
+				id status = json[@"status"];
+				double statusValue = NAN;
+				if ([status isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)status) != CFBooleanGetTypeID()) statusValue = [status doubleValue];
+				else if ([status isKindOfClass:NSString.class])
+					JikanParseNumber(status, [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"], &statusValue);
+				if (statusValue == 0) detected = JikanDetectedLimit(json[@"data"]);
+			}
+		}
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[weakSelf _finishChargeLimiterDetection:detected generation:generation];
+		});
+	}];
+	[self.jikanDetectionTask resume];
+}
+
+- (void)detectBatteryLimit {
+	if (!self.jikanPageActive || self.presentedViewController) return;
+	[self _cancelChargeLimiterDetection];
+	NSUInteger generation = self.jikanDetectionGeneration;
+	__weak typeof(self) weakSelf = self;
+	NSBlockOperation *operation = [NSBlockOperation new];
+	__weak NSBlockOperation *weakOperation = operation;
+	[operation addExecutionBlock:^{
+		NSBlockOperation *operation = weakOperation;
+		if (!operation || operation.cancelled) return;
+		BOOL installed = JikanChargeLimiterInstalled(operation);
+		if (operation.cancelled) return;
+		NSNumber *detected = nil;
+		if (installed) {
+			NSDictionary *config = [NSDictionary dictionaryWithContentsOfFile:@"/var/root/aldente.conf"];
+			detected = JikanDetectedLimit(config[@"charge_above"]);
+		}
+		if (operation.cancelled) return;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			__strong typeof(weakSelf) self = weakSelf;
+			if (!self || generation != self.jikanDetectionGeneration || operation.cancelled) return;
+			self.jikanDetectionOperation = nil;
+			if (detected || !installed) [self _finishChargeLimiterDetection:detected generation:generation];
+			else
+				[self _requestChargeLimiterLimitForGeneration:generation];
+		});
+	}];
+	self.jikanDetectionOperation = operation;
+	dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ [operation start]; });
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+		[weakSelf _finishChargeLimiterDetection:nil generation:generation];
+	});
+}
+
 - (void)showBatteryLimitSourceInfo {
-	NSNumber *detected = [self _detectChargeLimiterLimit];
-	if (!detected) return;
-	NSString *message = [NSString stringWithFormat:@"ChargeLimiter: %ld%%", (long)detected.integerValue];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	if (![prefs boolForKey:kBatteryEstimateSyncedKey] || !self.jikanPageActive || self.presentedViewController) return;
+	NSNumber *value = JikanNormalizedSliderValue([prefs objectForKey:kBatteryEstimateTargetKey], kBatteryEstimateTargetKey);
+	NSString *message = [NSString stringWithFormat:JikanLocalizedString(@"jikan.prefs.alert.limit_sources.applied.message", @"Last applied from ChargeLimiter: %ld%%"), (long)value.integerValue];
 	UIAlertController *alert = [UIAlertController alertControllerWithTitle:JikanLocalizedString(@"jikan.prefs.alert.limit_sources.title", @"Synced with ChargeLimiter") message:message preferredStyle:UIAlertControllerStyleAlert];
 	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.ok", @"OK") style:UIAlertActionStyleDefault handler:nil]];
 	[self presentViewController:alert animated:YES completion:nil];
@@ -788,6 +889,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)resetPreferences {
+	[self _cancelChargeLimiterDetection];
+	[self _dismissSliderEditor];
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	if (!prefs) return;
 
@@ -819,6 +922,17 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		[prefs removeObjectForKey:key];
 	}
 
+	NSDictionary *root = [NSDictionary dictionaryWithContentsOfFile:[[self bundle] pathForResource:@"Root" ofType:@"plist"]];
+	NSSet *automaticPositionKeys = [NSSet setWithArray:@[@"pillPosXPortraitPercent", @"pillPosYPortraitPercent", @"pillPosXLandscapePercent", @"pillPosYLandscapePercent"]];
+	for (NSDictionary *item in root[@"items"]) {
+		if ([automaticPositionKeys containsObject:item[@"key"]]) continue;
+		if ([item[@"defaults"] isEqual:kJikanPrefsSuite] && item[@"key"] && item[@"default"]) {
+			id value = JikanNormalizedSliderValue(item[@"default"], item[@"key"]) ?: item[@"default"];
+			[prefs setObject:value forKey:item[@"key"]];
+		}
+	}
+	[prefs setInteger:100 forKey:kBatteryEstimateTargetKey];
+	[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
 	[prefs synchronize];
 	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 
@@ -828,6 +942,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)resetPillPosition {
+	[self _cancelChargeLimiterDetection];
+	[self _dismissSliderEditor];
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	if (!prefs) return;
 

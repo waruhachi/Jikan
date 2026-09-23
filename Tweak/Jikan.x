@@ -9,6 +9,7 @@ static NSInteger _tt100LastSOC = -1;
 static CFAbsoluteTime _tt100LastSOCTime = 0;
 static NSMutableDictionary<NSNumber *, NSMutableArray<NSNumber *> *> *_tt100Durations;
 static NSString *_tt100CurrentChargerClass = nil;
+static NSString *_tt100CurrentChargerIdentity = nil;
 static BOOL _tt100CurrentIsWireless = NO;
 static const void *kTTPlatterWidthConstraintKey = &kTTPlatterWidthConstraintKey;
 static const void *kTTPlatterHeightConstraintKey = &kTTPlatterHeightConstraintKey;
@@ -16,8 +17,6 @@ static const void *kTTPlatterCenterXConstraintKey = &kTTPlatterCenterXConstraint
 static const void *kTTPlatterConstraintsInstalledKey = &kTTPlatterConstraintsInstalledKey;
 static const void *kTTPlatterStyleCapturedKey = &kTTPlatterStyleCapturedKey;
 static const void *kTTCoverSheetObserverInstalledKey = &kTTCoverSheetObserverInstalledKey;
-static const void *kTTCoverSheetBootstrapTimerKey = &kTTCoverSheetBootstrapTimerKey;
-static const void *kTTCoverSheetBootstrapStartTimeKey = &kTTCoverSheetBootstrapStartTimeKey;
 static const void *kTTPlatterCenterYConstraintKey = &kTTPlatterCenterYConstraintKey;
 static const void *kTTPlatterLongPressKey = &kTTPlatterLongPressKey;
 static const void *kTTPlatterDragStartCenterKey = &kTTPlatterDragStartCenterKey;
@@ -27,13 +26,15 @@ static const void *kTTPlatterDefaultCenterComputedLandscapeKey = &kTTPlatterDefa
 static const void *kTTPlatterDraggingKey = &kTTPlatterDraggingKey;
 static const void *kTTQuickActionOriginalHiddenKey = &kTTQuickActionOriginalHiddenKey;
 static const void *kTTQuickActionHiddenByJikanKey = &kTTQuickActionHiddenByJikanKey;
-static BOOL _ttLastResolvedChargingValid = NO;
-static BOOL _ttAllowSBUIControllerFallback = NO;
 static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
 static BOOL _ttPreviewSessionActive = NO;
+static BOOL _ttMonitoringEnabled = NO;
+static NSDictionary *_ttLatestSnapshot;
+static const void *kTTQuickActionInternalHiddenWriteKey = &kTTQuickActionInternalHiddenWriteKey;
+static void TTApplyEnabledState(void);
 
 static BOOL TTShouldHideQuickActionButtonsNow(void) {
-	if (!hideQuickActionButtons) return NO;
+	if (!enabled || !hideQuickActionButtons) return NO;
 	if (!hideQuickActionButtonsOnlyWhenCharging) return YES;
 	return isCharging;
 }
@@ -45,223 +46,64 @@ static const char *TTUnqualifiedType(const char *type) {
 	return type;
 }
 
-static BOOL TTInvokeSelectorWithDefaultArguments(id target, NSString *selectorName) {
-	if (!target || selectorName.length == 0) return NO;
-	SEL selector = NSSelectorFromString(selectorName);
-	if (!selector || ![target respondsToSelector:selector]) return NO;
-
-	NSMethodSignature *sig = [target methodSignatureForSelector:selector];
-	if (!sig) return NO;
-
-	NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
-	inv.target = target;
-	inv.selector = selector;
-
-	NSUInteger argCount = sig.numberOfArguments;
-	for (NSUInteger i = 2; i < argCount; i++) {
-		const char *rawType = [sig getArgumentTypeAtIndex:i];
-		const char *type = TTUnqualifiedType(rawType);
-		if (!type) continue;
-
-		switch (type[0]) {
-			case '@': {
-				id value = nil;
-				[inv setArgument:&value atIndex:i];
-				break;
-			}
-			case 'B':
-			case 'c': {
-				BOOL value = YES;
-				[inv setArgument:&value atIndex:i];
-				break;
-			}
-			case 'i':
-			case 's':
-			case 'l':
-			case 'q':
-			case 'I':
-			case 'S':
-			case 'L':
-			case 'Q': {
-				NSInteger value = 1;
-				[inv setArgument:&value atIndex:i];
-				break;
-			}
-			case 'f': {
-				float value = 1.0f;
-				[inv setArgument:&value atIndex:i];
-				break;
-			}
-			case 'd': {
-				double value = 1.0;
-				[inv setArgument:&value atIndex:i];
-				break;
-			}
-			default: {
-				NSUInteger size = 0;
-				NSGetSizeAndAlignment(type, &size, NULL);
-				if (size > 0) {
-					void *zero = calloc(1, size);
-					[inv setArgument:zero atIndex:i];
-					free(zero);
-				}
-				break;
-			}
+static BOOL TTOpenNotificationCenterViaCoverSheetManager(void) {
+	Class managerClass = NSClassFromString(@"SBCoverSheetPresentationManager");
+	SEL sharedSelector = NSSelectorFromString(@"sharedInstance");
+	if (![managerClass respondsToSelector:sharedSelector]) return NO;
+	NSMethodSignature *sharedSignature = [managerClass methodSignatureForSelector:sharedSelector];
+	if (sharedSignature.numberOfArguments != 2 || sharedSignature.methodReturnType[0] != '@') return NO;
+	id manager = ((id (*)(id, SEL))objc_msgSend)(managerClass, sharedSelector);
+	for (NSString *name in @[@"setCoverSheetPresented:animated:withCompletion:", @"setCoverSheetPresented:animated:options:withCompletion:", @"setCoverSheetPresented:animated:dismissModalPresentation:withCompletion:"]) {
+		SEL selector = NSSelectorFromString(name);
+		if (![manager respondsToSelector:selector]) continue;
+		NSMethodSignature *signature = [manager methodSignatureForSelector:selector];
+		BOOL hasOptions = [name containsString:@"options:"];
+		BOOL hasDismiss = [name containsString:@"dismissModalPresentation:"];
+		NSUInteger arguments = (hasOptions || hasDismiss) ? 6 : 5;
+		if (signature.numberOfArguments != arguments || strcmp(TTUnqualifiedType(signature.methodReturnType), @encode(void)) != 0) continue;
+		BOOL valid = YES;
+		for (NSUInteger i = 2; i < 4; i++) {
+			const char *type = TTUnqualifiedType([signature getArgumentTypeAtIndex:i]);
+			if (strcmp(type, @encode(BOOL)) != 0) valid = NO;
 		}
-	}
-
-	@try {
-		[inv invoke];
+		if (hasOptions && strcmp(TTUnqualifiedType([signature getArgumentTypeAtIndex:4]), @encode(unsigned long long)) != 0) valid = NO;
+		if (hasDismiss && strcmp(TTUnqualifiedType([signature getArgumentTypeAtIndex:4]), @encode(BOOL)) != 0) valid = NO;
+		if ([signature getArgumentTypeAtIndex:arguments - 1][0] != '@' || !valid) continue;
+		if (hasOptions) ((void (*)(id, SEL, BOOL, BOOL, unsigned long long, id))objc_msgSend)(manager, selector, YES, !UIAccessibilityIsReduceMotionEnabled(), 0, nil);
+		else if (hasDismiss)
+			((void (*)(id, SEL, BOOL, BOOL, BOOL, id))objc_msgSend)(manager, selector, YES, !UIAccessibilityIsReduceMotionEnabled(), NO, nil);
+		else
+			((void (*)(id, SEL, BOOL, BOOL, id))objc_msgSend)(manager, selector, YES, !UIAccessibilityIsReduceMotionEnabled(), nil);
 		return YES;
+	}
+	return NO;
+}
+
+static BOOL TTOpenNotificationCenterPreview(void) {
+	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+	if ((now - _ttLastNCPreviewTriggerTime) < 0.35) return NO;
+	_ttLastNCPreviewTriggerTime = now;
+	@try {
+		return TTOpenNotificationCenterViaCoverSheetManager();
 	}
 	@catch (__unused NSException *exception) {
 		return NO;
 	}
 }
 
-static BOOL TTOpenNotificationCenterWithObject(id target) {
-	if (!target) return NO;
-	NSArray<NSString *> *selectors = @[
-		@"presentNotificationCenter",
-		@"showNotificationCenter",
-		@"revealNotificationCenter",
-		@"_showNotificationCenter",
-		@"_showNotifications",
-		@"_showNotificationsIfNecessary",
-		@"_presentNotificationCenter",
-		@"_revealNotificationCenter",
-		@"_setNotificationCenterVisible:animated:",
-		@"setNotificationCenterVisible:animated:",
-		@"_setVisible:animated:",
-		@"_setPresented:animated:",
-		@"_handleShowNotificationsSystemGesture",
-		@"_handleShowNotificationsGesture",
-		@"_showNotificationsGestureBeganFromSource:",
-		@"_showNotificationsGestureEndedWithCompletionType:",
-		@"_showNotificationsGestureEndedFromSource:",
-		@"_toggleNotificationCenter",
-		@"toggleNotificationCenter",
-		@"presentNotificationCenterAnimated:",
-		@"showNotificationCenterAnimated:",
-		@"revealNotificationCenterAnimated:",
-		@"_presentNotificationCenterAnimated:",
-		@"_showNotificationCenterAnimated:",
-		@"_revealNotificationCenterAnimated:",
-		@"presentAnimated:",
-		@"revealAnimated:"
-	];
-	for (NSString *name in selectors) {
-		if (TTInvokeSelectorWithDefaultArguments(target, name)) return YES;
-	}
-	return NO;
-}
-
-static BOOL TTOpenNotificationCenterViaCoverSheetManager(void) {
-	Class managerClass = NSClassFromString(@"SBCoverSheetPresentationManager");
-	if (!managerClass) return NO;
-
-	id manager = nil;
-	SEL sharedSel = NSSelectorFromString(@"sharedInstance");
-	SEL sharedIfExistsSel = NSSelectorFromString(@"sharedInstanceIfExists");
-	if ([managerClass respondsToSelector:sharedSel]) {
-		manager = ((id (*)(id, SEL))objc_msgSend)(managerClass, sharedSel);
-	} else if ([managerClass respondsToSelector:sharedIfExistsSel]) {
-		manager = ((id (*)(id, SEL))objc_msgSend)(managerClass, sharedIfExistsSel);
-	}
-	if (!manager) return NO;
-
-	SEL presentSel = NSSelectorFromString(@"setCoverSheetPresented:animated:withCompletion:");
-	if ([manager respondsToSelector:presentSel]) {
-		((void (*)(id, SEL, BOOL, BOOL, id))objc_msgSend)(manager, presentSel, YES, YES, nil);
-		return YES;
-	}
-
-	SEL presentOptionsSel = NSSelectorFromString(@"setCoverSheetPresented:animated:options:withCompletion:");
-	if ([manager respondsToSelector:presentOptionsSel]) {
-		((void (*)(id, SEL, BOOL, BOOL, unsigned long long, id))objc_msgSend)(manager, presentOptionsSel, YES, YES, 0, nil);
-		return YES;
-	}
-
-	SEL presentDismissModalSel = NSSelectorFromString(@"setCoverSheetPresented:animated:dismissModalPresentation:withCompletion:");
-	if ([manager respondsToSelector:presentDismissModalSel]) {
-		((void (*)(id, SEL, BOOL, BOOL, BOOL, id))objc_msgSend)(manager, presentDismissModalSel, YES, YES, NO, nil);
-		return YES;
-	}
-
-	SEL translationSel = NSSelectorFromString(@"setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:suppressingIconFly:animated:");
-	if ([manager respondsToSelector:translationSel]) {
-		((void (*)(id, SEL, BOOL, BOOL, BOOL, BOOL, BOOL))objc_msgSend)(manager, translationSel, YES, YES, YES, NO, YES);
-		return YES;
-	}
-
-	SEL translationLegacySel = NSSelectorFromString(@"setCoverSheetTranslationToPresented:forcingTransition:ignoringPreflightRequirements:animated:");
-	if ([manager respondsToSelector:translationLegacySel]) {
-		((void (*)(id, SEL, BOOL, BOOL, BOOL, BOOL))objc_msgSend)(manager, translationLegacySel, YES, YES, YES, YES);
-		return YES;
-	}
-
-	return NO;
-}
-
-static void TTOpenNotificationCenterPreview(void) {
-	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
-	if ((now - _ttLastNCPreviewTriggerTime) < 0.35) return;
-	_ttLastNCPreviewTriggerTime = now;
-
-	@try {
-		if (TTOpenNotificationCenterViaCoverSheetManager()) return;
-
-		id app = [UIApplication sharedApplication];
-		if (TTOpenNotificationCenterWithObject(app)) return;
-		id appDelegate = [app respondsToSelector:@selector(delegate)] ? ((id (*)(id, SEL))objc_msgSend)(app, @selector(delegate)) : nil;
-		if (TTOpenNotificationCenterWithObject(appDelegate)) return;
-
-		NSArray<NSString *> *classNames = @[
-			@"SBNotificationCenterController",
-			@"SBUIController",
-			@"SpringBoard",
-			@"SBMainWorkspace"
-		];
-		NSArray<NSString *> *singletonSelectors = @[
-			@"sharedInstance",
-			@"sharedController",
-			@"defaultInstance"
-		];
-
-		for (NSString *className in classNames) {
-			Class cls = NSClassFromString(className);
-			if (!cls) continue;
-
-			for (NSString *selName in singletonSelectors) {
-				SEL sel = NSSelectorFromString(selName);
-				if (![cls respondsToSelector:sel]) continue;
-				id instance = ((id (*)(id, SEL))objc_msgSend)(cls, sel);
-				if (!instance) continue;
-				if (TTOpenNotificationCenterWithObject(instance)) return;
-			}
-
-			if (TTOpenNotificationCenterWithObject(cls)) return;
-		}
-		return;
-	}
-	@catch (NSException *exception) {
-		NSLog(@"[Jikan] Failed opening Notification Center preview: %@", exception);
-	}
-}
-
 static void TTNCPreviewRequestReceived(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
 #pragma unused(center, observer, name, object, userInfo)
 	dispatch_async(dispatch_get_main_queue(), ^{
-		_ttPreviewSessionActive = YES;
-		[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{ @"isCharging": @(isCharging) }];
-		TTOpenNotificationCenterPreview();
+		if (!enabled) return;
+		_ttPreviewSessionActive = TTOpenNotificationCenterPreview();
+		[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
 	});
 }
 
 static void TTEndPreviewSession(void) {
 	if (!_ttPreviewSessionActive) return;
 	_ttPreviewSessionActive = NO;
-	[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{ @"isCharging": @(isCharging) }];
+	[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
 }
 
 static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
@@ -290,18 +132,18 @@ static void TTLoadPreferences(void) {
 	platterHasCustomPositionLandscape = ([preferences objectForKey:@"platterPosXNormLandscape"] != nil && [preferences objectForKey:@"platterPosYNormLandscape"] != nil);
 	platterPosXNormLandscape = platterHasCustomPositionLandscape ? [preferences doubleForKey:@"platterPosXNormLandscape"] : 0.5;
 	platterPosYNormLandscape = platterHasCustomPositionLandscape ? [preferences doubleForKey:@"platterPosYNormLandscape"] : 0.84;
-	platterPosXNorm = MAX(0.05, MIN(0.95, platterPosXNorm));
-	platterPosYNorm = MAX(0.05, MIN(0.95, platterPosYNorm));
-	platterPosXNormLandscape = MAX(0.05, MIN(0.95, platterPosXNormLandscape));
-	platterPosYNormLandscape = MAX(0.05, MIN(0.95, platterPosYNormLandscape));
+	platterPosXNorm = isfinite(platterPosXNorm) ? MAX(0.05, MIN(0.95, platterPosXNorm)) : 0.5;
+	platterPosYNorm = isfinite(platterPosYNorm) ? MAX(0.05, MIN(0.95, platterPosYNorm)) : 0.84;
+	platterPosXNormLandscape = isfinite(platterPosXNormLandscape) ? MAX(0.05, MIN(0.95, platterPosXNormLandscape)) : 0.5;
+	platterPosYNormLandscape = isfinite(platterPosYNormLandscape) ? MAX(0.05, MIN(0.95, platterPosYNormLandscape)) : 0.84;
 
 	id px = [preferences objectForKey:@"pillPosXPortraitPercent"];
 	id py = [preferences objectForKey:@"pillPosYPortraitPercent"];
 	if (px || py) {
 		platterPosXNorm = TTPercentToNorm(px, platterPosXNorm);
 		platterPosYNorm = TTPercentToNorm(py, platterPosYNorm);
-		platterPosXNorm = MAX(0.05, MIN(0.95, platterPosXNorm));
-		platterPosYNorm = MAX(0.05, MIN(0.95, platterPosYNorm));
+		platterPosXNorm = isfinite(platterPosXNorm) ? MAX(0.05, MIN(0.95, platterPosXNorm)) : 0.5;
+		platterPosYNorm = isfinite(platterPosYNorm) ? MAX(0.05, MIN(0.95, platterPosYNorm)) : 0.84;
 		platterHasCustomPosition = YES;
 	}
 
@@ -310,8 +152,8 @@ static void TTLoadPreferences(void) {
 	if (lx || ly) {
 		platterPosXNormLandscape = TTPercentToNorm(lx, platterPosXNormLandscape);
 		platterPosYNormLandscape = TTPercentToNorm(ly, platterPosYNormLandscape);
-		platterPosXNormLandscape = MAX(0.05, MIN(0.95, platterPosXNormLandscape));
-		platterPosYNormLandscape = MAX(0.05, MIN(0.95, platterPosYNormLandscape));
+		platterPosXNormLandscape = isfinite(platterPosXNormLandscape) ? MAX(0.05, MIN(0.95, platterPosXNormLandscape)) : 0.5;
+		platterPosYNormLandscape = isfinite(platterPosYNormLandscape) ? MAX(0.05, MIN(0.95, platterPosYNormLandscape)) : 0.84;
 		platterHasCustomPositionLandscape = YES;
 	}
 }
@@ -320,8 +162,7 @@ static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFS
 #pragma unused(center, observer, name, object, userInfo)
 	dispatch_async(dispatch_get_main_queue(), ^{
 		TTLoadPreferences();
-		[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
-		[[TT100 sharedInstance] _refreshBatteryInfo];
+		TTApplyEnabledState();
 	});
 }
 
@@ -374,7 +215,6 @@ static id TTObjectForSelector(id target, NSString *selectorName) {
 	if (!selector || ![target respondsToSelector:selector]) return nil;
 
 	@try {
-		// A selector name alone does not establish the private method's ABI.
 		NSMethodSignature *signature = [target methodSignatureForSelector:selector];
 		if (signature.numberOfArguments != 2 || signature.methodReturnType[0] != '@') return nil;
 		return ((id (*)(id, SEL))objc_msgSend)(target, selector);
@@ -402,12 +242,9 @@ static BOOL TTResolveQuickActionButtons(CSQuickActionsView *quickActions, UIView
 		trailing = TTViewForSelector(container, @"trailingButton");
 	}
 
-	// Older CoreSpringBoard versions expose the two controls directly.
 	if (!leading) leading = TTViewForSelector(quickActions, @"flashlightButton");
 	if (!trailing) trailing = TTViewForSelector(quickActions, @"cameraButton");
 
-	// Last-resort collection fallback. Sort by on-screen position instead of
-	// assuming the private array has a stable flashlight/camera ordering.
 	if (!leading || !trailing) {
 		id buttonsObject = TTObjectForSelector(quickActions, @"buttons");
 		if ([buttonsObject isKindOfClass:[NSArray class]]) {
@@ -429,8 +266,6 @@ static BOOL TTResolveQuickActionButtons(CSQuickActionsView *quickActions, UIView
 				return NSOrderedSame;
 			}];
 
-			// Semantic leading/trailing can be reversed on screen in RTL. Never
-			// fill a missing slot with the button already resolved for the other.
 			for (UIView *view in buttonViews) {
 				if (!leading && view != trailing) leading = view;
 			}
@@ -455,15 +290,17 @@ static void TTSetQuickActionControlHidden(UIView *control, BOOL shouldHide) {
 			objc_setAssociatedObject(control, kTTQuickActionOriginalHiddenKey, @(control.hidden), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 			objc_setAssociatedObject(control, kTTQuickActionHiddenByJikanKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		}
+		objc_setAssociatedObject(control, kTTQuickActionInternalHiddenWriteKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		control.hidden = YES;
+		objc_setAssociatedObject(control, kTTQuickActionInternalHiddenWriteKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		return;
 	}
 
 	if (!hiddenByJikan) return;
 	NSNumber *originalHidden = (NSNumber *)objc_getAssociatedObject(control, kTTQuickActionOriginalHiddenKey);
-	if (originalHidden) control.hidden = originalHidden.boolValue;
 	objc_setAssociatedObject(control, kTTQuickActionOriginalHiddenKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	objc_setAssociatedObject(control, kTTQuickActionHiddenByJikanKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	if (originalHidden) control.hidden = originalHidden.boolValue;
 }
 
 static void TTSetQuickActionButtonsHidden(CSQuickActionsView *quickActions, BOOL shouldHide) {
@@ -589,6 +426,7 @@ static void TT100SessionMaybeStart(NSDictionary *batteryInfo) {
 		NSString *chargerClass = [TT100 chargerClassWithBatteryInfo:batteryInfo outIsWireless:&isWireless];
 		if (!chargerClass.length) chargerClass = @"unknown";
 		_tt100CurrentChargerClass = [chargerClass copy];
+		_tt100CurrentChargerIdentity = [[TT100 chargerIdentityWithBatteryInfo:batteryInfo] copy];
 		_tt100CurrentIsWireless = isWireless;
 		[[TT100Database shared] updateSession:_tt100CurrentSessionId chargerClass:_tt100CurrentChargerClass isWireless:_tt100CurrentIsWireless];
 	}
@@ -601,10 +439,9 @@ static void TT100SessionMaybeEnd(NSDictionary *batteryInfo) {
 	if (_tt100CurrentSessionId < 0) return;
 	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
 	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
-	if (pctMax && pctCurr && pctMax.intValue > 0) {
-		NSInteger soc = (NSInteger)lrint((pctCurr.doubleValue / pctMax.doubleValue) * 100.0);
-		[[TT100Database shared] endSessionId:_tt100CurrentSessionId endSOC:soc];
-	}
+	NSInteger soc = _tt100LastSOC;
+	if (pctMax && pctCurr && pctMax.intValue > 0) soc = (NSInteger)lrint((pctCurr.doubleValue / pctMax.doubleValue) * 100.0);
+	[[TT100Database shared] endSessionId:_tt100CurrentSessionId endSOC:MAX(0, MIN(100, soc))];
 
 	if (_tt100Durations.count) {
 		NSString *cls = _tt100CurrentChargerClass.length ? _tt100CurrentChargerClass : @"unknown";
@@ -615,6 +452,7 @@ static void TT100SessionMaybeEnd(NSDictionary *batteryInfo) {
 	_tt100LastSOC = -1;
 	_tt100LastSOCTime = 0;
 	_tt100CurrentChargerClass = nil;
+	_tt100CurrentChargerIdentity = nil;
 	_tt100CurrentIsWireless = NO;
 }
 
@@ -629,7 +467,12 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 		_tt100LastSOCTime = CFAbsoluteTimeGetCurrent();
 		return;
 	}
-	if (soc <= _tt100LastSOC) return;
+	if (soc < _tt100LastSOC) {
+		_tt100LastSOC = soc;
+		_tt100LastSOCTime = CFAbsoluteTimeGetCurrent();
+		return;
+	}
+	if (soc == _tt100LastSOC) return;
 	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
 	CFAbsoluteTime delta = now - _tt100LastSOCTime;
 	if (delta <= 0) delta = 1;
@@ -657,32 +500,19 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 			[arr addObject:@(slice)];
 		}
 	}
+	if (_tt100Durations.count) {
+		[[TT100Database shared] updatePercentStatsForChargerClass:_tt100CurrentChargerClass ?: @"unknown" withDurationsSec:_tt100Durations];
+		[_tt100Durations removeAllObjects];
+	}
 	_tt100LastSOC = soc;
 	_tt100LastSOCTime = now;
-}
-
-static BOOL TTReadIsOnACFromSBUIController(BOOL *outHasValue) {
-	if (outHasValue) *outHasValue = NO;
-	@try {
-		Class cls = NSClassFromString(@"SBUIController");
-		if (!cls || ![cls respondsToSelector:@selector(sharedInstance)]) return NO;
-		id controller = [cls sharedInstance];
-		if (!controller || ![controller respondsToSelector:@selector(isOnAC)]) return NO;
-		if (outHasValue) *outHasValue = YES;
-		return ((BOOL (*)(id, SEL))objc_msgSend)(controller, @selector(isOnAC));
-	}
-	@catch (__unused NSException *exception) {
-		return NO;
-	}
 }
 
 static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
 	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NO;
 
 	id external = batteryInfo[@"ExternalConnected"];
-	if ([external respondsToSelector:@selector(boolValue)] && [external boolValue]) {
-		return YES;
-	}
+	if ([external respondsToSelector:@selector(boolValue)]) return [external boolValue];
 
 	id charging = batteryInfo[@"IsCharging"];
 	if ([charging respondsToSelector:@selector(boolValue)]) {
@@ -709,80 +539,47 @@ static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
 	return NO;
 }
 
-static BOOL TTResolveChargingState(void) {
-	BOOL hasAC = NO;
-	if (_ttAllowSBUIControllerFallback) {
-		BOOL onAC = TTReadIsOnACFromSBUIController(&hasAC);
-		if (hasAC) {
-			_ttLastResolvedChargingValid = YES;
-			return onAC;
+static void TTApplyEnabledState(void) {
+	if (enabled) {
+		if (!_ttMonitoringEnabled) {
+			_ttMonitoringEnabled = YES;
+			[TT100 startMonitoring];
+		} else {
+			[[TT100 sharedInstance] _refreshBatteryInfo];
 		}
+	} else {
+		_ttMonitoringEnabled = NO;
+		[TT100 stopMonitoring];
+		TT100SessionMaybeEnd(_ttLatestSnapshot[@"batteryInfo"]);
+		_ttLatestSnapshot = nil;
+		_ttPreviewSessionActive = NO;
+		isCharging = NO;
 	}
-
-	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-	if (batteryInfo.count > 0) {
-		BOOL inferred = TTInferChargingStateFromBatteryInfo(batteryInfo);
-		_ttLastResolvedChargingValid = YES;
-		return inferred;
-	}
-
-	if (_ttLastResolvedChargingValid) return isCharging;
-	return NO;
+	[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
 }
 
-static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
-	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-	BOOL newCharging = TTResolveChargingState();
-	BOOL changed = (newCharging != isCharging);
-	isCharging = newCharging;
-
-	if (isCharging) {
-		TT100SessionMaybeStart(batteryInfo);
-	} else if (changed) {
-		TT100SessionMaybeEnd(batteryInfo);
+%group JikanQuickActionVisibility
+%hook JikanQuickActionControl
+- (void)setHidden:(BOOL)hidden {
+	if ([objc_getAssociatedObject(self, kTTQuickActionHiddenByJikanKey) boolValue] && ![objc_getAssociatedObject(self, kTTQuickActionInternalHiddenWriteKey) boolValue]) {
+		objc_setAssociatedObject(self, kTTQuickActionOriginalHiddenKey, @(hidden), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		hidden = YES;
 	}
-
-	if (shouldNotify) {
-		dispatch_async(dispatch_get_main_queue(), ^{
-			[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
-		});
-	}
+	%orig(hidden);
 }
-
-%hook NCNotificationListCountIndicatorView
-
-- (void)didMoveToWindow {
-	self.hidden = YES;
-	%orig;
-}
-
+%end
 %end
 
 %hook _UIBatteryView
-- (void)setChargingState:(NSInteger)arg1 {
-	BOOL wasCharging = isCharging;
-	isCharging = (arg1 == 1);
-	_ttLastResolvedChargingValid = YES;
-	if (wasCharging != isCharging) {
-		NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-		if (isCharging) {
-			TT100SessionMaybeStart(batteryInfo);
-		} else {
-			TT100SessionMaybeEnd(batteryInfo);
-		}
-		dispatch_async(dispatch_get_main_queue(), ^{
-			[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
-		});
-	}
-	return %orig;
+- (void)setChargingState:(NSInteger)state {
+	%orig;
+	if (enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
 }
-
 %end
 
 %hook CSQuickActionsView
 
 - (void)refreshSupportedButtons {
-	// Let the system refresh its own visibility before capturing a new override.
 	TTSetQuickActionButtonsHidden(self, NO);
 	%orig;
 	BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
@@ -799,14 +596,13 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 	BOOL installed = [objc_getAssociatedObject(self, kTTCoverSheetObserverInstalledKey) boolValue];
 	if (self.window) {
-		_ttAllowSBUIControllerFallback = YES;
 		TTSetPlatterStyleCaptured(self, NO);
 		if (!installed) {
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanChargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
+			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanChargingStateChanged:) name:TT100BatteryInfoUpdatedNotification object:nil];
 			objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		}
-		TTSyncChargingStateFromBatteryInfoAndNotify(NO);
-		[self _jikanStartChargingBootstrap];
+		if (enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
 		[self _jikanChargingStateChanged:nil];
 	} else {
 		_ttPreviewSessionActive = NO;
@@ -814,9 +610,9 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 			[self.remainingTimePlatter setPreviewMode:NO];
 		}
 		if (installed) {
-		[[NSNotificationCenter defaultCenter] removeObserver:self name:JikanChargingStateChangedNotification object:nil];
-		objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		[self _jikanStopChargingBootstrap];
+			[[NSNotificationCenter defaultCenter] removeObserver:self name:JikanChargingStateChangedNotification object:nil];
+			[[NSNotificationCenter defaultCenter] removeObserver:self name:TT100BatteryInfoUpdatedNotification object:nil];
+			objc_setAssociatedObject(self, kTTCoverSheetObserverInstalledKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		}
 	}
 }
@@ -828,47 +624,6 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		[self _addOrRemoveRemainingTimePlatterIfNecessary];
 	}
 	[self _configureRemainingTimePlatterConstraints];
-}
-
-%new
-- (void)_jikanStartChargingBootstrap {
-	[self _jikanStopChargingBootstrap];
-	objc_setAssociatedObject(self, kTTCoverSheetBootstrapStartTimeKey, @([NSDate date].timeIntervalSince1970), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:0.25 target:self selector:@selector(_jikanBootstrapTick:) userInfo:nil repeats:YES];
-	timer.tolerance = 0.05;
-	objc_setAssociatedObject(self, kTTCoverSheetBootstrapTimerKey, timer, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-%new
-- (void)_jikanStopChargingBootstrap {
-	NSTimer *timer = (NSTimer *)objc_getAssociatedObject(self, kTTCoverSheetBootstrapTimerKey);
-	if (timer) {
-		[timer invalidate];
-	}
-	objc_setAssociatedObject(self, kTTCoverSheetBootstrapTimerKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	objc_setAssociatedObject(self, kTTCoverSheetBootstrapStartTimeKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-%new
-- (void)_jikanBootstrapTick:(NSTimer *)timer {
-#pragma unused(timer)
-	if (!self.window) {
-		[self _jikanStopChargingBootstrap];
-		return;
-	}
-
-	BOOL previous = isCharging;
-	TTSyncChargingStateFromBatteryInfoAndNotify(NO);
-	BOOL changed = (previous != isCharging);
-	if (changed) {
-		[self _jikanChargingStateChanged:nil];
-	}
-
-	NSNumber *startObj = (NSNumber *)objc_getAssociatedObject(self, kTTCoverSheetBootstrapStartTimeKey);
-	NSTimeInterval elapsed = [NSDate date].timeIntervalSince1970 - startObj.doubleValue;
-	if (elapsed >= 3.0) {
-		[self _jikanStopChargingBootstrap];
-	}
 }
 
 %new
@@ -1000,8 +755,15 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 %new
 - (void)_addOrRemoveRemainingTimePlatterIfNecessary {
+	if (!enabled) {
+		[self.remainingTimePlatter enterEditMode:NO];
+		[self.remainingTimePlatter setPreviewMode:NO];
+		[self _setRemainingTimePlatterVisible:NO];
+		return;
+	}
 	if (!self.remainingTimePlatter) {
 		self.remainingTimePlatter = [[JikanPlatterView alloc] init];
+		self.remainingTimePlatter.hidden = YES;
 		self.remainingTimePlatter.translatesAutoresizingMaskIntoConstraints = NO;
 		[self addSubview:self.remainingTimePlatter];
 		[self.remainingTimePlatter setupConstraints];
@@ -1013,9 +775,9 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 	TTApplyQuickActionStyleIfPossible(self);
 
-	NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-	BOOL hasEstimate = [TT100 hasEstimateWithBatteryInfo:batteryInfo];
-	BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:NULL];
+	BOOL hasEstimate = [_ttLatestSnapshot[@"hasEstimate"] boolValue];
+	BOOL fullyCharged = [_ttLatestSnapshot[@"targetReached"] boolValue];
+	[self.remainingTimePlatter applyBatterySnapshot:_ttLatestSnapshot];
 	BOOL previewEnabled = _ttPreviewSessionActive;
 
 	BOOL shouldShow = previewEnabled || (isCharging && (hasEstimate || (showAfterFullCharge && fullyCharged)));
@@ -1040,6 +802,12 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 	}
 
 	[self.remainingTimePlatter.layer removeAllAnimations];
+	if (UIAccessibilityIsReduceMotionEnabled() || !enabled) {
+		self.remainingTimePlatter.hidden = !visible;
+		self.remainingTimePlatter.alpha = visible ? 1.0 : 0.0;
+		self.remainingTimePlatter.transform = CGAffineTransformIdentity;
+		return;
+	}
 
 	NSTimeInterval showDuration = 0.42;
 	NSTimeInterval hideDuration = 0.22;
@@ -1076,7 +844,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 %new
 - (void)_configureRemainingTimePlatterConstraints {
 	if (!self.remainingTimePlatter) return;
-	static const CGFloat kPlatterHeight = 60.0;
+	CGFloat kPlatterHeight = MAX(60.0, MIN(100.0, [[UIFontMetrics metricsForTextStyle:UIFontTextStyleBody] scaledValueForValue:60.0]));
 	BOOL isLandscape = CGRectGetWidth(self.bounds) > CGRectGetHeight(self.bounds);
 	CGFloat platterWidth = MAX(180.0, MIN(280.0, self.bounds.size.width * 0.45));
 	CGFloat defaultBottomOffset = TTShouldHideQuickActionButtonsNow() ? -28.0 : -76.0;
@@ -1156,6 +924,7 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 		TTSetConstraintsInstalled(self, YES);
 	} else {
 		TTGetConstraint(self, kTTPlatterWidthConstraintKey).constant = platterWidth;
+		TTGetConstraint(self, kTTPlatterHeightConstraintKey).constant = kPlatterHeight;
 		if (!dragging) {
 			TTGetConstraint(self, kTTPlatterCenterXConstraintKey).constant = centerXOffset;
 			TTGetConstraint(self, kTTPlatterCenterYConstraintKey).constant = centerYOffset;
@@ -1167,19 +936,13 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 
 %hook CSCoverSheetViewController
 
-- (void)viewWillAppear:(BOOL)animated {
-	%orig;
-	_ttAllowSBUIControllerFallback = YES;
-}
-
 - (void)viewDidAppear:(BOOL)animated {
 	%orig;
 	UIView *view = self.view;
 	if ([view isKindOfClass:NSClassFromString(@"CSCoverSheetView")]) {
 		CSCoverSheetView *coverSheet = (CSCoverSheetView *)view;
-		TTSyncChargingStateFromBatteryInfoAndNotify(NO);
+		if (enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
 		[coverSheet _jikanChargingStateChanged:nil];
-		[coverSheet _jikanStartChargingBootstrap];
 	}
 }
 
@@ -1196,19 +959,37 @@ static void TTSyncChargingStateFromBatteryInfoAndNotify(BOOL shouldNotify) {
 %end
 
 %ctor {
+	%init;
+	Class quickButtonClass = NSClassFromString(@"CSQuickActionsButton");
+	Class prominentClass = NSClassFromString(@"CSProminentButtonControl");
+	Class visibilityClass = prominentClass && [quickButtonClass isSubclassOfClass:prominentClass] ? prominentClass : quickButtonClass;
+	if (visibilityClass) {
+		%init(JikanQuickActionVisibility, JikanQuickActionControl = visibilityClass);
+	}
 	TTLoadPreferences();
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTNCPreviewRequestReceived, (__bridge CFStringRef)kJikanOpenNCPreviewNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-
-	if (!enabled) {
-		return;
-	}
-
-	TTSyncChargingStateFromBatteryInfoAndNotify(NO);
-
-	[TT100 startMonitoring];
 	[[NSNotificationCenter defaultCenter] addObserverForName:TT100InternalDidRefreshBatteryInfoNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-		NSDictionary *bi = note.userInfo[@"batteryInfo"];
-		if (isCharging && bi) TT100RecordTicksIfNeeded(bi);
+		if (!enabled) return;
+		_ttLatestSnapshot = [note.userInfo copy];
+		NSDictionary *batteryInfo = _ttLatestSnapshot[@"batteryInfo"];
+		if (!batteryInfo.count) return;
+		BOOL wasCharging = isCharging;
+		isCharging = TTInferChargingStateFromBatteryInfo(batteryInfo);
+		if (isCharging) {
+			NSString *chargerIdentity = _ttLatestSnapshot[@"chargerIdentity"];
+			if (_tt100CurrentSessionId >= 0 && ![_tt100CurrentChargerIdentity isEqualToString:chargerIdentity]) TT100SessionMaybeEnd(batteryInfo);
+			TT100SessionMaybeStart(batteryInfo);
+			BOOL paused = [batteryInfo[@"IsCharging"] respondsToSelector:@selector(boolValue)] && ![batteryInfo[@"IsCharging"] boolValue];
+			if (paused) {
+				_tt100LastSOC = [_ttLatestSnapshot[@"displayPercent"] integerValue];
+				_tt100LastSOCTime = CFAbsoluteTimeGetCurrent();
+			} else
+				TT100RecordTicksIfNeeded(batteryInfo);
+		} else {
+			TT100SessionMaybeEnd(batteryInfo);
+		}
+		if (wasCharging != isCharging) [[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
 	}];
+	dispatch_async(dispatch_get_main_queue(), ^{ TTApplyEnabledState(); });
 }

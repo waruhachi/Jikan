@@ -16,7 +16,7 @@
 "jikan.prefs.row.lock_x_axis" = "Lås X-axeln";
 "jikan.prefs.row.lock_y_axis" = "Lås Y-axeln";
 "jikan.prefs.row.show_preview" = "Visa förhandsgranskning";
-"jikan.prefs.row.show_after_full_charge" = "Visa efter full laddning";
+"jikan.prefs.row.show_after_full_charge" = "Visa efter att målet har nåtts";
 "jikan.prefs.row.show_current_wattage" = "Visa aktuell effekt";
 "jikan.prefs.row.opacity" = "Opacitet";
 "jikan.prefs.row.pill_background_opacity" = "Pillbakgrundens opacitet (%)";
@@ -43,6 +43,7 @@
 "jikan.prefs.slider.landscape_x.title" = "Landskap X";
 "jikan.prefs.slider.landscape_y.title" = "Landskap Y";
 
+"jikan.prefs.alert.slider_invalid.message" = "Ange ett giltigt tal mellan %.0f och %.0f.";
 "jikan.prefs.alert.slider_range.message" = "Ange ett värde mellan %.0f och %.0f";
 "jikan.prefs.alert.reset_pill_position.title" = "Återställ pillposition";
 "jikan.prefs.alert.reset_pill_position.prompt" = "Vill du återställa pillrets position i stående/liggande läge och axellås?";
@@ -52,6 +53,8 @@
 "jikan.prefs.alert.detect_limit.none.message" = "Ingen ChargeLimiter-gräns upptäcktes. Använder 100%.";
 "jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter upptäckt";
 "jikan.prefs.alert.detect_limit.single.message" = "Tillämpad laddningsgräns: %ld%%";
+"jikan.prefs.alert.detect_limit.unchanged.message" = "Ingen ChargeLimiter-gräns hittades. Ditt laddningsmål har inte ändrats.";
+"jikan.prefs.alert.limit_sources.applied.message" = "Senast tillämpat från ChargeLimiter: %ld%%";
 "jikan.prefs.alert.limit_sources.title" = "Synkroniserad med ChargeLimiter";
 
 "jikan.tt100.value.na" = "Ej tillämpligt";
@@ -61,6 +64,7 @@
 "jikan.tt100.format.lt1min" = "<1 min";
 
 "jikan.platter.label.until_fully_charged" = "till full laddning";
+"jikan.platter.label.until_target" = "tills %ld%% laddat";
 "jikan.platter.label.charged" = "laddad";
 "jikan.platter.label.current_wattage" = "Aktuell effekt";
 "jikan.platter.preview.time" = "0 min";

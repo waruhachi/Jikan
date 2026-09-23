@@ -12,7 +12,6 @@
 	UIView *_styleOverlayView;
 	UIView *_contentTintReplicaView;
 	CAShapeLayer *_previewOutlineLayer;
-	NSTimer *_refreshTimer;
 	UIImageView *_boltImageView;
 	UITapGestureRecognizer *_tapGesture;
 	NSDictionary *_latestBatteryInfo;
@@ -21,12 +20,14 @@
 	BOOL _previewMode;
 	BOOL _editingMode;
 	BOOL _latestHasEstimate;
-	BOOL _latestFullyCharged;
+	BOOL _latestTargetReached;
 	NSInteger _latestDisplayPercent;
+	NSInteger _latestTargetPercent;
 	CGFloat _backgroundBaseAlpha;
 	CGFloat _styleOverlayBaseAlpha;
 	CGFloat _contentTintBaseAlpha;
 }
+- (void)applyBatterySnapshot:(NSDictionary *)snapshot;
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;
 - (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect;
