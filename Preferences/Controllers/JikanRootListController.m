@@ -1,5 +1,3 @@
-#import <math.h>
-
 #import "JikanRootListController.h"
 
 @interface PSListController (Private)
@@ -19,6 +17,8 @@
 @property (nonatomic, assign) NSUInteger jikanDetectionGeneration;
 @property (nonatomic, strong) NSOperation *jikanDetectionOperation;
 @property (nonatomic, strong) NSURLSessionDataTask *jikanDetectionTask;
+@property (nonatomic, copy) NSString *jikanDetectionSource;
+@property (nonatomic, assign) NSInteger jikanDetectionTarget;
 @property (nonatomic, weak) UIAlertController *jikanSliderEditorAlert;
 @property (nonatomic, weak) UIAlertAction *jikanSliderEditorSave;
 @property (nonatomic, copy) NSDictionary *jikanSliderEditorConfig;
@@ -91,7 +91,7 @@ static NSNumber *JikanDetectedLimit(id value) {
 	else if (![value isKindOfClass:NSString.class] || !JikanParseNumber(value, [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"], &raw))
 		return nil;
 	if (!isfinite(raw) || raw < 1 || raw > 100) return nil;
-	return JikanNormalizedSliderValue(@(raw), kBatteryEstimateTargetKey);
+	return @(raw);
 }
 
 static BOOL JikanIsChargeLimiterApp(NSString *path) {
@@ -160,6 +160,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[self _localizeSpecifiersInPlace:_specifiers];
 		[self _updateBatteryLimitInfoSpecifier];
+		[self _updateEstimateSourceDescription];
 		[self collectDynamicSpecifiersFromArray:_specifiers];
 		[self _configureAxisSliderLeftImages];
 		if (!self.jikanObservingPreferences) {
@@ -221,6 +222,24 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	NSString *key = [specifier propertyForKey:@"key"];
 	[self _cancelChargeLimiterDetection];
+	if ([key isEqualToString:JikanEstimateSourceKey]) {
+		[self _dismissSliderEditor];
+		value = [value isKindOfClass:NSString.class] && [value isEqualToString:@"apple"] ? @"apple" : @"jikan";
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+		if ([value isEqualToString:@"apple"] && ![prefs objectForKey:JikanEstimateAppleTargetKey]) {
+			NSInteger jikanTarget = JikanEstimateTarget(prefs, @"jikan");
+			[prefs setInteger:JikanAppleTargetIsSupported(jikanTarget) ? jikanTarget : 100 forKey:JikanEstimateAppleTargetKey];
+			[prefs synchronize];
+		}
+	}
+	if ([key isEqualToString:JikanEstimateAppleTargetKey]) {
+		NSNumber *target = JikanAppleSliderTargetFromValue(value);
+		if (!target) return;
+		value = target;
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+		[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
+		[prefs synchronize];
+	}
 	NSNumber *normalized = JikanNormalizedSliderValue(value, key);
 	if (normalized) value = normalized;
 	if ([key isEqualToString:kBatteryEstimateTargetKey]) {
@@ -229,6 +248,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		[prefs synchronize];
 	}
 	[super setPreferenceValue:value specifier:specifier];
+	if ([key isEqualToString:JikanEstimateSourceKey]) [self _scheduleSpecifiersReload:YES];
 
 	if (self.hasDynamicSpecifiers) {
 		NSString *specifierID = [specifier propertyForKey:PSIDKey];
@@ -255,6 +275,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[super reloadSpecifiers];
 	[self _localizeSpecifiersInPlace:self.specifiers];
 	[self _updateBatteryLimitInfoSpecifier];
+	[self _updateEstimateSourceDescription];
 	[self collectDynamicSpecifiersFromArray:self.specifiers];
 	[self _configureAxisSliderLeftImages];
 	[self _installSliderLongPressEditorsIfNeeded];
@@ -264,12 +285,26 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	PSSpecifier *spec = [self specifierForID:@"batteryLimitInfoRow"];
 	if (!spec) return;
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	BOOL synced = [prefs objectForKey:kBatteryEstimateSyncedKey] ? [prefs boolForKey:kBatteryEstimateSyncedKey] : NO;
+	NSString *syncKey = [JikanEstimateSource(prefs) isEqualToString:@"apple"] ? JikanEstimateAppleSyncedKey : kBatteryEstimateSyncedKey;
+	BOOL synced = [prefs boolForKey:syncKey];
 	if (synced) {
 		[spec setProperty:@"showBatteryLimitSourceInfo" forKey:@"infoAction"];
 	} else {
 		[spec removePropertyForKey:@"infoAction"];
 	}
+}
+
+- (void)_updateEstimateSourceDescription {
+	PSSpecifier *group = [self specifierForID:@"timeEstimateGroup"];
+	if (!group) return;
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	BOOL apple = [JikanEstimateSource(prefs) isEqualToString:@"apple"];
+	NSString *footer = apple ? JikanLocalizedString(@"jikan.prefs.estimate.apple_description", @"Uses a fixed local copy of Apple's charging models. A new connection is needed after SpringBoard starts while already plugged in.") : JikanLocalizedString(@"jikan.prefs.estimate.jikan_description", @"Uses your charging history and current battery readings.");
+	if (apple) {
+		NSString *manifest = jbroot(@"/Library/Tweak Support/Jikan/Models/iOS260/Manifest.plist");
+		if (![[NSFileManager defaultManager] fileExistsAtPath:manifest]) footer = JikanLocalizedString(@"jikan.prefs.estimate.models_missing", @"Apple model assets are not installed in this build.");
+	}
+	[group setProperty:footer forKey:@"footerText"];
 }
 
 - (void)collectDynamicSpecifiersFromArray:(NSArray *)array {
@@ -321,6 +356,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 			@"Landscape Y": @"jikan.prefs.row.landscape_y",
 			@"Miscellaneous": @"jikan.prefs.section.miscellaneous",
 			@"Time Estimate": @"jikan.prefs.section.battery_estimate",
+			@"Algorithm": @"jikan.prefs.row.algorithm",
 			@"Battery Limit": @"jikan.prefs.row.charge_limit",
 			@"Charge Limit": @"jikan.prefs.row.charge_limit",
 			@"Estimate Target (%)": @"jikan.prefs.row.estimate_target_percent",
@@ -372,6 +408,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
 	PSSpecifier *specifier = [self specifierAtIndexPath:indexPath];
+	if ([self _isHiddenEstimateSpecifier:specifier]) return 0;
 	if (self.hasDynamicSpecifiers) {
 		PSSpecifier *dynamicSpecifier = specifier;
 		if ([self.dynamicSpecifiers.allValues containsObject:dynamicSpecifier]) {
@@ -387,6 +424,14 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 
 	return UITableViewAutomaticDimension;
+}
+
+- (BOOL)_isHiddenEstimateSpecifier:(PSSpecifier *)specifier {
+	NSString *identifier = [specifier propertyForKey:PSIDKey];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	BOOL apple = [JikanEstimateSource(prefs) isEqualToString:@"apple"];
+	return (apple && [identifier isEqualToString:@"batteryEstimateTargetSlider"]) ||
+		(!apple && [identifier isEqualToString:@"batteryEstimateAppleTargetSlider"]);
 }
 
 - (BOOL)shouldHideSpecifier:(PSSpecifier *)specifier {
@@ -634,7 +679,12 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
 	UITableViewCell *cell = [super tableView:tableView cellForRowAtIndexPath:indexPath];
-	[self _configureSliderEditorForCell:cell specifier:[self specifierAtIndexPath:indexPath]];
+	PSSpecifier *specifier = [self specifierAtIndexPath:indexPath];
+	BOOL hidden = [self _isHiddenEstimateSpecifier:specifier];
+	cell.hidden = hidden;
+	cell.accessibilityElementsHidden = hidden;
+	cell.userInteractionEnabled = !hidden;
+	if (!hidden) [self _configureSliderEditorForCell:cell specifier:specifier];
 	return cell;
 }
 
@@ -703,6 +753,10 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)_presentSliderEditorWithConfig:(NSDictionary *)config fallbackValue:(double)fallback {
 	NSString *prefsKey = config[@"key"];
+	if ([prefsKey isEqualToString:kBatteryEstimateTargetKey]) {
+		NSUserDefaults *currentPrefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+		if ([JikanEstimateSource(currentPrefs) isEqualToString:@"apple"]) return;
+	}
 	NSString *title = config[@"title"];
 	if (!JikanSliderDefaults()[prefsKey] || !title.length || !self.jikanPageActive || self.presentedViewController) return;
 	[self _cancelChargeLimiterDetection];
@@ -756,6 +810,17 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)_normalizeStoredSliderValues {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 	BOOL changed = NO;
+	id source = [prefs objectForKey:JikanEstimateSourceKey];
+	if (source && (![source isKindOfClass:NSString.class] || (![source isEqualToString:@"jikan"] && ![source isEqualToString:@"apple"]))) {
+		[prefs removeObjectForKey:JikanEstimateSourceKey];
+		changed = YES;
+	}
+	id appleTarget = [prefs objectForKey:JikanEstimateAppleTargetKey];
+	if (appleTarget && !JikanAppleTargetFromValue(appleTarget)) {
+		[prefs setInteger:100 forKey:JikanEstimateAppleTargetKey];
+		[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
+		changed = YES;
+	}
 	for (NSString *key in JikanSliderDefaults()) {
 		id stored = [prefs objectForKey:key];
 		if (!stored && ![key isEqualToString:kBatteryEstimateTargetKey]) continue;
@@ -782,20 +847,32 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)_finishChargeLimiterDetection:(NSNumber *)detected generation:(NSUInteger)generation {
 	if (generation != self.jikanDetectionGeneration) return;
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	NSString *source = JikanEstimateSource(prefs);
+	if (![source isEqualToString:self.jikanDetectionSource] || JikanEstimateTarget(prefs, source) != self.jikanDetectionTarget) {
+		[self _cancelChargeLimiterDetection];
+		return;
+	}
 	[self _cancelChargeLimiterDetection];
 	if (!self.jikanPageActive || !self.viewIfLoaded.window || self.presentedViewController || [self _isAnyPreferenceSliderTracking]) return;
 	NSString *title;
 	NSString *message;
 	if (detected) {
-		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-		NSNumber *value = JikanNormalizedSliderValue(detected, kBatteryEstimateTargetKey);
-		[prefs setObject:value forKey:kBatteryEstimateTargetKey];
-		[prefs setBool:YES forKey:kBatteryEstimateSyncedKey];
-		[prefs synchronize];
-		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
-		[self _scheduleSpecifiersReload:YES];
-		title = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.title", @"ChargeLimiter detected");
-		message = [NSString stringWithFormat:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.message", @"ChargeLimiter detected Applied battery limit of: %ld%%"), (long)value.integerValue];
+		NSNumber *value = [source isEqualToString:@"apple"] ? JikanAppleTargetFromValue(detected) : JikanNormalizedSliderValue(detected, kBatteryEstimateTargetKey);
+		if (!value) {
+			title = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.unsupported.title", @"Unsupported Apple target");
+			message = [NSString stringWithFormat:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.unsupported.message", @"ChargeLimiter reports %@%%. Apple targets are 80, 85, 90, 95, and 100%%. Your target was not changed."), detected];
+		} else {
+			NSString *targetKey = [source isEqualToString:@"apple"] ? JikanEstimateAppleTargetKey : kBatteryEstimateTargetKey;
+			NSString *syncKey = [source isEqualToString:@"apple"] ? JikanEstimateAppleSyncedKey : kBatteryEstimateSyncedKey;
+			[prefs setObject:value forKey:targetKey];
+			[prefs setBool:YES forKey:syncKey];
+			[prefs synchronize];
+			CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
+			[self _scheduleSpecifiersReload:YES];
+			title = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.title", @"ChargeLimiter detected");
+			message = [NSString stringWithFormat:JikanLocalizedString(@"jikan.prefs.alert.detect_limit.single.message", @"ChargeLimiter detected Applied battery limit of: %ld%%"), (long)value.integerValue];
+		}
 	} else {
 		title = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.none.title", @"No battery limit found");
 		message = JikanLocalizedString(@"jikan.prefs.alert.detect_limit.unchanged.message", @"No ChargeLimiter limit was detected. Your estimate target has not changed.");
@@ -836,6 +913,9 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)detectBatteryLimit {
 	if (!self.jikanPageActive || self.presentedViewController) return;
 	[self _cancelChargeLimiterDetection];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	self.jikanDetectionSource = JikanEstimateSource(prefs);
+	self.jikanDetectionTarget = JikanEstimateTarget(prefs, self.jikanDetectionSource);
 	NSUInteger generation = self.jikanDetectionGeneration;
 	__weak typeof(self) weakSelf = self;
 	NSBlockOperation *operation = [NSBlockOperation new];
@@ -869,8 +949,10 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)showBatteryLimitSourceInfo {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	if (![prefs boolForKey:kBatteryEstimateSyncedKey] || !self.jikanPageActive || self.presentedViewController) return;
-	NSNumber *value = JikanNormalizedSliderValue([prefs objectForKey:kBatteryEstimateTargetKey], kBatteryEstimateTargetKey);
+	NSString *source = JikanEstimateSource(prefs);
+	NSString *syncKey = [source isEqualToString:@"apple"] ? JikanEstimateAppleSyncedKey : kBatteryEstimateSyncedKey;
+	if (![prefs boolForKey:syncKey] || !self.jikanPageActive || self.presentedViewController) return;
+	NSNumber *value = @(JikanEstimateTarget(prefs, source));
 	NSString *message = [NSString stringWithFormat:JikanLocalizedString(@"jikan.prefs.alert.limit_sources.applied.message", @"Last applied from ChargeLimiter: %ld%%"), (long)value.integerValue];
 	UIAlertController *alert = [UIAlertController alertControllerWithTitle:JikanLocalizedString(@"jikan.prefs.alert.limit_sources.title", @"Synced with ChargeLimiter") message:message preferredStyle:UIAlertControllerStyleAlert];
 	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.ok", @"OK") style:UIAlertActionStyleDefault handler:nil]];
@@ -913,6 +995,9 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		@"tapToShowWattage",
 		kBatteryEstimateTargetKey,
 		kBatteryEstimateSyncedKey,
+		JikanEstimateSourceKey,
+		JikanEstimateAppleTargetKey,
+		JikanEstimateAppleSyncedKey,
 		@"showAfterFullCharge",
 		@"lockPreviewXAxis",
 		@"lockPreviewYAxis"
@@ -933,6 +1018,9 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 	[prefs setInteger:100 forKey:kBatteryEstimateTargetKey];
 	[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
+	[prefs setObject:@"jikan" forKey:JikanEstimateSourceKey];
+	[prefs setInteger:100 forKey:JikanEstimateAppleTargetKey];
+	[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
 	[prefs synchronize];
 	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
 

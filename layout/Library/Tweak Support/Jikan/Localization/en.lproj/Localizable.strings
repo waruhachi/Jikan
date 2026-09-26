@@ -21,6 +21,15 @@
 "jikan.prefs.row.opacity" = "Opacity";
 "jikan.prefs.row.pill_background_opacity" = "Pill Background Opacity (%)";
 "jikan.prefs.row.estimate_target_percent" = "Estimate Target (%)";
+"jikan.prefs.row.estimate_source" = "Source";
+"jikan.prefs.row.algorithm" = "Algorithm";
+"jikan.prefs.algorithm.jikan_description" = "Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.";
+"jikan.prefs.algorithm.apple_description" = "Uses a fixed local copy of Apple's charging models. Choose 80%, 85%, 90%, 95%, or 100%.";
+"jikan.prefs.estimate.jikan_description" = "Uses your charging history and current battery readings.";
+"jikan.prefs.estimate.apple_description" = "Uses a fixed local copy of Apple's charging models. Reconnect power after a respring if the connection time is unknown.";
+"jikan.prefs.estimate.models_missing" = "Apple model assets are not installed in this build.";
+"jikan.prefs.alert.detect_limit.unsupported.title" = "Unsupported Apple target";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter reports %@%%. Apple targets are 80, 85, 90, 95, and 100%%. Your target was not changed.";
 "jikan.prefs.row.charge_limit" = "Charge Limit";
 "jikan.prefs.row.sync_with_chargelimiter" = "Sync with ChargeLimiter";
 "jikan.prefs.row.portrait" = "Portrait";

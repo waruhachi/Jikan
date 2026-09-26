@@ -21,6 +21,15 @@
 "jikan.prefs.row.opacity" = "Opacitet";
 "jikan.prefs.row.pill_background_opacity" = "Pillbakgrundens opacitet (%)";
 "jikan.prefs.row.estimate_target_percent" = "Målnivå för uppskattning (%)";
+"jikan.prefs.row.estimate_source" = "Källa";
+"jikan.prefs.row.algorithm" = "Algoritm";
+"jikan.prefs.algorithm.jikan_description" = "Beräknar tiden utifrån din laddningshistorik och aktuella batterivärden. Välj ett mål mellan 1 % och 100 %.";
+"jikan.prefs.algorithm.apple_description" = "Använder en fast lokal kopia av Apples laddningsmodeller. Välj 80 %, 85 %, 90 %, 95 % eller 100 %.";
+"jikan.prefs.estimate.jikan_description" = "Använder din laddningshistorik och aktuella batterivärden.";
+"jikan.prefs.estimate.apple_description" = "Använder en fast lokal kopia av Apples laddningsmodeller. Anslut laddaren igen efter en respring om anslutningstiden är okänd.";
+"jikan.prefs.estimate.models_missing" = "Apple-modellerna är inte installerade i detta bygge.";
+"jikan.prefs.alert.detect_limit.unsupported.title" = "Apple-målet stöds inte";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter rapporterar %@%%. Apple-mål är 80, 85, 90, 95 och 100%%. Ditt mål ändrades inte.";
 "jikan.prefs.row.charge_limit" = "Laddningsgräns";
 "jikan.prefs.row.sync_with_chargelimiter" = "Synkronisera med ChargeLimiter";
 "jikan.prefs.row.portrait" = "Porträtt";

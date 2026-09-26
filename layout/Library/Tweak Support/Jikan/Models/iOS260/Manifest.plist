@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>FeatureSchema</key>
+	<integer>1</integer>
+	<key>Revision</key>
+	<string>iOS260</string>
+	<key>SHA256</key>
+	<dict>
+		<key>tt80/model.espresso.net</key>
+		<string>fdf93b9532196ff2e296b2a12970c2e8e2c8146cf81256176236a471a5747e76</string>
+		<key>tt80/model.espresso.weights</key>
+		<string>f687c81a31b1b88ac6d3113dd74f5759114e431ead693bedd49c946b452d0cbe</string>
+		<key>ttl/model.espresso.net</key>
+		<string>f1e373945e617c348a3aaf56f8d5335bc2dccb7bc9adf68c7b1680ecdbb97599</string>
+		<key>ttl/model.espresso.weights</key>
+		<string>a9fb3d57eacf1ec96aad11cbb3fcd2735b29d4be5119f6e864d1731414d374cb</string>
+	</dict>
+	<key>TT80ModelID</key>
+	<string>bkwqiw7f79</string>
+	<key>TTLModelID</key>
+	<string>k5wmzvi5mm</string>
+</dict>
+</plist>

@@ -1,4 +1,5 @@
 #import "Jikan.h"
+#import "../Shared/JikanEstimateSettings.h"
 
 BOOL isCharging = NO;
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
@@ -113,8 +114,25 @@ static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
 	return (CGFloat)(v / 100.0);
 }
 
+static CGRect TTVisibleCoverSheetRectInView(UIView *view) {
+	if (!view.window) return view.bounds;
+	// On iOS 26 the Cover Sheet can be twice the screen height. Positions and
+	// drag limits belong to the visible window, not the full scrolling surface.
+	CGRect visible = [view convertRect:view.window.bounds fromView:view.window];
+	CGRect viewport = CGRectIntersection(view.bounds, visible);
+	if (CGRectIsNull(viewport) || CGRectIsEmpty(viewport) ||
+		!isfinite(CGRectGetMinX(viewport)) || !isfinite(CGRectGetMinY(viewport)) ||
+		!isfinite(CGRectGetWidth(viewport)) || !isfinite(CGRectGetHeight(viewport))) return view.bounds;
+	return viewport;
+}
+
 static void TTLoadPreferences(void) {
 	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	static NSString *estimateSignature;
+	NSString *source = JikanEstimateSource(preferences);
+	NSString *newSignature = [NSString stringWithFormat:@"%@:%ld", source, (long)JikanEstimateTarget(preferences, source)];
+	if (estimateSignature && ![estimateSignature isEqualToString:newSignature]) _ttLatestSnapshot = nil;
+	estimateSignature = newSignature;
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
 	hideQuickActionButtonsOnlyWhenCharging = [preferences objectForKey:@"hideQuickActionButtonsOnlyWhenCharging"] ? [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"] : NO;
@@ -162,6 +180,7 @@ static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFS
 #pragma unused(center, observer, name, object, userInfo)
 	dispatch_async(dispatch_get_main_queue(), ^{
 		TTLoadPreferences();
+		[TT100 preferencesDidChange];
 		TTApplyEnabledState();
 	});
 }
@@ -386,12 +405,18 @@ static UIView *TTFindNearestQuickActionMaterialView(UIView *root) {
 
 static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 	if (!coverSheet.remainingTimePlatter) return;
-	if (TTPlatterStyleCaptured(coverSheet)) return;
 	CSQuickActionsView *quickActions = TTFindQuickActionsView(coverSheet);
 	UIView *leading = nil;
 	UIView *trailing = nil;
 	TTResolveQuickActionButtons(quickActions, &leading, &trailing);
 	UIView *referenceButton = leading ?: trailing;
+	if (@available(iOS 26.0, *)) {
+		// Glass is attached to the controls' child views, rather than a
+		// UIVisualEffectView. Refresh the recipe as wallpaper traits change.
+		if ([coverSheet.remainingTimePlatter applyQuickActionGlassFromView:leading] ||
+			[coverSheet.remainingTimePlatter applyQuickActionGlassFromView:trailing]) return;
+	}
+	if (TTPlatterStyleCaptured(coverSheet)) return;
 
 	UIView *sourceMaterialView = TTFindNearestQuickActionMaterialView(coverSheet);
 	if (!sourceMaterialView) return;
@@ -652,14 +677,15 @@ static void TTApplyEnabledState(void) {
 	if (!previewEnabled || !self.remainingTimePlatter) return;
 	JikanPlatterView *pill = self.remainingTimePlatter;
 	CGPoint location = [gesture locationInView:self];
-	BOOL isLandscape = CGRectGetWidth(self.bounds) > CGRectGetHeight(self.bounds);
+	CGRect viewport = TTVisibleCoverSheetRectInView(self);
+	BOOL isLandscape = CGRectGetWidth(viewport) > CGRectGetHeight(viewport);
 
 	CGFloat halfW = CGRectGetWidth(pill.bounds) * 0.5;
 	CGFloat halfH = CGRectGetHeight(pill.bounds) * 0.5;
-	CGFloat minX = self.safeAreaInsets.left + halfW;
-	CGFloat maxX = CGRectGetWidth(self.bounds) - self.safeAreaInsets.right - halfW;
-	CGFloat minY = self.safeAreaInsets.top + halfH + 8.0;
-	CGFloat maxY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom - halfH - 8.0;
+	CGFloat minX = CGRectGetMinX(viewport) + self.safeAreaInsets.left + halfW;
+	CGFloat maxX = CGRectGetMaxX(viewport) - self.safeAreaInsets.right - halfW;
+	CGFloat minY = CGRectGetMinY(viewport) + self.safeAreaInsets.top + halfH + 8.0;
+	CGFloat maxY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom - halfH - 8.0;
 	if (maxX < minX) maxX = minX;
 	if (maxY < minY) maxY = minY;
 
@@ -698,8 +724,8 @@ static void TTApplyEnabledState(void) {
 		if (cx && cy) {
 			cx.constant = candidate.x - CGRectGetMidX(self.bounds);
 			cy.constant = candidate.y - CGRectGetMidY(self.bounds);
-			CGFloat nx = MAX(0.05, MIN(0.95, candidate.x / MAX(1.0, CGRectGetWidth(self.bounds))));
-			CGFloat ny = MAX(0.05, MIN(0.95, candidate.y / MAX(1.0, CGRectGetHeight(self.bounds))));
+			CGFloat nx = MAX(0.05, MIN(0.95, (candidate.x - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport))));
+			CGFloat ny = MAX(0.05, MIN(0.95, (candidate.y - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport))));
 			if (isLandscape) {
 				platterPosXNormLandscape = nx;
 				platterPosYNormLandscape = ny;
@@ -720,8 +746,8 @@ static void TTApplyEnabledState(void) {
 		[gen impactOccurred];
 
 		CGPoint center = CGPointMake(CGRectGetMidX(pill.frame), CGRectGetMidY(pill.frame));
-		CGFloat nx = MAX(0.05, MIN(0.95, center.x / MAX(1.0, CGRectGetWidth(self.bounds))));
-		CGFloat ny = MAX(0.05, MIN(0.95, center.y / MAX(1.0, CGRectGetHeight(self.bounds))));
+		CGFloat nx = MAX(0.05, MIN(0.95, (center.x - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport))));
+		CGFloat ny = MAX(0.05, MIN(0.95, (center.y - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport))));
 		if (isLandscape) {
 			platterPosXNormLandscape = nx;
 			platterPosYNormLandscape = ny;
@@ -845,8 +871,9 @@ static void TTApplyEnabledState(void) {
 - (void)_configureRemainingTimePlatterConstraints {
 	if (!self.remainingTimePlatter) return;
 	CGFloat kPlatterHeight = MAX(60.0, MIN(100.0, [[UIFontMetrics metricsForTextStyle:UIFontTextStyleBody] scaledValueForValue:60.0]));
-	BOOL isLandscape = CGRectGetWidth(self.bounds) > CGRectGetHeight(self.bounds);
-	CGFloat platterWidth = MAX(180.0, MIN(280.0, self.bounds.size.width * 0.45));
+	CGRect viewport = TTVisibleCoverSheetRectInView(self);
+	BOOL isLandscape = CGRectGetWidth(viewport) > CGRectGetHeight(viewport);
+	CGFloat platterWidth = MAX(180.0, MIN(280.0, CGRectGetWidth(viewport) * 0.45));
 	CGFloat defaultBottomOffset = TTShouldHideQuickActionButtonsNow() ? -28.0 : -76.0;
 	CGFloat defaultCenterXOffset = 0.0;
 
@@ -854,10 +881,10 @@ static void TTApplyEnabledState(void) {
 	CGRect trailingRect = CGRectZero;
 	if (TTQuickActionButtonFramesInView(self, &leadingRect, &trailingRect)) {
 		CGFloat targetCenterY = (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5;
-		CGFloat safeBottomY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom;
+		CGFloat safeBottomY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom;
 		defaultBottomOffset = (targetCenterY + (kPlatterHeight * 0.5)) - safeBottomY;
 		CGFloat targetCenterX = (CGRectGetMidX(leadingRect) + CGRectGetMidX(trailingRect)) * 0.5;
-		defaultCenterXOffset = targetCenterX - CGRectGetMidX(self.bounds);
+		defaultCenterXOffset = targetCenterX - CGRectGetMidX(viewport);
 
 		CGFloat innerGap = CGRectGetMinX(trailingRect) - CGRectGetMaxX(leadingRect);
 		if (innerGap > 0) {
@@ -866,15 +893,15 @@ static void TTApplyEnabledState(void) {
 		}
 	}
 
-	CGFloat safeMinX = self.safeAreaInsets.left + (platterWidth * 0.5);
-	CGFloat safeMaxX = CGRectGetWidth(self.bounds) - self.safeAreaInsets.right - (platterWidth * 0.5);
-	CGFloat safeMinY = self.safeAreaInsets.top + (kPlatterHeight * 0.5) + 8.0;
-	CGFloat safeMaxY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom - (kPlatterHeight * 0.5) - 8.0;
+	CGFloat safeMinX = CGRectGetMinX(viewport) + self.safeAreaInsets.left + (platterWidth * 0.5);
+	CGFloat safeMaxX = CGRectGetMaxX(viewport) - self.safeAreaInsets.right - (platterWidth * 0.5);
+	CGFloat safeMinY = CGRectGetMinY(viewport) + self.safeAreaInsets.top + (kPlatterHeight * 0.5) + 8.0;
+	CGFloat safeMaxY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom - (kPlatterHeight * 0.5) - 8.0;
 	if (safeMaxX < safeMinX) safeMaxX = safeMinX;
 	if (safeMaxY < safeMinY) safeMaxY = safeMinY;
 
-	CGFloat defaultCenterX = CGRectGetMidX(self.bounds) + defaultCenterXOffset;
-	CGFloat safeBottomY = CGRectGetHeight(self.bounds) - self.safeAreaInsets.bottom;
+	CGFloat defaultCenterX = CGRectGetMidX(viewport) + defaultCenterXOffset;
+	CGFloat safeBottomY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom;
 	CGFloat defaultCenterY = safeBottomY + defaultBottomOffset - (kPlatterHeight * 0.5);
 	if (isLandscape) {
 		UIView *dateContainer = TTFindDateViewContainer(self);
@@ -889,21 +916,21 @@ static void TTApplyEnabledState(void) {
 	defaultCenterY = MAX(safeMinY, MIN(safeMaxY, defaultCenterY));
 
 	if (!isLandscape && !platterHasCustomPosition && ![objc_getAssociatedObject(self, kTTPlatterDefaultCenterComputedPortraitKey) boolValue]) {
-		platterPosXNorm = defaultCenterX / MAX(1.0, CGRectGetWidth(self.bounds));
-		platterPosYNorm = defaultCenterY / MAX(1.0, CGRectGetHeight(self.bounds));
+		platterPosXNorm = (defaultCenterX - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport));
+		platterPosYNorm = (defaultCenterY - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport));
 		objc_setAssociatedObject(self, kTTPlatterDefaultCenterComputedPortraitKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 	if (isLandscape && !platterHasCustomPositionLandscape && ![objc_getAssociatedObject(self, kTTPlatterDefaultCenterComputedLandscapeKey) boolValue]) {
-		platterPosXNormLandscape = defaultCenterX / MAX(1.0, CGRectGetWidth(self.bounds));
-		platterPosYNormLandscape = defaultCenterY / MAX(1.0, CGRectGetHeight(self.bounds));
+		platterPosXNormLandscape = (defaultCenterX - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport));
+		platterPosYNormLandscape = (defaultCenterY - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport));
 		objc_setAssociatedObject(self, kTTPlatterDefaultCenterComputedLandscapeKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 
 	BOOL hasCustomForOrientation = isLandscape ? platterHasCustomPositionLandscape : platterHasCustomPosition;
 	CGFloat savedX = isLandscape ? platterPosXNormLandscape : platterPosXNorm;
 	CGFloat savedY = isLandscape ? platterPosYNormLandscape : platterPosYNorm;
-	CGFloat centerX = hasCustomForOrientation ? (savedX * CGRectGetWidth(self.bounds)) : defaultCenterX;
-	CGFloat centerY = hasCustomForOrientation ? (savedY * CGRectGetHeight(self.bounds)) : defaultCenterY;
+	CGFloat centerX = hasCustomForOrientation ? (CGRectGetMinX(viewport) + savedX * CGRectGetWidth(viewport)) : defaultCenterX;
+	CGFloat centerY = hasCustomForOrientation ? (CGRectGetMinY(viewport) + savedY * CGRectGetHeight(viewport)) : defaultCenterY;
 	centerX = MAX(safeMinX, MIN(safeMaxX, centerX));
 	centerY = MAX(safeMinY, MIN(safeMaxY, centerY));
 

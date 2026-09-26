@@ -19,6 +19,9 @@
 	BOOL _showingWattage;
 	BOOL _previewMode;
 	BOOL _editingMode;
+	BOOL _usesLiquidGlass;
+	BOOL _usesLockScreenGlass;
+	float _glassLuminance;
 	BOOL _latestHasEstimate;
 	BOOL _latestTargetReached;
 	NSInteger _latestDisplayPercent;
@@ -30,6 +33,7 @@
 - (void)applyBatterySnapshot:(NSDictionary *)snapshot;
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;
+- (BOOL)applyQuickActionGlassFromView:(UIView *)sourceView;
 - (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect;
 - (void)applyQuickActionBackgroundStyleFromView:(UIView *)sourceView;
 - (void)setPreviewMode:(BOOL)preview;

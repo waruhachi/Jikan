@@ -1,0 +1,65 @@
+[
+  {
+    "metadataOutputVersion" : "3.0",
+    "shortDescription" : "Local reconstruction for charge model research",
+    "outputSchema" : [
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1)",
+        "shortDescription" : "",
+        "shape" : "[1]",
+        "name" : "ttl_prediction",
+        "type" : "MultiArray"
+      }
+    ],
+    "version" : "local-reconstruction",
+    "modelParameters" : [
+
+    ],
+    "specificationVersion" : 4,
+    "storagePrecision" : "Float32",
+    "computePrecision" : "Float16",
+    "stateSchema" : [
+
+    ],
+    "isUpdatable" : "0",
+    "availability" : {
+      "macOS" : "10.15",
+      "tvOS" : "13.0",
+      "visionOS" : "1.0",
+      "watchOS" : "6.0",
+      "iOS" : "13.0",
+      "macCatalyst" : "13.0"
+    },
+    "modelType" : {
+      "name" : "MLModelType_neuralNetwork"
+    },
+    "inputSchema" : [
+      {
+        "hasShapeFlexibility" : "0",
+        "isOptional" : "0",
+        "dataType" : "Float32",
+        "formattedType" : "MultiArray (Float32 1 × 29)",
+        "shortDescription" : "",
+        "shape" : "[1, 29]",
+        "name" : "input_1",
+        "type" : "MultiArray"
+      }
+    ],
+    "userDefinedMetadata" : {
+
+    },
+    "generatedClassName" : "ttl",
+    "neuralNetworkLayerTypeHistogram" : {
+      "LoadConstantND" : 2,
+      "MultiplyBroadcastable" : 1,
+      "InnerProduct" : 3,
+      "SubtractBroadcastable" : 1,
+      "ActivationReLU" : 2,
+      "ActivationSoftplus" : 1
+    },
+    "method" : "predict"
+  }
+]

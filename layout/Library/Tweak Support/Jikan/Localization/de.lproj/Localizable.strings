@@ -21,6 +21,15 @@
 "jikan.prefs.row.opacity" = "Hintergrunddeckkraft";
 "jikan.prefs.row.pill_background_opacity" = "Deckkraft des Hintergrunds (in %)";
 "jikan.prefs.row.estimate_target_percent" = "Geschätztes Maximum (in %)";
+"jikan.prefs.row.estimate_source" = "Quelle";
+"jikan.prefs.row.algorithm" = "Algorithmus";
+"jikan.prefs.algorithm.jikan_description" = "Schätzt die Dauer anhand deines Ladeverlaufs und der aktuellen Batteriewerte. Wähle ein Ziel von 1 % bis 100 %.";
+"jikan.prefs.algorithm.apple_description" = "Verwendet eine feste lokale Kopie von Apples Lademodellen. Wähle 80 %, 85 %, 90 %, 95 % oder 100 %.";
+"jikan.prefs.estimate.jikan_description" = "Verwendet den Ladeverlauf und aktuelle Batteriewerte.";
+"jikan.prefs.estimate.apple_description" = "Verwendet eine feste lokale Kopie von Apples Lademodellen. Nach einem Respring das Ladekabel erneut verbinden, falls der Verbindungszeitpunkt unbekannt ist.";
+"jikan.prefs.estimate.models_missing" = "Die Apple-Modelle sind in diesem Build nicht installiert.";
+"jikan.prefs.alert.detect_limit.unsupported.title" = "Apple-Ladeziel nicht unterstützt";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter meldet %@%%. Apple-Ziele sind 80, 85, 90, 95 und 100%%. Das Ziel wurde nicht geändert.";
 "jikan.prefs.row.charge_limit" = "Ladelimit";
 "jikan.prefs.row.sync_with_chargelimiter" = "Mit ChargeLimiter synchronisieren";
 "jikan.prefs.row.portrait" = "Hochformat";

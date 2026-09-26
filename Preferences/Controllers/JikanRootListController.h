@@ -1,9 +1,12 @@
 #import <Preferences/PSListController.h>
+#import <Preferences/PSListItemsController.h>
 #import <Preferences/PSSpecifier.h>
 #import <UIKit/UIKit.h>
+#import <math.h>
 #import <objc/runtime.h>
 
 #import "../../Localization/JikanLocalization.h"
+#import "../../Shared/JikanEstimateSettings.h"
 #import "../Views/AnimatedTitleView.h"
 #import "../Views/JikanHeaderView.h"
 

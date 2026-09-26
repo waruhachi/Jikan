@@ -1,7 +1,10 @@
+#import <IOKit/ps/IOPowerSources.h>
 #import <limits.h>
 #import <math.h>
 
+#import "../../Shared/JikanEstimateSettings.h"
 #import "TT100.h"
+#import "TT100AppleEstimator.h"
 #import "TT100Database.h"
 
 NSString *const TT100BatteryInfoUpdatedNotification = @"TT100BatteryInfoUpdated";
@@ -69,13 +72,22 @@ static double TT100DisplaySOC(NSDictionary *batteryInfo) {
 
 static NSInteger TT100EstimateTargetPercent(void) {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
-	NSInteger target = 100;
-	if ([prefs objectForKey:@"batteryEstimateTargetPercent"]) {
-		target = [prefs integerForKey:@"batteryEstimateTargetPercent"];
+	return JikanEstimateTarget(prefs, JikanEstimateSource(prefs));
+}
+
+static NSString *TT100FormatSeconds(double seconds) {
+	NSString *unavailable = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	if (!isfinite(seconds) || seconds <= 0 || seconds > INT_MAX) return unavailable;
+	int hrs = (int)(seconds / 3600.0);
+	int mins = (int)round(fmod(seconds, 3600.0) / 60.0);
+	if (mins >= 60) {
+		hrs++;
+		mins -= 60;
 	}
-	if (target < 1) target = 1;
-	if (target > 100) target = 100;
-	return target;
+	if (hrs > 0 && mins > 0) return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.hr_min", @"%d hr %d min"), hrs, mins];
+	if (hrs > 0) return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.hr", @"%d hr"), hrs];
+	if (mins > 0) return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.min", @"%d min"), mins];
+	return JikanLocalizedString(@"jikan.tt100.format.lt1min", @"<1 min");
 }
 
 static double TT100WattsFromCurrentVoltage(double current, double voltage) {
@@ -248,6 +260,16 @@ static BOOL tt100Monitoring;
 static BOOL tt100RefreshInFlight;
 static BOOL tt100RefreshPending;
 static NSUInteger tt100Generation;
+static CFRunLoopSourceRef tt100PowerSource = NULL;
+static TT100AppleEstimator *tt100AppleEstimator;
+static NSString *tt100LastAppleStatus;
+static NSInteger tt100LastAppleTarget;
+static NSInteger tt100LastAppleSession;
+
+static void TT100PowerChanged(void *context) {
+#pragma unused(context)
+	[[TT100 sharedInstance] _refreshBatteryInfo];
+}
 
 + (NSDictionary *)latestSnapshot {
 	NSAssert([NSThread isMainThread], @"latestSnapshot must be read on the main thread");
@@ -265,6 +287,8 @@ static NSUInteger tt100Generation;
 	tt100PollingTimer = [NSTimer timerWithTimeInterval:15.0 target:[self sharedInstance] selector:@selector(_refreshBatteryInfo) userInfo:nil repeats:YES];
 	tt100PollingTimer.tolerance = 1.0;
 	[[NSRunLoop mainRunLoop] addTimer:tt100PollingTimer forMode:NSRunLoopCommonModes];
+	tt100PowerSource = IOPSNotificationCreateRunLoopSource(TT100PowerChanged, NULL);
+	if (tt100PowerSource) CFRunLoopAddSource(CFRunLoopGetMain(), tt100PowerSource, kCFRunLoopCommonModes);
 	[[self sharedInstance] _refreshBatteryInfo];
 }
 
@@ -277,8 +301,24 @@ static NSUInteger tt100Generation;
 	tt100Generation++;
 	[tt100PollingTimer invalidate];
 	tt100PollingTimer = nil;
+	if (tt100PowerSource) {
+		CFRunLoopRemoveSource(CFRunLoopGetMain(), tt100PowerSource, kCFRunLoopCommonModes);
+		CFRelease(tt100PowerSource);
+		tt100PowerSource = NULL;
+	}
 	tt100RefreshPending = NO;
 	tt100LatestSnapshot = nil;
+	if (tt100RefreshQueue) dispatch_async(tt100RefreshQueue, ^{ [tt100AppleEstimator reset]; });
+}
+
++ (void)preferencesDidChange {
+	if (![NSThread isMainThread]) {
+		dispatch_async(dispatch_get_main_queue(), ^{ [self preferencesDidChange]; });
+		return;
+	}
+	tt100Generation++;
+	tt100LatestSnapshot = nil;
+	if (tt100Monitoring) [[self sharedInstance] _refreshBatteryInfo];
 }
 
 - (void)_refreshBatteryInfo {
@@ -299,12 +339,27 @@ static NSUInteger tt100Generation;
 	dispatch_async(tt100RefreshQueue, ^{
 		@autoreleasepool {
 			NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-			NSInteger target = [TT100 targetPercent];
-			NSString *timeString = [TT100 _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:target];
-			BOOL hasEstimate = ![timeString isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
+			NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+			NSString *source = JikanEstimateSource(prefs);
+			NSInteger target = JikanEstimateTarget(prefs, source);
+			if (!tt100AppleEstimator) tt100AppleEstimator = [TT100AppleEstimator new];
+			[tt100AppleEstimator observeBatteryInfo:batteryInfo];
+			NSDictionary *appleResult = [source isEqualToString:@"apple"] ? [tt100AppleEstimator resultForBatteryInfo:batteryInfo target:target] : nil;
+			if (appleResult && (![appleResult[@"status"] isEqualToString:tt100LastAppleStatus] || tt100LastAppleTarget != target || tt100LastAppleSession != [appleResult[@"session"] integerValue])) {
+				tt100LastAppleStatus = appleResult[@"status"];
+				tt100LastAppleTarget = target;
+				tt100LastAppleSession = [appleResult[@"session"] integerValue];
+				NSLog(@"[Jikan] Apple estimate status: %@, target: %ld%%, remaining: %.1f seconds", tt100LastAppleStatus, (long)target, [appleResult[@"seconds"] doubleValue]);
+			} else if (!appleResult) {
+				tt100LastAppleStatus = nil;
+			}
+			BOOL hasEstimate = appleResult ? [appleResult[@"status"] isEqualToString:@"available"] : NO;
+			NSString *timeString = appleResult ? TT100FormatSeconds([appleResult[@"seconds"] doubleValue]) : [TT100 _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:target];
+			if (!appleResult) hasEstimate = ![timeString isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 			NSInteger percent = 0;
 			BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
-			BOOL targetReached = fullyCharged || (isfinite(TT100DisplaySOC(batteryInfo)) && TT100DisplaySOC(batteryInfo) >= target);
+			double targetSOC = [source isEqualToString:@"apple"] ? TT100Number(batteryInfo, @"CurrentCapacity").doubleValue : TT100DisplaySOC(batteryInfo);
+			BOOL targetReached = fullyCharged || (isfinite(targetSOC) && targetSOC >= target);
 			BOOL wireless = NO;
 			NSString *chargerClass = [TT100 chargerClassWithBatteryInfo:batteryInfo outIsWireless:&wireless];
 			NSDictionary *snapshot = @{
@@ -315,6 +370,9 @@ static NSUInteger tt100Generation;
 				@"targetReached": @(targetReached),
 				@"displayPercent": @(percent),
 				@"targetPercent": @(target),
+				@"estimateSource": source,
+				@"estimateStatus": appleResult[@"status"] ?: (hasEstimate ? @"available" : @"unavailable"),
+				@"modelRevision": appleResult[@"revision"] ?: @"",
 				@"chargingSpeed": TT100ChargingSpeed(batteryInfo, wireless),
 				@"chargerClass": chargerClass,
 				@"chargerIdentity": [TT100 chargerIdentityWithBatteryInfo:batteryInfo]
@@ -325,6 +383,11 @@ static NSUInteger tt100Generation;
 					[[NSNotificationCenter defaultCenter] postNotificationName:TT100InternalDidRefreshBatteryInfoNotification object:self userInfo:snapshot];
 					if (tt100Monitoring && generation == tt100Generation) {
 						[[NSNotificationCenter defaultCenter] postNotificationName:TT100BatteryInfoUpdatedNotification object:self userInfo:snapshot];
+						if ([snapshot[@"estimateStatus"] isEqualToString:@"waiting_for_first_prediction"]) {
+							dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+								if (tt100Monitoring && generation == tt100Generation) [self _refreshBatteryInfo];
+							});
+						}
 					}
 				}
 				tt100RefreshInFlight = NO;
@@ -504,6 +567,11 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 }
 
 + (NSString *)estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	if ([JikanEstimateSource(prefs) isEqualToString:@"apple"]) {
+		if ([NSThread isMainThread]) return tt100LatestSnapshot[@"timeString"] ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	}
 	return [self _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:[self targetPercent]];
 }
 
@@ -546,22 +614,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 	}
 	if (!isfinite(remainingSeconds) || remainingSeconds <= 0 || remainingSeconds > INT_MAX) return unavailable;
 
-	int hrs = (int)(remainingSeconds / 3600.0);
-	int mins = (int)round(fmod(remainingSeconds, 3600.0) / 60.0);
-	if (mins >= 60) {
-		hrs++;
-		mins -= 60;
-	}
-
-	if (hrs > 0 && mins > 0) {
-		return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.hr_min", @"%d hr %d min"), hrs, mins];
-	} else if (hrs > 0) {
-		return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.hr", @"%d hr"), hrs];
-	} else if (mins > 0) {
-		return [NSString stringWithFormat:JikanLocalizedString(@"jikan.tt100.format.min", @"%d min"), mins];
-	} else {
-		return JikanLocalizedString(@"jikan.tt100.format.lt1min", @"<1 min");
-	}
+	return TT100FormatSeconds(remainingSeconds);
 }
 
 + (NSString *)estimatedTT100 {

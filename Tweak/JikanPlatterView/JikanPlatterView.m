@@ -1,6 +1,41 @@
 #import "JikanPlatterView.h"
+#import <objc/message.h>
 
 extern BOOL isCharging;
+
+static BOOL TTConfigureLockScreenGlass(UIView *view, UIView *container) {
+	if (@available(iOS 26.0, *)) {
+		SEL backgroundSetter = NSSelectorFromString(@"cs_setLockPickGlassBackgroundWithLuminance:");
+		SEL groupSetter = NSSelectorFromString(@"cs_setLockPickGlassGroupBackground");
+		if (![view respondsToSelector:backgroundSetter] || ![container respondsToSelector:groupSetter]) return NO;
+		((void (*)(id, SEL))objc_msgSend)(container, groupSetter);
+		((void (*)(id, SEL, float))objc_msgSend)(view, backgroundSetter, 0.0f);
+		return YES;
+	}
+	return NO;
+}
+
+static BOOL TTConfigureLiquidGlass(UIVisualEffectView *view) {
+	if (@available(iOS 26.0, *)) {
+		// Resolve the public UIKit APIs at runtime so the tweak still builds
+		// with its older SDK and loads on iOS versions without Liquid Glass.
+		Class glassClass = NSClassFromString(@"UIGlassEffect");
+		Class cornerClass = NSClassFromString(@"UICornerConfiguration");
+		SEL effectSelector = NSSelectorFromString(@"effectWithStyle:");
+		SEL capsuleSelector = NSSelectorFromString(@"capsuleConfiguration");
+		SEL cornerSetter = NSSelectorFromString(@"setCornerConfiguration:");
+		if (![glassClass respondsToSelector:effectSelector] ||
+			![cornerClass respondsToSelector:capsuleSelector] ||
+			![view respondsToSelector:cornerSetter]) return NO;
+		UIVisualEffect *effect = ((id (*)(id, SEL, NSInteger))objc_msgSend)(glassClass, effectSelector, 0); // UIGlassEffectStyleRegular
+		id corners = ((id (*)(id, SEL))objc_msgSend)(cornerClass, capsuleSelector);
+		if (![effect isKindOfClass:UIVisualEffect.class] || !corners) return NO;
+		view.effect = effect;
+		((void (*)(id, SEL, id))objc_msgSend)(view, cornerSetter, corners);
+		return YES;
+	}
+	return NO;
+}
 
 static void TTCopyLayerVisualProperties(CALayer *source, CALayer *target) {
 	if (!source || !target) return;
@@ -153,7 +188,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 	self.layer.cornerRadius = self.bounds.size.height / 2;
 	self.clipsToBounds = NO;
-	if (_backgroundView) {
+	if (_backgroundView && (!_usesLiquidGlass || _usesLockScreenGlass)) {
 		_backgroundView.layer.cornerRadius = _backgroundView.bounds.size.height / 2;
 		_backgroundView.layer.cornerCurve = self.layer.cornerCurve;
 		_backgroundView.clipsToBounds = YES;
@@ -175,11 +210,20 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 }
 
 - (void)_setupSubviews {
-	UIBlurEffect *fallbackEffect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterialDark];
-	UIVisualEffectView *effectView = [[UIVisualEffectView alloc] initWithEffect:fallbackEffect];
-	effectView.translatesAutoresizingMaskIntoConstraints = NO;
-	effectView.clipsToBounds = YES;
-	_backgroundView = effectView;
+	UIView *glassView = [[UIView alloc] init];
+	_usesLockScreenGlass = TTConfigureLockScreenGlass(glassView, self);
+	if (_usesLockScreenGlass) {
+		_backgroundView = glassView;
+		_usesLiquidGlass = YES;
+	} else {
+		UIVisualEffectView *effectView = [[UIVisualEffectView alloc] initWithEffect:nil];
+		_usesLiquidGlass = TTConfigureLiquidGlass(effectView);
+		if (!_usesLiquidGlass) effectView.effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterialDark];
+		_backgroundView = effectView;
+	}
+	_backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+	_backgroundView.clipsToBounds = !_usesLiquidGlass || _usesLockScreenGlass;
+	_backgroundView.userInteractionEnabled = NO;
 	[self addSubview:_backgroundView];
 	[self sendSubviewToBack:_backgroundView];
 
@@ -187,7 +231,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_styleOverlayView.translatesAutoresizingMaskIntoConstraints = NO;
 	_styleOverlayView.userInteractionEnabled = NO;
 	_styleOverlayView.backgroundColor = [UIColor blackColor];
-	_styleOverlayView.alpha = 0.12;
+	_styleOverlayView.alpha = _usesLiquidGlass ? 0.0 : 0.12;
+	_styleOverlayView.hidden = _usesLiquidGlass;
 	_styleOverlayView.layer.compositingFilter = @"darkenSourceOver";
 	[self addSubview:_styleOverlayView];
 
@@ -408,7 +453,50 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	[self _updateTapGestureState];
 }
 
+- (BOOL)applyQuickActionGlassFromView:(UIView *)sourceView {
+	if (!_usesLiquidGlass || !sourceView) return NO;
+	if (_usesLockScreenGlass) {
+		// The Lock Screen renderer applies its own material configuration and
+		// glass group. A public UIGlassEffect copy does not retain that context.
+		SEL getter = NSSelectorFromString(@"glassLuminanceValue");
+		if (![sourceView respondsToSelector:getter]) return NO;
+		double value = ((double (*)(id, SEL))objc_msgSend)(sourceView, getter);
+		if (!isfinite(value)) return NO;
+		float luminance = (float)value;
+		if (luminance != _glassLuminance) {
+			_glassLuminance = luminance;
+			((void (*)(id, SEL, float))objc_msgSend)(_backgroundView, NSSelectorFromString(@"cs_setLockPickGlassBackgroundWithLuminance:"), luminance);
+		}
+		_backgroundView.overrideUserInterfaceStyle = sourceView.traitCollection.userInterfaceStyle;
+		return YES;
+	}
+	// Do not pick up an active flashlight's selected or pressed appearance.
+	if ([sourceView isKindOfClass:UIControl.class] &&
+		(((UIControl *)sourceView).selected || ((UIControl *)sourceView).highlighted)) return NO;
+	Class glassClass = NSClassFromString(@"UIGlassEffect");
+	SEL getter = NSSelectorFromString(@"_glassEffect");
+	NSMutableArray<UIView *> *views = [NSMutableArray arrayWithObject:sourceView];
+	while (views.count) {
+		UIView *view = views.lastObject;
+		[views removeLastObject];
+		id effect = [view isKindOfClass:UIVisualEffectView.class] ? ((UIVisualEffectView *)view).effect : nil;
+		if (!effect && [view respondsToSelector:getter]) {
+			effect = ((id (*)(id, SEL))objc_msgSend)(view, getter);
+		}
+		if ([effect isKindOfClass:glassClass]) {
+			UIVisualEffectView *target = (UIVisualEffectView *)_backgroundView;
+			if (![target.effect isEqual:effect]) target.effect = [effect copy];
+			target.overrideUserInterfaceStyle = view.traitCollection.userInterfaceStyle;
+
+			return YES;
+		}
+		[views addObjectsFromArray:view.subviews];
+	}
+	return NO;
+}
+
 - (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect {
+	if (_usesLiquidGlass) return;
 	if (![self->_backgroundView isKindOfClass:[UIVisualEffectView class]]) return;
 	UIVisualEffectView *ev = (UIVisualEffectView *)self->_backgroundView;
 	if (effect) {
@@ -421,6 +509,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 }
 
 - (void)applyQuickActionBackgroundStyleFromView:(UIView *)sourceView {
+	if (_usesLiquidGlass) return;
 	if (!sourceView) return;
 
 	if (sourceView.backgroundColor) {

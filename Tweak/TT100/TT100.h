@@ -26,6 +26,7 @@ FOUNDATION_EXPORT NSString *const JikanChargingStateChangedNotification;
 + (NSDictionary *)latestSnapshot;
 + (void)startMonitoring;
 + (void)stopMonitoring;
++ (void)preferencesDidChange;
 + (NSString *)chargerIdentityWithBatteryInfo:(NSDictionary *)batteryInfo;
 + (NSDictionary<NSString *, NSNumber *> *)loadHistoryFromPLSQL;
 + (NSDictionary<NSString *, NSNumber *> *)cachedHistoryBuckets;

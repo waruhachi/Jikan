@@ -21,6 +21,15 @@
 "jikan.prefs.row.opacity" = "Độ mờ đục";
 "jikan.prefs.row.pill_background_opacity" = "Độ mờ đục nền hình bo tròn (%)";
 "jikan.prefs.row.estimate_target_percent" = "Mục tiêu dự đoán (%)";
+"jikan.prefs.row.estimate_source" = "Nguồn";
+"jikan.prefs.row.algorithm" = "Thuật toán";
+"jikan.prefs.algorithm.jikan_description" = "Ước tính thời gian dựa trên lịch sử sạc và dữ liệu pin hiện tại. Chọn mức sạc mục tiêu từ 1% đến 100%.";
+"jikan.prefs.algorithm.apple_description" = "Dùng bản sao cố định của mô hình sạc Apple trên thiết bị. Chọn 80%, 85%, 90%, 95% hoặc 100%.";
+"jikan.prefs.estimate.jikan_description" = "Dùng lịch sử sạc và dữ liệu pin hiện tại.";
+"jikan.prefs.estimate.apple_description" = "Dùng bản sao cố định của mô hình sạc Apple trên thiết bị. Cắm lại sạc sau khi khởi động lại SpringBoard nếu không rõ thời điểm kết nối.";
+"jikan.prefs.estimate.models_missing" = "Bản dựng này chưa cài mô hình Apple.";
+"jikan.prefs.alert.detect_limit.unsupported.title" = "Mục tiêu Apple không được hỗ trợ";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter báo %@%%. Mục tiêu Apple là 80, 85, 90, 95 và 100%%. Mục tiêu hiện tại không thay đổi.";
 "jikan.prefs.row.charge_limit" = "Giới hạn sạc";
 "jikan.prefs.row.sync_with_chargelimiter" = "Đồng bộ với ChargeLimiter";
 "jikan.prefs.row.portrait" = "Dọc";

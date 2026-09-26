@@ -1,0 +1,145 @@
+{
+  "storage" : "model.espresso.weights",
+  "analyses" : {
+
+  },
+  "properties" : {
+
+  },
+  "format_version" : 200,
+  "metadata_in_weights" : [
+
+  ],
+  "layers" : [
+    {
+      "top" : "mean",
+      "w" : 29,
+      "h" : 1,
+      "name" : "mean",
+      "nd_rank" : 2,
+      "type" : "load_constant",
+      "k" : 1,
+      "bottom" : "",
+      "debug_info" : "mean",
+      "n" : 1,
+      "weights" : {
+
+      },
+      "constant_blob" : 1
+    },
+    {
+      "bottom" : "input_1,mean",
+      "alpha" : 1,
+      "operation" : 33,
+      "weights" : {
+
+      },
+      "fused_relu" : 0,
+      "debug_info" : "center",
+      "nd_mode" : true,
+      "top" : "centered",
+      "type" : "elementwise",
+      "name" : "center",
+      "beta" : 0
+    },
+    {
+      "top" : "scale",
+      "w" : 29,
+      "h" : 1,
+      "name" : "scale",
+      "nd_rank" : 2,
+      "type" : "load_constant",
+      "k" : 1,
+      "bottom" : "",
+      "debug_info" : "scale",
+      "n" : 1,
+      "weights" : {
+
+      },
+      "constant_blob" : 3
+    },
+    {
+      "bottom" : "centered,scale",
+      "alpha" : 1,
+      "operation" : 1,
+      "weights" : {
+
+      },
+      "fused_relu" : 0,
+      "debug_info" : "normalize",
+      "nd_mode" : true,
+      "top" : "normalized",
+      "type" : "elementwise",
+      "name" : "normalize",
+      "beta" : 0
+    },
+    {
+      "nB" : 29,
+      "top" : "hidden_1",
+      "has_biases" : 1,
+      "weights" : {
+
+      },
+      "nC" : 128,
+      "blob_weights" : 7,
+      "type" : "inner_product",
+      "has_relu" : 1,
+      "bottom" : "normalized",
+      "blob_biases" : 5,
+      "has_tanh" : 0,
+      "debug_info" : "dense_0",
+      "name" : "dense_0",
+      "has_prelu" : 0
+    },
+    {
+      "nB" : 128,
+      "top" : "hidden_2",
+      "has_biases" : 1,
+      "weights" : {
+
+      },
+      "nC" : 64,
+      "blob_weights" : 11,
+      "type" : "inner_product",
+      "has_relu" : 1,
+      "bottom" : "hidden_1",
+      "blob_biases" : 9,
+      "has_tanh" : 0,
+      "debug_info" : "dense_1",
+      "name" : "dense_1",
+      "has_prelu" : 0
+    },
+    {
+      "nB" : 64,
+      "top" : "pre_output",
+      "has_biases" : 1,
+      "weights" : {
+
+      },
+      "nC" : 1,
+      "blob_weights" : 15,
+      "type" : "inner_product",
+      "has_relu" : 0,
+      "bottom" : "hidden_2",
+      "blob_biases" : 13,
+      "has_tanh" : 0,
+      "debug_info" : "dense_2",
+      "name" : "dense_2",
+      "has_prelu" : 0
+    },
+    {
+      "bottom" : "pre_output",
+      "weights" : {
+
+      },
+      "mode" : 10,
+      "debug_info" : "softplus",
+      "top" : "ttl_prediction",
+      "type" : "activation",
+      "name" : "softplus",
+      "attributes" : {
+        "is_output" : 1
+      }
+    }
+  ]
+}

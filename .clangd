@@ -11,6 +11,7 @@ CompileFlags:
       -F/Users/waruhachi/theos/sdks/iPhoneOS16.5.sdk/System/Library/PrivateFrameworks,
       -target,
       arm64-apple-ios14.5,
+      -fobjc-arc,
       -fmodules,
       -fcxx-modules,
     ]

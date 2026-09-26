@@ -6,7 +6,7 @@ static NSBundle *JikanLocalizationBundle(void) {
 	static NSBundle *cachedBundle = nil;
 	static dispatch_once_t onceToken;
 	dispatch_once(&onceToken, ^{
-		NSString *supportPath = jbroot(@"/Library/Tweak Support/Jikan/");
+		NSString *supportPath = jbroot(@"/Library/Tweak Support/Jikan/Localization");
 		cachedBundle = supportPath.length > 0 ? [NSBundle bundleWithPath:supportPath] : nil;
 	});
 	return cachedBundle;

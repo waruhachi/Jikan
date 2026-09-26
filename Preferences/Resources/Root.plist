@@ -22,6 +22,34 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string> </string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>id</key>
+			<string>batteryEstimateSourceRow</string>
+			<key>detail</key>
+			<string>JikanAlgorithmListController</string>
+			<key>label</key>
+			<string>Algorithm</string>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>batteryEstimateSource</string>
+			<key>default</key>
+			<string>jikan</string>
+			<key>validTitles</key>
+			<array><string>Jikan</string><string>Apple</string></array>
+			<key>validValues</key>
+			<array><string>jikan</string><string>apple</string></array>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Pill Display</string>
 		</dict>
 		<dict>
@@ -291,6 +319,8 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Time Estimate</string>
+			<key>id</key>
+			<string>timeEstimateGroup</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -331,6 +361,34 @@
 			<true/>
 			<key>segmentCount</key>
 			<integer>99</integer>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSliderCell</string>
+			<key>id</key>
+			<string>batteryEstimateAppleTargetSlider</string>
+			<key>label</key>
+			<string>Estimate Target (%)</string>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>batteryEstimateAppleTargetPercent</string>
+			<key>default</key>
+			<integer>100</integer>
+			<key>min</key>
+			<real>80</real>
+			<key>max</key>
+			<real>100</real>
+			<key>showValue</key>
+			<true/>
+			<key>isContinuous</key>
+			<true/>
+			<key>isSegmented</key>
+			<true/>
+			<key>segmentCount</key>
+			<integer>4</integer>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
