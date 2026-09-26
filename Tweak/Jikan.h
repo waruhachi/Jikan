@@ -6,6 +6,7 @@
 #import <objc/runtime.h>
 #import <spawn.h>
 
+#import "../Shared/JikanEstimateSettings.h"
 #import "JikanPlatterView/JikanPlatterView.h"
 #import "TT100/TT100.h"
 #import "TT100/TT100Database.h"

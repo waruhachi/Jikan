@@ -108,10 +108,6 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 @implementation JikanPlatterView
 
-static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
-	return MIN(MAX(value, minValue), maxValue);
-}
-
 - (void)_captureBackgroundBaseAlphas {
 	_backgroundBaseAlpha = _backgroundView ? _backgroundView.alpha : 1.0;
 	_styleOverlayBaseAlpha = _styleOverlayView ? _styleOverlayView.alpha : 0.12;
@@ -143,6 +139,8 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[self _setupSubviews];
 
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_chargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIAccessibilityBoldTextStatusDidChangeNotification object:nil];
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIContentSizeCategoryDidChangeNotification object:nil];
 	}
 
 	return self;
@@ -204,7 +202,6 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		_contentTintReplicaView.clipsToBounds = YES;
 	}
 
-	[self _updateTypographyForCurrentSize];
 	[self _applyBackgroundOpacity];
 	[self _updatePreviewOutlineAppearance];
 }
@@ -245,7 +242,6 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 	_containerView = [[UIView alloc] init];
 	_containerView.translatesAutoresizingMaskIntoConstraints = NO;
-	[self addSubview:_containerView];
 
 	UIImage *boltImage = [[UIImage systemImageNamed:@"bolt.fill"] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
 	_boltImageView = [[UIImageView alloc] initWithImage:boltImage];
@@ -257,8 +253,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_timeRemainingLabel.translatesAutoresizingMaskIntoConstraints = NO;
 	_timeRemainingLabel.textColor = [UIColor whiteColor];
 	_timeRemainingLabel.adjustsFontForContentSizeCategory = YES;
-	_timeRemainingLabel.adjustsFontSizeToFitWidth = YES;
-	_timeRemainingLabel.minimumScaleFactor = 0.75;
+	_timeRemainingLabel.numberOfLines = 0;
 	_timeRemainingLabel.textAlignment = NSTextAlignmentCenter;
 	_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.time", @"0 minutes");
 	[_containerView addSubview:_timeRemainingLabel];
@@ -267,11 +262,17 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	_staticLabel.translatesAutoresizingMaskIntoConstraints = NO;
 	_staticLabel.textColor = [UIColor whiteColor];
 	_staticLabel.adjustsFontForContentSizeCategory = YES;
-	_staticLabel.adjustsFontSizeToFitWidth = YES;
-	_staticLabel.minimumScaleFactor = 0.8;
+	_staticLabel.numberOfLines = 0;
 	_staticLabel.textAlignment = NSTextAlignmentCenter;
 	_staticLabel.text = [self _estimateSubtitle];
-	[_containerView addSubview:_staticLabel];
+	_textStack = [[UIStackView alloc] initWithArrangedSubviews:@[_containerView, _staticLabel]];
+	_textStack.axis = UILayoutConstraintAxisVertical;
+	_textStack.alignment = UIStackViewAlignmentCenter;
+	_textStack.spacing = 2.0;
+	_textStack.translatesAutoresizingMaskIntoConstraints = NO;
+	[self addSubview:_textStack];
+	[_timeRemainingLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
+	[_staticLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
 
 	_tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTap:)];
 	[self addGestureRecognizer:_tapGesture];
@@ -283,17 +284,47 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 }
 
 - (void)_updateTypographyForCurrentSize {
-	CGFloat h = CGRectGetHeight(self.bounds);
-	if (h <= 0) h = 60.0;
+	BOOL bold = UIAccessibilityIsBoldTextEnabled() || self.traitCollection.legibilityWeight == UILegibilityWeightBold;
+	UIFont *primary = [UIFont monospacedDigitSystemFontOfSize:20.0 weight:bold ? UIFontWeightBold : UIFontWeightSemibold];
+	UIFont *secondary = [UIFont systemFontOfSize:14.0 weight:bold ? UIFontWeightSemibold : UIFontWeightMedium];
+	_timeRemainingLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:primary compatibleWithTraitCollection:self.traitCollection];
+	_staticLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:secondary compatibleWithTraitCollection:self.traitCollection];
+}
 
-	CGFloat primarySize = TTClamp(h * 0.32, 14.0, 20.0);
-	CGFloat secondarySize = TTClamp(h * 0.22, 11.0, 15.0);
+- (void)_contentSizeChanged {
+	self.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", _timeRemainingLabel.text ?: @"", _staticLabel.text ?: @""];
+	[self setNeedsLayout];
+	if (self.contentSizeDidChange) self.contentSizeDidChange();
+}
 
-	UIFont *primaryBase = [UIFont monospacedDigitSystemFontOfSize:primarySize weight:UIFontWeightSemibold];
-	UIFont *secondaryBase = [UIFont systemFontOfSize:secondarySize weight:UIFontWeightMedium];
+- (void)_textSettingsChanged:(NSNotification *)notification {
+#pragma unused(notification)
+	[self _updateTypographyForCurrentSize];
+	[self _contentSizeChanged];
+}
 
-	_timeRemainingLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:primaryBase maximumPointSize:32.0 compatibleWithTraitCollection:self.traitCollection];
-	_staticLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:secondaryBase maximumPointSize:24.0 compatibleWithTraitCollection:self.traitCollection];
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
+	[super traitCollectionDidChange:previousTraitCollection];
+	if (![self.traitCollection.preferredContentSizeCategory isEqual:previousTraitCollection.preferredContentSizeCategory] ||
+		self.traitCollection.legibilityWeight != previousTraitCollection.legibilityWeight) {
+		[self _textSettingsChanged:nil];
+	}
+}
+
+- (CGSize)preferredSizeForMaximumWidth:(CGFloat)width minimumHeight:(CGFloat)height {
+	// Measure the actual strings before imposing a width. Wrap only once the
+	// space between the controls (or the screen edge) has been exhausted.
+	[self _updateTypographyForCurrentSize];
+	CGFloat contentWidth = MAX(1.0, width - 32.0);
+	CGSize primary = [_timeRemainingLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
+	CGSize secondary = [_staticLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
+	CGFloat desiredWidth = MIN(width, MAX(96.0, ceil(MAX(primary.width + 14.0, secondary.width) + 32.0)));
+	contentWidth = MIN(contentWidth, desiredWidth - 32.0);
+	_timeRemainingLabel.preferredMaxLayoutWidth = MAX(1.0, contentWidth - 14.0);
+	_staticLabel.preferredMaxLayoutWidth = contentWidth;
+	primary = [_timeRemainingLabel sizeThatFits:CGSizeMake(_timeRemainingLabel.preferredMaxLayoutWidth, CGFLOAT_MAX)];
+	secondary = [_staticLabel sizeThatFits:CGSizeMake(contentWidth, CGFLOAT_MAX)];
+	return CGSizeMake(desiredWidth, MAX(height, ceil(MAX(10.0, primary.height) + 2.0 + secondary.height + 16.0)));
 }
 
 - (void)setupConstraints {
@@ -313,27 +344,21 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		[_contentTintReplicaView.topAnchor constraintEqualToAnchor:self.topAnchor],
 		[_contentTintReplicaView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
 
-		[_containerView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-		[_containerView.bottomAnchor constraintEqualToAnchor:self.centerYAnchor constant:-2],
-		[_containerView.topAnchor constraintEqualToAnchor:self.topAnchor constant:6],
-		[_containerView.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:10],
-		[_containerView.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-10],
+		[_textStack.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
+		[_textStack.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+		[_textStack.widthAnchor constraintEqualToAnchor:self.widthAnchor constant:-32.0],
+		[_containerView.widthAnchor constraintLessThanOrEqualToAnchor:_textStack.widthAnchor],
 
 		[_boltImageView.leadingAnchor constraintEqualToAnchor:_containerView.leadingAnchor],
-		[_boltImageView.centerYAnchor constraintEqualToAnchor:_containerView.centerYAnchor],
-		[_boltImageView.widthAnchor constraintEqualToConstant:10],
-		[_boltImageView.heightAnchor constraintEqualToConstant:10],
+		[_boltImageView.centerYAnchor constraintEqualToAnchor:_timeRemainingLabel.centerYAnchor],
+		[_boltImageView.widthAnchor constraintEqualToConstant:10.0],
+		[_boltImageView.heightAnchor constraintEqualToConstant:10.0],
 
-		[_timeRemainingLabel.leadingAnchor constraintEqualToAnchor:_boltImageView.trailingAnchor constant:4],
+		[_timeRemainingLabel.leadingAnchor constraintEqualToAnchor:_boltImageView.trailingAnchor constant:4.0],
 		[_timeRemainingLabel.trailingAnchor constraintEqualToAnchor:_containerView.trailingAnchor],
-		[_timeRemainingLabel.centerYAnchor constraintEqualToAnchor:_containerView.centerYAnchor],
-		[_timeRemainingLabel.heightAnchor constraintLessThanOrEqualToAnchor:_containerView.heightAnchor],
-
-		[_staticLabel.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-		[_staticLabel.topAnchor constraintEqualToAnchor:self.centerYAnchor],
-		[_staticLabel.bottomAnchor constraintLessThanOrEqualToAnchor:self.bottomAnchor constant:-6],
-		[_staticLabel.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:10],
-		[_staticLabel.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-10],
+		[_timeRemainingLabel.topAnchor constraintEqualToAnchor:_containerView.topAnchor],
+		[_timeRemainingLabel.bottomAnchor constraintEqualToAnchor:_containerView.bottomAnchor],
+		[_staticLabel.widthAnchor constraintLessThanOrEqualToAnchor:_textStack.widthAnchor],
 	]];
 }
 
@@ -356,12 +381,12 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 		_timeRemainingLabel.text = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : _latestTimeString;
 		_staticLabel.text = [self _estimateSubtitle];
 	}
-	self.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", _timeRemainingLabel.text ?: @"", _staticLabel.text ?: @""];
+	[self _contentSizeChanged];
 }
 
 - (void)setPreviewMode:(BOOL)preview {
 	if (_previewMode == preview) {
-		if (_previewMode && !isCharging) {
+		if (_previewMode) {
 			if (_showingWattage) {
 				[self _updateWattageLabel];
 			} else {
@@ -369,6 +394,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 				_staticLabel.text = [self _estimateSubtitle];
 			}
 		}
+		[self _contentSizeChanged];
 		return;
 	}
 	_previewMode = preview;
@@ -381,6 +407,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	}
 	[self _updateTapGestureState];
 	[self _updatePreviewOutlineAppearance];
+	[self _contentSizeChanged];
 }
 
 - (void)_updatePreviewOutlineAppearance {
@@ -647,12 +674,7 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 	if (_showingWattage) {
 		[self _updateWattageLabel];
 	} else {
-		if (_previewMode && !isCharging) {
-			_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-			_staticLabel.text = [self _estimateSubtitle];
-		} else {
-			[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
-		}
+		[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 	}
 }
 
@@ -663,12 +685,13 @@ static CGFloat TTClamp(CGFloat value, CGFloat minValue, CGFloat maxValue) {
 
 	if (watts > 0) {
 		_timeRemainingLabel.text = [NSString stringWithFormat:@"%.1fW", watts];
-	} else if (_previewMode && !isCharging) {
+	} else if (_previewMode) {
 		_timeRemainingLabel.text = @"20.0W";
 	} else {
 		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}
 	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.current_wattage", @"current wattage");
+	[self _contentSizeChanged];
 }
 
 @end

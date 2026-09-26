@@ -8,6 +8,7 @@
 	UILabel *_staticLabel;
 	UILabel *_timeRemainingLabel;
 	UIView *_containerView;
+	UIStackView *_textStack;
 	UIView *_backgroundView;
 	UIView *_styleOverlayView;
 	UIView *_contentTintReplicaView;
@@ -30,6 +31,8 @@
 	CGFloat _styleOverlayBaseAlpha;
 	CGFloat _contentTintBaseAlpha;
 }
+@property (nonatomic, copy) void (^contentSizeDidChange)(void);
+- (CGSize)preferredSizeForMaximumWidth:(CGFloat)width minimumHeight:(CGFloat)height;
 - (void)applyBatterySnapshot:(NSDictionary *)snapshot;
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;

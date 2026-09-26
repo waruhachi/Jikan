@@ -1,5 +1,4 @@
 #import "Jikan.h"
-#import "../Shared/JikanEstimateSettings.h"
 
 BOOL isCharging = NO;
 static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
@@ -114,16 +113,16 @@ static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
 	return (CGFloat)(v / 100.0);
 }
 
-static CGRect TTVisibleCoverSheetRectInView(UIView *view) {
-	if (!view.window) return view.bounds;
-	// On iOS 26 the Cover Sheet can be twice the screen height. Positions and
-	// drag limits belong to the visible window, not the full scrolling surface.
-	CGRect visible = [view convertRect:view.window.bounds fromView:view.window];
-	CGRect viewport = CGRectIntersection(view.bounds, visible);
-	if (CGRectIsNull(viewport) || CGRectIsEmpty(viewport) ||
-		!isfinite(CGRectGetMinX(viewport)) || !isfinite(CGRectGetMinY(viewport)) ||
-		!isfinite(CGRectGetWidth(viewport)) || !isfinite(CGRectGetHeight(viewport))) return view.bounds;
-	return viewport;
+static CGRect TTPlatterViewport(UIView *host) {
+	// A stable content coordinate system must travel with the Cover Sheet.
+	// Intersecting with the window during dismissal pins/clamps the pill to
+	// the screen instead. The root fallback can be two screens tall on iOS 26.
+	CGRect rect = host.bounds;
+	if (host.window) {
+		rect.size.width = MIN(rect.size.width, CGRectGetWidth(host.window.bounds));
+		rect.size.height = MIN(rect.size.height, CGRectGetHeight(host.window.bounds));
+	}
+	return rect;
 }
 
 static void TTLoadPreferences(void) {
@@ -331,15 +330,39 @@ static void TTSetQuickActionButtonsHidden(CSQuickActionsView *quickActions, BOOL
 	if (trailing && trailing != leading) TTSetQuickActionControlHidden(trailing, shouldHide);
 }
 
-static BOOL TTQuickActionButtonFramesInView(CSCoverSheetView *coverSheet, CGRect *leadingRectOut, CGRect *trailingRectOut) {
+static UIView *TTPlatterHost(CSCoverSheetView *coverSheet) {
+	UIView *actions = TTFindQuickActionsView(coverSheet);
+	for (UIView *parent = actions.superview; parent && parent != coverSheet; parent = parent.superview) {
+		if ([NSStringFromClass(parent.class) isEqualToString:@"CSCoverSheetContentsContainerView"]) return parent;
+	}
+	// Older releases may not expose that container. Share the buttons' moving
+	// parent when present; keep the root only until the content is installed.
+	return actions.superview ?: coverSheet;
+}
+
+static UIView *TTQuickActionVisibleBackground(UIView *button) {
+	if (@available(iOS 26.0, *)) {
+		UIView *background = TTViewForSelector(button, @"backgroundView");
+		if (background && !CGRectIsEmpty(background.bounds)) return background;
+		for (UIView *child in button.subviews) {
+			id effect = TTObjectForSelector(child, @"_glassEffect");
+			if ([effect isKindOfClass:NSClassFromString(@"UIGlassEffect")] && !CGRectIsEmpty(child.bounds)) return child;
+		}
+	}
+	return button;
+}
+
+static BOOL TTQuickActionButtonFramesInView(CSCoverSheetView *coverSheet, UIView *host, CGRect *leadingRectOut, CGRect *trailingRectOut) {
 	CSQuickActionsView *quickActions = TTFindQuickActionsView(coverSheet);
 	UIView *leading = nil;
 	UIView *trailing = nil;
 	if (!TTResolveQuickActionButtons(quickActions, &leading, &trailing) || !leading || !trailing) return NO;
 	if (![leading isDescendantOfView:coverSheet] || ![trailing isDescendantOfView:coverSheet]) return NO;
 
-	CGRect leadingRect = [leading convertRect:leading.bounds toView:coverSheet];
-	CGRect trailingRect = [trailing convertRect:trailing.bounds toView:coverSheet];
+	leading = TTQuickActionVisibleBackground(leading);
+	trailing = TTQuickActionVisibleBackground(trailing);
+	CGRect leadingRect = [leading convertRect:leading.bounds toView:host];
+	CGRect trailingRect = [trailing convertRect:trailing.bounds toView:host];
 	if (CGRectIsEmpty(leadingRect) || CGRectIsEmpty(trailingRect)) return NO;
 	if (!isfinite(leadingRect.origin.x) || !isfinite(leadingRect.origin.y) || !isfinite(leadingRect.size.width) || !isfinite(leadingRect.size.height) ||
 		!isfinite(trailingRect.origin.x) || !isfinite(trailingRect.origin.y) || !isfinite(trailingRect.size.width) || !isfinite(trailingRect.size.height)) return NO;
@@ -676,16 +699,17 @@ static void TTApplyEnabledState(void) {
 	BOOL previewEnabled = _ttPreviewSessionActive;
 	if (!previewEnabled || !self.remainingTimePlatter) return;
 	JikanPlatterView *pill = self.remainingTimePlatter;
-	CGPoint location = [gesture locationInView:self];
-	CGRect viewport = TTVisibleCoverSheetRectInView(self);
+	UIView *host = pill.superview;
+	CGPoint location = [gesture locationInView:host];
+	CGRect viewport = TTPlatterViewport(host);
 	BOOL isLandscape = CGRectGetWidth(viewport) > CGRectGetHeight(viewport);
 
 	CGFloat halfW = CGRectGetWidth(pill.bounds) * 0.5;
 	CGFloat halfH = CGRectGetHeight(pill.bounds) * 0.5;
-	CGFloat minX = CGRectGetMinX(viewport) + self.safeAreaInsets.left + halfW;
-	CGFloat maxX = CGRectGetMaxX(viewport) - self.safeAreaInsets.right - halfW;
-	CGFloat minY = CGRectGetMinY(viewport) + self.safeAreaInsets.top + halfH + 8.0;
-	CGFloat maxY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom - halfH - 8.0;
+	CGFloat minX = CGRectGetMinX(viewport) + host.safeAreaInsets.left + halfW;
+	CGFloat maxX = CGRectGetMaxX(viewport) - host.safeAreaInsets.right - halfW;
+	CGFloat minY = CGRectGetMinY(viewport) + host.safeAreaInsets.top + halfH + 8.0;
+	CGFloat maxY = CGRectGetMaxY(viewport) - host.safeAreaInsets.bottom - halfH - 8.0;
 	if (maxX < minX) maxX = minX;
 	if (maxY < minY) maxY = minY;
 
@@ -722,8 +746,8 @@ static void TTApplyEnabledState(void) {
 		NSLayoutConstraint *cx = TTGetConstraint(self, kTTPlatterCenterXConstraintKey);
 		NSLayoutConstraint *cy = TTGetConstraint(self, kTTPlatterCenterYConstraintKey);
 		if (cx && cy) {
-			cx.constant = candidate.x - CGRectGetMidX(self.bounds);
-			cy.constant = candidate.y - CGRectGetMidY(self.bounds);
+			cx.constant = candidate.x - CGRectGetMidX(host.bounds);
+			cy.constant = candidate.y - CGRectGetMidY(host.bounds);
 			CGFloat nx = MAX(0.05, MIN(0.95, (candidate.x - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport))));
 			CGFloat ny = MAX(0.05, MIN(0.95, (candidate.y - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport))));
 			if (isLandscape) {
@@ -735,7 +759,7 @@ static void TTApplyEnabledState(void) {
 				platterPosYNorm = ny;
 				platterHasCustomPosition = YES;
 			}
-			[self layoutIfNeeded];
+			[host layoutIfNeeded];
 		}
 		return;
 	}
@@ -791,7 +815,9 @@ static void TTApplyEnabledState(void) {
 		self.remainingTimePlatter = [[JikanPlatterView alloc] init];
 		self.remainingTimePlatter.hidden = YES;
 		self.remainingTimePlatter.translatesAutoresizingMaskIntoConstraints = NO;
-		[self addSubview:self.remainingTimePlatter];
+		[TTPlatterHost(self) addSubview:self.remainingTimePlatter];
+		__weak CSCoverSheetView *weakSelf = self;
+		self.remainingTimePlatter.contentSizeDidChange = ^{ [weakSelf setNeedsLayout]; };
 		[self.remainingTimePlatter setupConstraints];
 		UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_jikanHandlePlatterLongPress:)];
 		longPress.minimumPressDuration = 0.35;
@@ -807,7 +833,7 @@ static void TTApplyEnabledState(void) {
 	BOOL previewEnabled = _ttPreviewSessionActive;
 
 	BOOL shouldShow = previewEnabled || (isCharging && (hasEstimate || (showAfterFullCharge && fullyCharged)));
-	[self.remainingTimePlatter setPreviewMode:(previewEnabled && !isCharging)];
+	[self.remainingTimePlatter setPreviewMode:(previewEnabled && (!isCharging || (!hasEstimate && !(showAfterFullCharge && fullyCharged))))];
 
 	UILongPressGestureRecognizer *lp = (UILongPressGestureRecognizer *)objc_getAssociatedObject(self, kTTPlatterLongPressKey);
 	lp.enabled = previewEnabled;
@@ -870,43 +896,47 @@ static void TTApplyEnabledState(void) {
 %new
 - (void)_configureRemainingTimePlatterConstraints {
 	if (!self.remainingTimePlatter) return;
-	CGFloat kPlatterHeight = MAX(60.0, MIN(100.0, [[UIFontMetrics metricsForTextStyle:UIFontTextStyleBody] scaledValueForValue:60.0]));
-	CGRect viewport = TTVisibleCoverSheetRectInView(self);
+	UIView *host = TTPlatterHost(self);
+	if (self.remainingTimePlatter.superview != host) {
+		if (TTConstraintsInstalled(self)) {
+			[NSLayoutConstraint deactivateConstraints:@[TTGetConstraint(self, kTTPlatterWidthConstraintKey), TTGetConstraint(self, kTTPlatterHeightConstraintKey), TTGetConstraint(self, kTTPlatterCenterXConstraintKey), TTGetConstraint(self, kTTPlatterCenterYConstraintKey)]];
+			TTSetConstraintsInstalled(self, NO);
+		}
+		[self.remainingTimePlatter removeFromSuperview];
+		[host addSubview:self.remainingTimePlatter];
+		TTSetPlatterStyleCaptured(self, NO);
+	}
+	CGRect viewport = TTPlatterViewport(host);
+	if (CGRectIsEmpty(viewport)) return;
 	BOOL isLandscape = CGRectGetWidth(viewport) > CGRectGetHeight(viewport);
-	CGFloat platterWidth = MAX(180.0, MIN(280.0, CGRectGetWidth(viewport) * 0.45));
-	CGFloat defaultBottomOffset = TTShouldHideQuickActionButtonsNow() ? -28.0 : -76.0;
-	CGFloat defaultCenterXOffset = 0.0;
-
+	BOOL hasCustomForOrientation = isLandscape ? platterHasCustomPositionLandscape : platterHasCustomPosition;
+	CGFloat maximumWidth = MAX(64.0, CGRectGetWidth(viewport) - host.safeAreaInsets.left - host.safeAreaInsets.right - 24.0);
+	CGFloat minimumHeight = 60.0;
 	CGRect leadingRect = CGRectZero;
 	CGRect trailingRect = CGRectZero;
-	if (TTQuickActionButtonFramesInView(self, &leadingRect, &trailingRect)) {
-		CGFloat targetCenterY = (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5;
-		CGFloat safeBottomY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom;
-		defaultBottomOffset = (targetCenterY + (kPlatterHeight * 0.5)) - safeBottomY;
-		CGFloat targetCenterX = (CGRectGetMidX(leadingRect) + CGRectGetMidX(trailingRect)) * 0.5;
-		defaultCenterXOffset = targetCenterX - CGRectGetMidX(viewport);
-
-		CGFloat innerGap = CGRectGetMinX(trailingRect) - CGRectGetMaxX(leadingRect);
-		if (innerGap > 0) {
-			CGFloat targetWidth = innerGap - 12.0;
-			platterWidth = MAX(136.0, MIN(220.0, targetWidth));
-		}
+	BOOL hasButtons = TTQuickActionButtonFramesInView(self, host, &leadingRect, &trailingRect);
+	if (hasButtons) {
+		if (@available(iOS 26.0, *)) minimumHeight = MAX(60.0, MIN(CGRectGetHeight(leadingRect), CGRectGetHeight(trailingRect)));
+		CGFloat innerGap = CGRectGetMinX(trailingRect) - CGRectGetMaxX(leadingRect) - 16.0;
+		if (!hasCustomForOrientation && !TTShouldHideQuickActionButtonsNow() && innerGap >= 64.0) maximumWidth = MIN(maximumWidth, innerGap);
 	}
+	CGSize size = [self.remainingTimePlatter preferredSizeForMaximumWidth:maximumWidth minimumHeight:minimumHeight];
+	CGFloat platterWidth = size.width;
+	CGFloat kPlatterHeight = size.height;
+	CGFloat defaultCenterX = hasButtons ? (CGRectGetMidX(leadingRect) + CGRectGetMidX(trailingRect)) * 0.5 : CGRectGetMidX(viewport);
+	CGFloat safeBottomY = CGRectGetMaxY(viewport) - host.safeAreaInsets.bottom;
+	CGFloat defaultCenterY = hasButtons ? (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5 : safeBottomY - (TTShouldHideQuickActionButtonsNow() ? 28.0 : 76.0) - kPlatterHeight * 0.5;
 
-	CGFloat safeMinX = CGRectGetMinX(viewport) + self.safeAreaInsets.left + (platterWidth * 0.5);
-	CGFloat safeMaxX = CGRectGetMaxX(viewport) - self.safeAreaInsets.right - (platterWidth * 0.5);
-	CGFloat safeMinY = CGRectGetMinY(viewport) + self.safeAreaInsets.top + (kPlatterHeight * 0.5) + 8.0;
-	CGFloat safeMaxY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom - (kPlatterHeight * 0.5) - 8.0;
+	CGFloat safeMinX = CGRectGetMinX(viewport) + host.safeAreaInsets.left + (platterWidth * 0.5);
+	CGFloat safeMaxX = CGRectGetMaxX(viewport) - host.safeAreaInsets.right - (platterWidth * 0.5);
+	CGFloat safeMinY = CGRectGetMinY(viewport) + host.safeAreaInsets.top + (kPlatterHeight * 0.5) + 8.0;
+	CGFloat safeMaxY = CGRectGetMaxY(viewport) - host.safeAreaInsets.bottom - (kPlatterHeight * 0.5) - 8.0;
 	if (safeMaxX < safeMinX) safeMaxX = safeMinX;
 	if (safeMaxY < safeMinY) safeMaxY = safeMinY;
-
-	CGFloat defaultCenterX = CGRectGetMidX(viewport) + defaultCenterXOffset;
-	CGFloat safeBottomY = CGRectGetMaxY(viewport) - self.safeAreaInsets.bottom;
-	CGFloat defaultCenterY = safeBottomY + defaultBottomOffset - (kPlatterHeight * 0.5);
 	if (isLandscape) {
 		UIView *dateContainer = TTFindDateViewContainer(self);
 		if (dateContainer) {
-			CGRect dateRect = [dateContainer.superview convertRect:dateContainer.frame toView:self];
+			CGRect dateRect = [dateContainer.superview convertRect:dateContainer.frame toView:host];
 			if (!CGRectIsEmpty(dateRect)) {
 				defaultCenterX = CGRectGetMidX(dateRect);
 			}
@@ -926,7 +956,6 @@ static void TTApplyEnabledState(void) {
 		objc_setAssociatedObject(self, kTTPlatterDefaultCenterComputedLandscapeKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 
-	BOOL hasCustomForOrientation = isLandscape ? platterHasCustomPositionLandscape : platterHasCustomPosition;
 	CGFloat savedX = isLandscape ? platterPosXNormLandscape : platterPosXNorm;
 	CGFloat savedY = isLandscape ? platterPosYNormLandscape : platterPosYNorm;
 	CGFloat centerX = hasCustomForOrientation ? (CGRectGetMinX(viewport) + savedX * CGRectGetWidth(viewport)) : defaultCenterX;
@@ -934,15 +963,15 @@ static void TTApplyEnabledState(void) {
 	centerX = MAX(safeMinX, MIN(safeMaxX, centerX));
 	centerY = MAX(safeMinY, MIN(safeMaxY, centerY));
 
-	CGFloat centerXOffset = centerX - CGRectGetMidX(self.bounds);
-	CGFloat centerYOffset = centerY - CGRectGetMidY(self.bounds);
+	CGFloat centerXOffset = centerX - CGRectGetMidX(host.bounds);
+	CGFloat centerYOffset = centerY - CGRectGetMidY(host.bounds);
 	BOOL dragging = [objc_getAssociatedObject(self, kTTPlatterDraggingKey) boolValue];
 
 	if (!TTConstraintsInstalled(self)) {
 		NSLayoutConstraint *width = [self.remainingTimePlatter.widthAnchor constraintEqualToConstant:platterWidth];
 		NSLayoutConstraint *height = [self.remainingTimePlatter.heightAnchor constraintEqualToConstant:kPlatterHeight];
-		NSLayoutConstraint *centerX = [self.remainingTimePlatter.centerXAnchor constraintEqualToAnchor:self.centerXAnchor constant:centerXOffset];
-		NSLayoutConstraint *centerY = [self.remainingTimePlatter.centerYAnchor constraintEqualToAnchor:self.centerYAnchor constant:centerYOffset];
+		NSLayoutConstraint *centerX = [self.remainingTimePlatter.centerXAnchor constraintEqualToAnchor:host.centerXAnchor constant:centerXOffset];
+		NSLayoutConstraint *centerY = [self.remainingTimePlatter.centerYAnchor constraintEqualToAnchor:host.centerYAnchor constant:centerYOffset];
 		TTSetConstraint(self, kTTPlatterWidthConstraintKey, width);
 		TTSetConstraint(self, kTTPlatterHeightConstraintKey, height);
 		TTSetConstraint(self, kTTPlatterCenterXConstraintKey, centerX);
