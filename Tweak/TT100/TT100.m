@@ -1,11 +1,4 @@
-#import <IOKit/ps/IOPowerSources.h>
-#import <limits.h>
-#import <math.h>
-
-#import "../../Shared/JikanEstimateSettings.h"
 #import "TT100.h"
-#import "TT100AppleEstimator.h"
-#import "TT100Database.h"
 
 NSString *const TT100BatteryInfoUpdatedNotification = @"TT100BatteryInfoUpdated";
 NSString *const TT100InternalDidRefreshBatteryInfoNotification = @"TT100InternalDidRefreshBatteryInfo";

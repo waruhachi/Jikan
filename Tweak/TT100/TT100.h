@@ -1,12 +1,18 @@
 #import <IOKit/IOKitLib.h>
+#import <IOKit/ps/IOPowerSources.h>
 #import <UIKit/UIKit.h>
 #import <dirent.h>
+#import <limits.h>
 #import <mach/mach_port.h>
+#import <math.h>
 #import <roothide.h>
 
 #import "../../Localization/JikanLocalization.h"
+#import "../../Shared/JikanEstimateSettings.h"
+#import "TT100AppleEstimator.h"
+#import "TT100Database.h"
 
-FOUNDATION_EXPORT NSString * TT100PLSQLPath(void);
+FOUNDATION_EXPORT NSString *TT100PLSQLPath(void);
 
 FOUNDATION_EXPORT NSString *const TT100BatteryInfoUpdatedNotification;
 FOUNDATION_EXPORT NSString *const TT100InternalDidRefreshBatteryInfoNotification;
