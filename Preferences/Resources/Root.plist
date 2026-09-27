@@ -38,7 +38,7 @@
 			<key>key</key>
 			<string>batteryEstimateSource</string>
 			<key>default</key>
-			<string>jikan</string>
+			<string>apple</string>
 			<key>validTitles</key>
 			<array><string>Jikan</string><string>Apple</string></array>
 			<key>validValues</key>

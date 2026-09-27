@@ -8,7 +8,7 @@ NSString *const JikanEstimateAppleSyncedKey = @"batteryEstimateAppleSyncedWithCh
 
 NSString *JikanEstimateSource(NSUserDefaults *preferences) {
 	id value = [preferences objectForKey:JikanEstimateSourceKey];
-	return [value isKindOfClass:NSString.class] && [value isEqualToString:@"apple"] ? @"apple" : @"jikan";
+	return [value isKindOfClass:NSString.class] && [value isEqualToString:@"jikan"] ? @"jikan" : @"apple";
 }
 
 BOOL JikanAppleTargetIsSupported(NSInteger target) {

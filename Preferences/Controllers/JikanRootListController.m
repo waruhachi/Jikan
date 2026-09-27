@@ -224,7 +224,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[self _cancelChargeLimiterDetection];
 	if ([key isEqualToString:JikanEstimateSourceKey]) {
 		[self _dismissSliderEditor];
-		value = [value isKindOfClass:NSString.class] && [value isEqualToString:@"apple"] ? @"apple" : @"jikan";
+		value = [value isKindOfClass:NSString.class] && [value isEqualToString:@"jikan"] ? @"jikan" : @"apple";
 		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
 		if ([value isEqualToString:@"apple"] && ![prefs objectForKey:JikanEstimateAppleTargetKey]) {
 			NSInteger jikanTarget = JikanEstimateTarget(prefs, @"jikan");
@@ -1018,7 +1018,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 	[prefs setInteger:100 forKey:kBatteryEstimateTargetKey];
 	[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
-	[prefs setObject:@"jikan" forKey:JikanEstimateSourceKey];
+	[prefs setObject:@"apple" forKey:JikanEstimateSourceKey];
 	[prefs setInteger:100 forKey:JikanEstimateAppleTargetKey];
 	[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
 	[prefs synchronize];
