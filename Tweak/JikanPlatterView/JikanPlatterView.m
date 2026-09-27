@@ -1,5 +1,4 @@
 #import "JikanPlatterView.h"
-#import <objc/message.h>
 
 extern BOOL isCharging;
 
@@ -27,7 +26,7 @@ static BOOL TTConfigureLiquidGlass(UIVisualEffectView *view) {
 		if (![glassClass respondsToSelector:effectSelector] ||
 			![cornerClass respondsToSelector:capsuleSelector] ||
 			![view respondsToSelector:cornerSetter]) return NO;
-		UIVisualEffect *effect = ((id (*)(id, SEL, NSInteger))objc_msgSend)(glassClass, effectSelector, 0); // UIGlassEffectStyleRegular
+		UIVisualEffect *effect = ((id (*)(id, SEL, NSInteger))objc_msgSend)(glassClass, effectSelector, 0);	 // UIGlassEffectStyleRegular
 		id corners = ((id (*)(id, SEL))objc_msgSend)(cornerClass, capsuleSelector);
 		if (![effect isKindOfClass:UIVisualEffect.class] || !corners) return NO;
 		view.effect = effect;
@@ -252,8 +251,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	_timeRemainingLabel = [[UILabel alloc] init];
 	_timeRemainingLabel.translatesAutoresizingMaskIntoConstraints = NO;
 	_timeRemainingLabel.textColor = [UIColor whiteColor];
-	_timeRemainingLabel.adjustsFontForContentSizeCategory = YES;
-	_timeRemainingLabel.numberOfLines = 0;
+	_timeRemainingLabel.adjustsFontForContentSizeCategory = NO;
+	_timeRemainingLabel.numberOfLines = 1;
 	_timeRemainingLabel.textAlignment = NSTextAlignmentCenter;
 	_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.time", @"0 minutes");
 	[_containerView addSubview:_timeRemainingLabel];
@@ -261,8 +260,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	_staticLabel = [[UILabel alloc] init];
 	_staticLabel.translatesAutoresizingMaskIntoConstraints = NO;
 	_staticLabel.textColor = [UIColor whiteColor];
-	_staticLabel.adjustsFontForContentSizeCategory = YES;
-	_staticLabel.numberOfLines = 0;
+	_staticLabel.adjustsFontForContentSizeCategory = NO;
+	_staticLabel.numberOfLines = 1;
 	_staticLabel.textAlignment = NSTextAlignmentCenter;
 	_staticLabel.text = [self _estimateSubtitle];
 	_textStack = [[UIStackView alloc] initWithArrangedSubviews:@[_containerView, _staticLabel]];
@@ -311,20 +310,40 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	}
 }
 
-- (CGSize)preferredSizeForMaximumWidth:(CGFloat)width minimumHeight:(CGFloat)height {
-	// Measure the actual strings before imposing a width. Wrap only once the
-	// space between the controls (or the screen edge) has been exhausted.
+- (CGSize)preferredSizeForMaximumWidth:(CGFloat)width height:(CGFloat)height {
+	// Start with the user's text size and weight, then fit both lines together
+	// inside the capsule. Text must never increase the pill's height.
 	[self _updateTypographyForCurrentSize];
-	CGFloat contentWidth = MAX(1.0, width - 32.0);
 	CGSize primary = [_timeRemainingLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
 	CGSize secondary = [_staticLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
 	CGFloat desiredWidth = MIN(width, MAX(96.0, ceil(MAX(primary.width + 14.0, secondary.width) + 32.0)));
-	contentWidth = MIN(contentWidth, desiredWidth - 32.0);
-	_timeRemainingLabel.preferredMaxLayoutWidth = MAX(1.0, contentWidth - 14.0);
-	_staticLabel.preferredMaxLayoutWidth = contentWidth;
-	primary = [_timeRemainingLabel sizeThatFits:CGSizeMake(_timeRemainingLabel.preferredMaxLayoutWidth, CGFLOAT_MAX)];
-	secondary = [_staticLabel sizeThatFits:CGSizeMake(contentWidth, CGFLOAT_MAX)];
-	return CGSizeMake(desiredWidth, MAX(height, ceil(MAX(10.0, primary.height) + 2.0 + secondary.height + 16.0)));
+	CGFloat contentWidth = MAX(1.0, desiredWidth - 33.0);
+	CGFloat contentHeight = MAX(1.0, height - 17.0);
+	UIFont *primaryFont = _timeRemainingLabel.font;
+	UIFont *secondaryFont = _staticLabel.font;
+	CGFloat lowerScale = 0.0;
+	CGFloat upperScale = 1.0;
+	CGFloat scale = 1.0;
+	// Optical spacing changes with font size. Measure the fitted fonts instead
+	// of assuming that their text widths scale linearly with the point size.
+	for (NSUInteger attempt = 0; attempt < 12; attempt++) {
+		_timeRemainingLabel.font = [primaryFont fontWithSize:primaryFont.pointSize * scale];
+		_staticLabel.font = [secondaryFont fontWithSize:secondaryFont.pointSize * scale];
+		primary = [_timeRemainingLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
+		secondary = [_staticLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
+		BOOL fits = primary.width + 14.0 <= contentWidth && secondary.width <= contentWidth &&
+			MAX(10.0, primary.height) + _textStack.spacing + secondary.height <= contentHeight;
+		if (fits) {
+			lowerScale = scale;
+			if (scale == 1.0) break;
+		} else {
+			upperScale = scale;
+		}
+		scale = (lowerScale + upperScale) * 0.5;
+	}
+	_timeRemainingLabel.font = [primaryFont fontWithSize:primaryFont.pointSize * lowerScale];
+	_staticLabel.font = [secondaryFont fontWithSize:secondaryFont.pointSize * lowerScale];
+	return CGSizeMake(desiredWidth, height);
 }
 
 - (void)setupConstraints {
@@ -347,7 +366,10 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		[_textStack.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
 		[_textStack.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
 		[_textStack.widthAnchor constraintEqualToAnchor:self.widthAnchor constant:-32.0],
+		[_textStack.topAnchor constraintGreaterThanOrEqualToAnchor:self.topAnchor constant:8.0],
+		[_textStack.bottomAnchor constraintLessThanOrEqualToAnchor:self.bottomAnchor constant:-8.0],
 		[_containerView.widthAnchor constraintLessThanOrEqualToAnchor:_textStack.widthAnchor],
+		[_containerView.heightAnchor constraintGreaterThanOrEqualToConstant:10.0],
 
 		[_boltImageView.leadingAnchor constraintEqualToAnchor:_containerView.leadingAnchor],
 		[_boltImageView.centerYAnchor constraintEqualToAnchor:_timeRemainingLabel.centerYAnchor],
@@ -356,8 +378,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 		[_timeRemainingLabel.leadingAnchor constraintEqualToAnchor:_boltImageView.trailingAnchor constant:4.0],
 		[_timeRemainingLabel.trailingAnchor constraintEqualToAnchor:_containerView.trailingAnchor],
+		[_timeRemainingLabel.centerYAnchor constraintEqualToAnchor:_containerView.centerYAnchor],
 		[_timeRemainingLabel.topAnchor constraintEqualToAnchor:_containerView.topAnchor],
-		[_timeRemainingLabel.bottomAnchor constraintEqualToAnchor:_containerView.bottomAnchor],
 		[_staticLabel.widthAnchor constraintLessThanOrEqualToAnchor:_textStack.widthAnchor],
 	]];
 }

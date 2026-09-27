@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import <objc/message.h>
 #import <objc/runtime.h>
 
 #import "../../Localization/JikanLocalization.h"
@@ -32,7 +33,7 @@
 	CGFloat _contentTintBaseAlpha;
 }
 @property (nonatomic, copy) void (^contentSizeDidChange)(void);
-- (CGSize)preferredSizeForMaximumWidth:(CGFloat)width minimumHeight:(CGFloat)height;
+- (CGSize)preferredSizeForMaximumWidth:(CGFloat)width height:(CGFloat)height;
 - (void)applyBatterySnapshot:(NSDictionary *)snapshot;
 - (void)setupConstraints;
 - (void)updateWithTimeString:(NSString *)timeString;

@@ -911,16 +911,16 @@ static void TTApplyEnabledState(void) {
 	BOOL isLandscape = CGRectGetWidth(viewport) > CGRectGetHeight(viewport);
 	BOOL hasCustomForOrientation = isLandscape ? platterHasCustomPositionLandscape : platterHasCustomPosition;
 	CGFloat maximumWidth = MAX(64.0, CGRectGetWidth(viewport) - host.safeAreaInsets.left - host.safeAreaInsets.right - 24.0);
-	CGFloat minimumHeight = 60.0;
+	CGFloat pillHeight = 60.0;
 	CGRect leadingRect = CGRectZero;
 	CGRect trailingRect = CGRectZero;
 	BOOL hasButtons = TTQuickActionButtonFramesInView(self, host, &leadingRect, &trailingRect);
 	if (hasButtons) {
-		if (@available(iOS 26.0, *)) minimumHeight = MAX(60.0, MIN(CGRectGetHeight(leadingRect), CGRectGetHeight(trailingRect)));
+		if (@available(iOS 26.0, *)) pillHeight = MAX(60.0, MIN(CGRectGetHeight(leadingRect), CGRectGetHeight(trailingRect)));
 		CGFloat innerGap = CGRectGetMinX(trailingRect) - CGRectGetMaxX(leadingRect) - 16.0;
 		if (!hasCustomForOrientation && !TTShouldHideQuickActionButtonsNow() && innerGap >= 64.0) maximumWidth = MIN(maximumWidth, innerGap);
 	}
-	CGSize size = [self.remainingTimePlatter preferredSizeForMaximumWidth:maximumWidth minimumHeight:minimumHeight];
+	CGSize size = [self.remainingTimePlatter preferredSizeForMaximumWidth:maximumWidth height:pillHeight];
 	CGFloat platterWidth = size.width;
 	CGFloat kPlatterHeight = size.height;
 	CGFloat defaultCenterX = hasButtons ? (CGRectGetMidX(leadingRect) + CGRectGetMidX(trailingRect)) * 0.5 : CGRectGetMidX(viewport);
