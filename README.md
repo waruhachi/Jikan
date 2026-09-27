@@ -15,6 +15,8 @@
 
 Jikan adds a charging pill to the lock screen, showing an estimated time to your selected charge target. Preferences includes live enable/disable, opacity, portrait and landscape position, quick-action visibility, preview editing, and optional ChargeLimiter target synchronization.
 
+Read [how Jikan estimates charging time](docs/charging-estimates.md), including both algorithms and the reverse engineering behind Apple mode.
+
 ## Screenshots
 
 <p align="center">
