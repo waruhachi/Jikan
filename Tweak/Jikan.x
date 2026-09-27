@@ -696,8 +696,7 @@ static void TTApplyEnabledState(void) {
 
 %new
 - (void)_jikanHandlePlatterLongPress:(UILongPressGestureRecognizer *)gesture {
-	BOOL previewEnabled = _ttPreviewSessionActive;
-	if (!previewEnabled || !self.remainingTimePlatter) return;
+	if (!enabled || !self.remainingTimePlatter || self.remainingTimePlatter.hidden) return;
 	JikanPlatterView *pill = self.remainingTimePlatter;
 	UIView *host = pill.superview;
 	CGPoint location = [gesture locationInView:host];
@@ -836,7 +835,7 @@ static void TTApplyEnabledState(void) {
 	[self.remainingTimePlatter setPreviewMode:(previewEnabled && (!isCharging || (!hasEstimate && !(showAfterFullCharge && fullyCharged))))];
 
 	UILongPressGestureRecognizer *lp = (UILongPressGestureRecognizer *)objc_getAssociatedObject(self, kTTPlatterLongPressKey);
-	lp.enabled = previewEnabled;
+	lp.enabled = shouldShow;
 
 	[self _setRemainingTimePlatterVisible:shouldShow];
 }

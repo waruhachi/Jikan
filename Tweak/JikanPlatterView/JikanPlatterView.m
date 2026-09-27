@@ -705,10 +705,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 	double watts = [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
 
-	if (watts > 0) {
+	if (isfinite(watts) && watts >= 0) {
 		_timeRemainingLabel.text = [NSString stringWithFormat:@"%.1fW", watts];
-	} else if (_previewMode) {
-		_timeRemainingLabel.text = @"20.0W";
 	} else {
 		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}

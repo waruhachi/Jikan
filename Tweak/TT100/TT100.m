@@ -217,24 +217,19 @@ static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) 
 }
 
 + (double)effectiveChargingWattageWithBatteryInfo:(NSDictionary *)batteryInfo {
-	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return 0;
-	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
-
-	double watts = TT100WattsFromKeys(batteryInfo, @"InstantAmperage", @"Voltage");
-	if (watts > 0) return watts;
-
-	watts = TT100WattsFromKeys(batteryInfo, @"Amperage", @"Voltage");
-	if (watts > 0) return watts;
-
-	watts = TT100WattsFromKeys(adapter, @"Current", @"Voltage");
-	if (watts > 0) return watts;
-
-	NSNumber *w = TT100Number(adapter, @"Wattage");
-	if (!w) w = TT100Number(adapter, @"Watts");
-	if (!w) w = TT100Number(adapter, @"Power");
-	double ratedWatts = fabs(w.doubleValue);
-	if (!isfinite(ratedWatts) || ratedWatts <= 0 || ratedWatts > 240.0) return 0;
-	return ratedWatts;
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NAN;
+	NSNumber *connected = TT100Number(batteryInfo, @"ExternalConnected");
+	if (connected && !connected.boolValue) return 0;
+	double voltage = TT100Number(batteryInfo, @"Voltage").doubleValue;
+	if (!isfinite(voltage) || voltage < 2500.0 || voltage > 30000.0) return NAN;
+	for (NSString *key in @[@"InstantAmperage", @"Amperage"]) {
+		NSNumber *reading = TT100Number(batteryInfo, key);
+		if (!reading) continue;
+		double current = reading.doubleValue;
+		if (!isfinite(current) || fabs(current) > 12000.0) continue;
+		return MAX(0.0, current) * voltage * 0.000001;
+	}
+	return NAN;
 }
 
 + (instancetype)sharedInstance {
@@ -342,7 +337,7 @@ static void TT100PowerChanged(void *context) {
 				tt100LastAppleStatus = appleResult[@"status"];
 				tt100LastAppleTarget = target;
 				tt100LastAppleSession = [appleResult[@"session"] integerValue];
-				NSLog(@"[Jikan] Apple estimate status: %@, target: %ld%%, remaining: %.1f seconds", tt100LastAppleStatus, (long)target, [appleResult[@"seconds"] doubleValue]);
+				NSLog(@"[Jikan] Apple estimate status: %@, target: %ld%%, remaining: %.1f seconds, approximate session start: %@", tt100LastAppleStatus, (long)target, [appleResult[@"seconds"] doubleValue], [appleResult[@"sessionStartEstimated"] boolValue] ? @"yes" : @"no");
 			} else if (!appleResult) {
 				tt100LastAppleStatus = nil;
 			}
@@ -365,6 +360,7 @@ static void TT100PowerChanged(void *context) {
 				@"targetPercent": @(target),
 				@"estimateSource": source,
 				@"estimateStatus": appleResult[@"status"] ?: (hasEstimate ? @"available" : @"unavailable"),
+				@"sessionStartEstimated": @([appleResult[@"sessionStartEstimated"] boolValue]),
 				@"modelRevision": appleResult[@"revision"] ?: @"",
 				@"chargingSpeed": TT100ChargingSpeed(batteryInfo, wireless),
 				@"chargerClass": chargerClass,

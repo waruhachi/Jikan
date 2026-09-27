@@ -52,6 +52,7 @@ static NSString *JikanSHA256(NSString *path) {
 @property (nonatomic, assign) BOOL sawDisconnected;
 @property (nonatomic, assign) BOOL wasConnected;
 @property (nonatomic, assign) BOOL sessionValid;
+@property (nonatomic, assign) BOOL sessionStartEstimated;
 @property (nonatomic, assign) NSInteger startSOC;
 @property (nonatomic, assign) NSInteger sessionNumber;
 @property (nonatomic, assign) double connectionTime;
@@ -67,6 +68,7 @@ static NSString *JikanSHA256(NSString *path) {
 	self.sawDisconnected = NO;
 	self.wasConnected = NO;
 	self.sessionValid = NO;
+	self.sessionStartEstimated = NO;
 	self.connectionTime = 0;
 	self.predictedAt = 0;
 	self.predictedSeconds = 0;
@@ -75,7 +77,7 @@ static NSString *JikanSHA256(NSString *path) {
 }
 
 - (NSDictionary *)_unavailable:(NSString *)status {
-	return @{@"status": status ?: @"unavailable", @"revision": JikanModelRevision, @"session": @(self.sessionNumber)};
+	return @{@"status": status ?: @"unavailable", @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated)};
 }
 
 - (void)observeBatteryInfo:(NSDictionary *)batteryInfo {
@@ -87,12 +89,15 @@ static NSString *JikanSHA256(NSString *path) {
 		self.sawDisconnected = YES;
 		return;
 	}
-	if (self.wasConnected) return;
-	self.wasConnected = YES;
-	self.predictedAt = 0;
-	self.sessionNumber++;
+	if (self.sessionValid) return;
+	if (!self.wasConnected) {
+		self.wasConnected = YES;
+		self.predictedAt = 0;
+		self.sessionNumber++;
+	}
 	double now = JikanMonotonicSeconds();
-	if (self.sawDisconnected && soc && soc.doubleValue >= 0 && soc.doubleValue <= 100 && isfinite(now)) {
+	if (soc && soc.doubleValue >= 0 && soc.doubleValue <= 100 && isfinite(now)) {
+		self.sessionStartEstimated = !self.sawDisconnected;
 		self.startSOC = (NSInteger)soc.doubleValue;
 		self.connectionTime = floor(now);
 		self.sessionValid = YES;
@@ -166,7 +171,7 @@ static NSString *JikanSHA256(NSString *path) {
 	if (self.predictedTarget != target) self.predictedAt = 0;
 	if (self.predictedAt > 0 && now - self.predictedAt < 300.0) {
 		double remaining = self.predictedSeconds - (now - self.predictedAt);
-		if (isfinite(remaining) && remaining > 0) return @{@"status": @"available", @"seconds": @(remaining), @"revision": JikanModelRevision, @"session": @(self.sessionNumber)};
+		if (isfinite(remaining) && remaining > 0) return @{@"status": @"available", @"seconds": @(remaining), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated)};
 		self.predictedAt = 0;
 	}
 	NSString *failure = nil;
@@ -190,7 +195,7 @@ static NSString *JikanSHA256(NSString *path) {
 	self.predictedAt = JikanMonotonicSeconds();
 	self.predictedSeconds = seconds;
 	self.predictedTarget = target;
-	return @{@"status": @"available", @"seconds": @(seconds), @"revision": JikanModelRevision, @"session": @(self.sessionNumber)};
+	return @{@"status": @"available", @"seconds": @(seconds), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated)};
 }
 
 @end
