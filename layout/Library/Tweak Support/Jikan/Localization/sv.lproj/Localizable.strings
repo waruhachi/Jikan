@@ -1,80 +1,98 @@
 "jikan.common.action.cancel" = "Avbryt";
-"jikan.common.action.ok" = "OK";	
+"jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Spara";
 
-"jikan.prefs.header.subtitle" = "Visa återstående tid till full laddning på låsskärmen";
-"jikan.prefs.legend.slow_charging" = "Långsam laddning";
+"jikan.platter.accessibility.next_item" = "Visar nästa värde i stacken";
 
-"jikan.prefs.section.pill_preview" = "Pillförhandsvisning";
-"jikan.prefs.section.pill_display" = "Pillvisning";
-"jikan.prefs.section.pill_position" = "Pillposition";
-"jikan.prefs.section.miscellaneous" = "Övrigt";
-"jikan.prefs.section.battery_estimate" = "Tidsuppskattning";
-"jikan.prefs.section.reset" = "Återställ";
+"jikan.platter.label.battery_temperature" = "batteritemperatur";
+"jikan.platter.label.battery_voltage" = "batterispänning";
+"jikan.platter.label.charged" = "laddad";
+"jikan.platter.label.current_wattage" = "Aktuell effekt";
+"jikan.platter.label.until_fully_charged" = "till full laddning";
+"jikan.platter.label.until_target" = "tills %ld%% laddat";
 
-"jikan.prefs.row.enable" = "Aktivera";
-"jikan.prefs.row.lock_x_axis" = "Lås X-axeln";
-"jikan.prefs.row.lock_y_axis" = "Lås Y-axeln";
-"jikan.prefs.row.show_preview" = "Visa förhandsgranskning";
-"jikan.prefs.row.show_after_full_charge" = "Visa efter att målet har nåtts";
-"jikan.prefs.row.show_current_wattage" = "Visa aktuell effekt";
-"jikan.prefs.row.opacity" = "Opacitet";
-"jikan.prefs.row.pill_background_opacity" = "Pillbakgrundens opacitet (%)";
-"jikan.prefs.row.estimate_target_percent" = "Målnivå för uppskattning (%)";
-"jikan.prefs.row.estimate_source" = "Källa";
-"jikan.prefs.row.algorithm" = "Algoritm";
-"jikan.prefs.algorithm.jikan_description" = "Beräknar tiden utifrån din laddningshistorik och aktuella batterivärden. Välj ett mål mellan 1 % och 100 %.";
-"jikan.prefs.algorithm.apple_description" = "Använder en fast lokal kopia av Apples laddningsmodeller. Välj 80 %, 85 %, 90 %, 95 % eller 100 %.";
-"jikan.prefs.estimate.jikan_description" = "Använder din laddningshistorik och aktuella batterivärden.";
-"jikan.prefs.estimate.apple_description" = "Använder en fast lokal kopia av Apples laddningsmodeller. Anslut laddaren igen efter en respring om anslutningstiden är okänd.";
-"jikan.prefs.estimate.models_missing" = "Apple-modellerna är inte installerade i detta bygge.";
-"jikan.prefs.alert.detect_limit.unsupported.title" = "Apple-målet stöds inte";
+"jikan.platter.preview.eta" = "1 tim 23 min";
+"jikan.platter.preview.time" = "0 min";
+
+"jikan.prefs.alert.detect_limit.none.message" = "Ingen ChargeLimiter-gräns upptäcktes. Använder 100%.";
+"jikan.prefs.alert.detect_limit.none.title" = "Ingen laddningsgräns hittades";
+"jikan.prefs.alert.detect_limit.single.message" = "Tillämpad laddningsgräns: %ld%%";
+"jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter upptäckt";
+"jikan.prefs.alert.detect_limit.unchanged.message" = "Ingen ChargeLimiter-gräns hittades. Ditt laddningsmål har inte ändrats.";
 "jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter rapporterar %@%%. Apple-mål är 80, 85, 90, 95 och 100%%. Ditt mål ändrades inte.";
-"jikan.prefs.row.charge_limit" = "Laddningsgräns";
-"jikan.prefs.row.sync_with_chargelimiter" = "Synkronisera med ChargeLimiter";
-"jikan.prefs.row.portrait" = "Porträtt";
-"jikan.prefs.row.portrait_x" = "Porträtt X";
-"jikan.prefs.row.portrait_y" = "Porträtt Y";
-"jikan.prefs.row.landscape" = "Landskap";
-"jikan.prefs.row.landscape_x" = "Landskap X";
-"jikan.prefs.row.landscape_y" = "Landskap Y";
-"jikan.prefs.row.hide_quick_action_buttons" = "Dölj snabbåtgärdsknappar";
-"jikan.prefs.row.only_while_charging" = "Endast under laddning";
-"jikan.prefs.row.reset_pill_position" = "Återställ pillposition";
-"jikan.prefs.row.reset_to_defaults" = "Återställ standardinställningar";
+"jikan.prefs.alert.detect_limit.unsupported.title" = "Apple-målet stöds inte";
+"jikan.prefs.alert.limit_sources.applied.message" = "Senast tillämpat från ChargeLimiter: %ld%%";
+"jikan.prefs.alert.limit_sources.title" = "Synkroniserad med ChargeLimiter";
+"jikan.prefs.alert.reset_pill_position.prompt" = "Vill du återställa pillrets position i stående/liggande läge och axellås?";
+"jikan.prefs.alert.reset_pill_position.title" = "Återställ pillposition";
+"jikan.prefs.alert.reset_preferences.prompt" = "Vill du återställa alla Jikan-inställningar till standardvärden?";
+"jikan.prefs.alert.reset_preferences.title" = "Återställ inställningar";
+"jikan.prefs.alert.slider_invalid.message" = "Ange ett giltigt tal mellan %.0f och %.0f.";
+"jikan.prefs.alert.slider_range.message" = "Ange ett värde mellan %.0f och %.0f";
+
+"jikan.prefs.algorithm.apple_description" = "Använder en fast lokal kopia av Apples laddningsmodeller. Välj 80 %, 85 %, 90 %, 95 % eller 100 %.";
+"jikan.prefs.algorithm.jikan_description" = "Beräknar tiden utifrån din laddningshistorik och aktuella batterivärden. Välj ett mål mellan 1 % och 100 %.";
+"jikan.prefs.algorithm.recommended" = "Rekommenderas";
 
 "jikan.prefs.footer.slider_hint" = "Tryck och håll ned för att redigera";
 
-"jikan.prefs.slider.opacity.title" = "Pillbakgrundens opacitet";
+"jikan.prefs.header.subtitle" = "Visa återstående tid till full laddning på låsskärmen";
+
+"jikan.prefs.legend.slow_charging" = "Långsam laddning";
+
+"jikan.prefs.row.algorithm" = "Algoritm";
+"jikan.prefs.row.enable" = "Aktivera";
+"jikan.prefs.row.estimate_source" = "Källa";
+"jikan.prefs.row.estimate_target" = "Beräkningsmål";
+"jikan.prefs.row.estimate_target_percent" = "Målnivå för uppskattning (%)";
+"jikan.prefs.row.hide_quick_action_buttons" = "Dölj snabbåtgärdsknappar";
+"jikan.prefs.row.landscape" = "Landskap";
+"jikan.prefs.row.landscape_x" = "Landskap X";
+"jikan.prefs.row.landscape_y" = "Landskap Y";
+"jikan.prefs.row.lock_x_axis" = "Lås X-axeln";
+"jikan.prefs.row.lock_y_axis" = "Lås Y-axeln";
+"jikan.prefs.row.only_while_charging" = "Endast under laddning";
+"jikan.prefs.row.opacity" = "Opacitet";
+"jikan.prefs.row.pill_background_opacity" = "Pillbakgrundens opacitet (%)";
+"jikan.prefs.row.portrait" = "Porträtt";
+"jikan.prefs.row.portrait_x" = "Porträtt X";
+"jikan.prefs.row.portrait_y" = "Porträtt Y";
+"jikan.prefs.row.reset_pill_position" = "Återställ pillposition";
+"jikan.prefs.row.reset_to_defaults" = "Återställ standardinställningar";
+"jikan.prefs.row.show_after_full_charge" = "Visa efter att målet har nåtts";
+"jikan.prefs.row.show_preview" = "Visa förhandsgranskning";
+"jikan.prefs.row.stack" = "Stack";
+"jikan.prefs.row.sync_with_chargelimiter" = "Synkronisera med ChargeLimiter";
+
+"jikan.prefs.section.battery_estimate" = "Tidsuppskattning";
+"jikan.prefs.section.miscellaneous" = "Övrigt";
+"jikan.prefs.section.pill_display" = "Pillvisning";
+"jikan.prefs.section.pill_position" = "Pillposition";
+"jikan.prefs.section.pill_preview" = "Pillförhandsvisning";
+"jikan.prefs.section.reset" = "Återställ";
+
 "jikan.prefs.slider.estimate_target.title" = "Målnivå för uppskattning";
-"jikan.prefs.slider.portrait_x.title" = "Porträtt X";
-"jikan.prefs.slider.portrait_y.title" = "Porträtt Y";
 "jikan.prefs.slider.landscape_x.title" = "Landskap X";
 "jikan.prefs.slider.landscape_y.title" = "Landskap Y";
+"jikan.prefs.slider.opacity.title" = "Pillbakgrundens opacitet";
+"jikan.prefs.slider.portrait_x.title" = "Porträtt X";
+"jikan.prefs.slider.portrait_y.title" = "Porträtt Y";
 
-"jikan.prefs.alert.slider_invalid.message" = "Ange ett giltigt tal mellan %.0f och %.0f.";
-"jikan.prefs.alert.slider_range.message" = "Ange ett värde mellan %.0f och %.0f";
-"jikan.prefs.alert.reset_pill_position.title" = "Återställ pillposition";
-"jikan.prefs.alert.reset_pill_position.prompt" = "Vill du återställa pillrets position i stående/liggande läge och axellås?";
-"jikan.prefs.alert.reset_preferences.title" = "Återställ inställningar";
-"jikan.prefs.alert.reset_preferences.prompt" = "Vill du återställa alla Jikan-inställningar till standardvärden?";
-"jikan.prefs.alert.detect_limit.none.title" = "Ingen laddningsgräns hittades";
-"jikan.prefs.alert.detect_limit.none.message" = "Ingen ChargeLimiter-gräns upptäcktes. Använder 100%.";
-"jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter upptäckt";
-"jikan.prefs.alert.detect_limit.single.message" = "Tillämpad laddningsgräns: %ld%%";
-"jikan.prefs.alert.detect_limit.unchanged.message" = "Ingen ChargeLimiter-gräns hittades. Ditt laddningsmål har inte ändrats.";
-"jikan.prefs.alert.limit_sources.applied.message" = "Senast tillämpat från ChargeLimiter: %ld%%";
-"jikan.prefs.alert.limit_sources.title" = "Synkroniserad med ChargeLimiter";
+"jikan.stack.item.estimate" = "Beräknad tid";
+"jikan.stack.item.temperature" = "Temperatur";
+"jikan.stack.item.voltage" = "Spänning";
+"jikan.stack.item.wattage" = "Effekt";
+
+"jikan.stack.section.active" = "Aktiva";
+"jikan.stack.section.available" = "Tillgängliga";
+"jikan.stack.section.unit" = "Temperaturenhet";
+
+"jikan.stack.unit.celsius" = "Celsius";
+"jikan.stack.unit.fahrenheit" = "Fahrenheit";
+
+"jikan.tt100.format.hr" = "%d tim";
+"jikan.tt100.format.hr_min" = "%d tim %d min";
+"jikan.tt100.format.lt1min" = "<1 min";
+"jikan.tt100.format.min" = "%d min";
 
 "jikan.tt100.value.na" = "Ej tillämpligt";
-"jikan.tt100.format.hr_min" = "%d tim %d min";
-"jikan.tt100.format.hr" = "%d tim";
-"jikan.tt100.format.min" = "%d min";
-"jikan.tt100.format.lt1min" = "<1 min";
-
-"jikan.platter.label.until_fully_charged" = "till full laddning";
-"jikan.platter.label.until_target" = "tills %ld%% laddat";
-"jikan.platter.label.charged" = "laddad";
-"jikan.platter.label.current_wattage" = "Aktuell effekt";
-"jikan.platter.preview.time" = "0 min";
-"jikan.platter.preview.eta" = "1 tim 23 min";
