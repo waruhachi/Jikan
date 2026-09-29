@@ -13,7 +13,7 @@
 
 ## About
 
-Jikan adds a charging pill to the lock screen, showing an estimated time to your selected charge target. Preferences includes live enable/disable, opacity, portrait and landscape position, quick-action visibility, preview editing, and optional ChargeLimiter target synchronization.
+Jikan adds a charging pill to the lock screen, showing an estimated time to your selected charge target. Tap the pill to page through optional wattage, battery temperature, and battery voltage readings in your chosen order. Temperature follows the system unit or a Celsius/Fahrenheit override. Preferences also includes live enable/disable, opacity, portrait and landscape position, quick-action visibility, preview editing, and optional ChargeLimiter target synchronization.
 
 Read [how Jikan estimates charging time](docs/charging-estimates.md), including both algorithms and the reverse engineering behind Apple mode.
 

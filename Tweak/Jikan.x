@@ -135,7 +135,6 @@ static void TTLoadPreferences(void) {
 	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
 	hideQuickActionButtonsOnlyWhenCharging = [preferences objectForKey:@"hideQuickActionButtonsOnlyWhenCharging"] ? [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"] : NO;
-	tapToShowWattage = [preferences objectForKey:@"tapToShowWattage"] ? [preferences boolForKey:@"tapToShowWattage"] : NO;
 	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
 	lockPreviewXAxis = [preferences objectForKey:@"lockPreviewXAxis"] ? [preferences boolForKey:@"lockPreviewXAxis"] : NO;
 	lockPreviewYAxis = [preferences objectForKey:@"lockPreviewYAxis"] ? [preferences boolForKey:@"lockPreviewYAxis"] : NO;
@@ -347,6 +346,13 @@ static UIView *TTQuickActionVisibleBackground(UIView *button) {
 		for (UIView *child in button.subviews) {
 			id effect = TTObjectForSelector(child, @"_glassEffect");
 			if ([effect isKindOfClass:NSClassFromString(@"UIGlassEffect")] && !CGRectIsEmpty(child.bounds)) return child;
+		}
+	}
+
+	for (UIView *child in button.subviews) {
+		if ([child isKindOfClass:[UIVisualEffectView class]] && !CGRectIsEmpty(child.bounds)) return child;
+		for (UIView *grandchild in child.subviews) {
+			if ([grandchild isKindOfClass:[UIVisualEffectView class]] && !CGRectIsEmpty(grandchild.bounds)) return grandchild;
 		}
 	}
 	return button;
@@ -915,7 +921,10 @@ static void TTApplyEnabledState(void) {
 	CGRect trailingRect = CGRectZero;
 	BOOL hasButtons = TTQuickActionButtonFramesInView(self, host, &leadingRect, &trailingRect);
 	if (hasButtons) {
-		if (@available(iOS 26.0, *)) pillHeight = MAX(60.0, MIN(CGRectGetHeight(leadingRect), CGRectGetHeight(trailingRect)));
+		CGFloat buttonHeight = MIN(CGRectGetHeight(leadingRect), CGRectGetHeight(trailingRect));
+		if (@available(iOS 26.0, *)) pillHeight = MAX(60.0, buttonHeight);
+		else
+			pillHeight = MAX(44.0, MIN(60.0, buttonHeight));
 		CGFloat innerGap = CGRectGetMinX(trailingRect) - CGRectGetMaxX(leadingRect) - 16.0;
 		if (!hasCustomForOrientation && !TTShouldHideQuickActionButtonsNow() && innerGap >= 64.0) maximumWidth = MIN(maximumWidth, innerGap);
 	}

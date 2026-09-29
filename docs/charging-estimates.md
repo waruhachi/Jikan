@@ -205,9 +205,11 @@ Disconnecting resets the model session. A target change invalidates the cached p
 
 Jikan requires valid adapter, battery, and power-telemetry dictionaries. The inspected daemon had device-specific missing-telemetry constants for a hardware target called `D79`; Jikan does not copy that special case. Missing required inputs, invalid predictions, or model-loading failures produce an unavailable status. Preview text does not override that status or cause a fallback to the Jikan algorithm.
 
-### Wattage is a separate measurement
+### Stack readings are separate measurements
 
 The optional pill wattage reads net power entering the battery from battery current and voltage. It does not display the adapter's rated watts. Conversely, the Apple model's `curr_est_watts` input intentionally describes the adapter, while `curr_system_power` is another, separate input. Substituting the pill's wattage for either feature would change the recovered model inputs.
+
+The pill's Stack keeps Estimated Time first and lets users add, remove, and reorder Wattage, Temperature, and Voltage. Temperature is the battery's top-level `Temperature` reading converted from hundredths of a degree Celsius for display; Voltage is the battery's top-level `Voltage` reading converted from millivolts. Invalid or missing readings appear as N/A. The temperature display follows the iPhone's temperature unit setting where available, with explicit Celsius and Fahrenheit overrides. These display conversions do not change the raw features passed to Apple's models.
 
 ## What “better estimates” means here
 

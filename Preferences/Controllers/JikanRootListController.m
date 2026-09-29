@@ -1,3 +1,4 @@
+#import "../../Shared/JikanStackSettings.h"
 #import "JikanRootListController.h"
 
 @interface PSListController (Private)
@@ -160,7 +161,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[self _localizeSpecifiersInPlace:_specifiers];
 		[self _updateBatteryLimitInfoSpecifier];
-		[self _updateEstimateSourceDescription];
 		[self collectDynamicSpecifiersFromArray:_specifiers];
 		[self _configureAxisSliderLeftImages];
 		if (!self.jikanObservingPreferences) {
@@ -275,7 +275,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[super reloadSpecifiers];
 	[self _localizeSpecifiersInPlace:self.specifiers];
 	[self _updateBatteryLimitInfoSpecifier];
-	[self _updateEstimateSourceDescription];
 	[self collectDynamicSpecifiersFromArray:self.specifiers];
 	[self _configureAxisSliderLeftImages];
 	[self _installSliderLongPressEditorsIfNeeded];
@@ -292,19 +291,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	} else {
 		[spec removePropertyForKey:@"infoAction"];
 	}
-}
-
-- (void)_updateEstimateSourceDescription {
-	PSSpecifier *group = [self specifierForID:@"timeEstimateGroup"];
-	if (!group) return;
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-	BOOL apple = [JikanEstimateSource(prefs) isEqualToString:@"apple"];
-	NSString *footer = apple ? JikanLocalizedString(@"jikan.prefs.estimate.apple_description", @"Uses a fixed local copy of Apple's charging models. A new connection is needed after SpringBoard starts while already plugged in.") : JikanLocalizedString(@"jikan.prefs.estimate.jikan_description", @"Uses your charging history and current battery readings.");
-	if (apple) {
-		NSString *manifest = jbroot(@"/Library/Tweak Support/Jikan/Models/iOS260/Manifest.plist");
-		if (![[NSFileManager defaultManager] fileExistsAtPath:manifest]) footer = JikanLocalizedString(@"jikan.prefs.estimate.models_missing", @"Apple model assets are not installed in this build.");
-	}
-	[group setProperty:footer forKey:@"footerText"];
 }
 
 - (void)collectDynamicSpecifiersFromArray:(NSArray *)array {
@@ -343,7 +329,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 			@"Show Preview": @"jikan.prefs.row.show_preview",
 			@"Pill Display": @"jikan.prefs.section.pill_display",
 			@"Show after full charge": @"jikan.prefs.row.show_after_full_charge",
-			@"Show current wattage": @"jikan.prefs.row.show_current_wattage",
+			@"Stack": @"jikan.prefs.row.stack",
 			@"Tap and Hold the Slider Knob to Edit": @"jikan.prefs.footer.slider_hint",
 			@"Opacity": @"jikan.prefs.row.opacity",
 			@"Pill Background Opacity (%)": @"jikan.prefs.row.pill_background_opacity",
@@ -357,8 +343,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 			@"Miscellaneous": @"jikan.prefs.section.miscellaneous",
 			@"Time Estimate": @"jikan.prefs.section.battery_estimate",
 			@"Algorithm": @"jikan.prefs.row.algorithm",
-			@"Battery Limit": @"jikan.prefs.row.charge_limit",
-			@"Charge Limit": @"jikan.prefs.row.charge_limit",
+			@"Estimate Target": @"jikan.prefs.row.estimate_target",
 			@"Estimate Target (%)": @"jikan.prefs.row.estimate_target_percent",
 			@"Sync with ChargeLimiter": @"jikan.prefs.row.sync_with_chargelimiter",
 			@"Hide Quick Action Buttons": @"jikan.prefs.row.hide_quick_action_buttons",
@@ -993,6 +978,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		@"showRemainingBatteryTime",
 		@"autoResizeRemainingBatteryTime",
 		@"tapToShowWattage",
+		JikanStackItemsKey,
+		JikanTemperatureUnitKey,
 		kBatteryEstimateTargetKey,
 		kBatteryEstimateSyncedKey,
 		JikanEstimateSourceKey,

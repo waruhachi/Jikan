@@ -3,6 +3,7 @@
 #import <objc/runtime.h>
 
 #import "../../Localization/JikanLocalization.h"
+#import "../../Shared/JikanStackSettings.h"
 #import "../TT100/TT100.h"
 
 @interface JikanPlatterView : UIView {
@@ -18,7 +19,8 @@
 	UITapGestureRecognizer *_tapGesture;
 	NSDictionary *_latestBatteryInfo;
 	NSString *_latestTimeString;
-	BOOL _showingWattage;
+	NSArray<NSString *> *_activeStackItems;
+	NSString *_selectedStackItem;
 	BOOL _previewMode;
 	BOOL _editingMode;
 	BOOL _usesLiquidGlass;

@@ -70,12 +70,6 @@ static UIView *TTFindFirstSubviewWithClassNameFragment(UIView *root, NSString *f
 	return nil;
 }
 
-static BOOL TTTapToShowWattageEnabled(void) {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
-	if (![prefs objectForKey:@"tapToShowWattage"]) return NO;
-	return [prefs boolForKey:@"tapToShowWattage"];
-}
-
 static BOOL TTShowAfterFullChargeEnabled(void) {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
 	if (![prefs objectForKey:@"showAfterFullCharge"]) return NO;
@@ -140,6 +134,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_chargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIAccessibilityBoldTextStatusDidChangeNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIContentSizeCategoryDidChangeNotification object:nil];
+		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_localeChanged:) name:NSCurrentLocaleDidChangeNotification object:nil];
 	}
 
 	return self;
@@ -156,7 +151,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	[super didMoveToWindow];
 
 	if (!self.window) {
-		_showingWattage = NO;
+		_selectedStackItem = JikanStackEstimate;
 		return;
 	}
 
@@ -167,6 +162,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)applyBatterySnapshot:(NSDictionary *)snapshot {
+	[self _reloadStackPreferences];
 	_latestBatteryInfo = [snapshot[@"batteryInfo"] isKindOfClass:[NSDictionary class]] ? snapshot[@"batteryInfo"] : nil;
 	_latestTimeString = [snapshot[@"timeString"] isKindOfClass:[NSString class]] ? snapshot[@"timeString"] : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	_latestHasEstimate = [snapshot[@"hasEstimate"] boolValue];
@@ -302,6 +298,11 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	[self _contentSizeChanged];
 }
 
+- (void)_localeChanged:(NSNotification *)notification {
+#pragma unused(notification)
+	[self _renderCurrentItem];
+}
+
 - (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
 	[super traitCollectionDidChange:previousTraitCollection];
 	if (![self.traitCollection.preferredContentSizeCategory isEqual:previousTraitCollection.preferredContentSizeCategory] ||
@@ -392,8 +393,35 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 - (void)updateWithTimeString:(NSString *)timeString {
 	if (timeString.length > 0) _latestTimeString = timeString;
-	if (_showingWattage && TTTapToShowWattageEnabled()) {
+	[self _renderCurrentItem];
+}
+
+- (void)_reloadStackPreferences {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSArray<NSString *> *items = JikanStackItems(prefs);
+	if (![_activeStackItems isEqualToArray:items]) _activeStackItems = [items copy];
+	if (![_activeStackItems containsObject:_selectedStackItem]) _selectedStackItem = JikanStackEstimate;
+	[self _updateTapGestureState];
+}
+
+- (void)_renderCurrentItem {
+	NSString *item = _selectedStackItem ?: JikanStackEstimate;
+	if ([item isEqualToString:JikanStackWattage]) {
 		[self _updateWattageLabel];
+		return;
+	}
+	if ([item isEqualToString:JikanStackTemperature]) {
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+		NSDictionary *batteryInfo = _previewMode ? @{@"Temperature": @3700} : _latestBatteryInfo;
+		_timeRemainingLabel.text = JikanFormattedBatteryTemperature(batteryInfo, JikanResolvedTemperatureUnit(prefs)) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.battery_temperature", @"battery temperature");
+		[self _contentSizeChanged];
+		return;
+	}
+	if ([item isEqualToString:JikanStackVoltage]) {
+		_timeRemainingLabel.text = JikanFormattedBatteryVoltage(_previewMode ? @{@"Voltage": @4000} : _latestBatteryInfo) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.battery_voltage", @"battery voltage");
+		[self _contentSizeChanged];
 		return;
 	}
 	if (_latestTargetReached && TTShowAfterFullChargeEnabled() && !_previewMode) {
@@ -408,25 +436,12 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 - (void)setPreviewMode:(BOOL)preview {
 	if (_previewMode == preview) {
-		if (_previewMode) {
-			if (_showingWattage) {
-				[self _updateWattageLabel];
-			} else {
-				_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-				_staticLabel.text = [self _estimateSubtitle];
-			}
-		}
-		[self _contentSizeChanged];
+		if (_previewMode) [self _renderCurrentItem];
 		return;
 	}
 	_previewMode = preview;
-	if (_previewMode) {
-		_showingWattage = NO;
-		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-		_staticLabel.text = [self _estimateSubtitle];
-	} else {
-		[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
-	}
+	_selectedStackItem = JikanStackEstimate;
+	[self _renderCurrentItem];
 	[self _updateTapGestureState];
 	[self _updatePreviewOutlineAppearance];
 	[self _contentSizeChanged];
@@ -459,6 +474,10 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 - (void)enterEditMode:(BOOL)editing {
 	if (_editingMode == editing) return;
 	_editingMode = editing;
+	if (editing) {
+		_selectedStackItem = JikanStackEstimate;
+		[self _renderCurrentItem];
+	}
 	if (UIAccessibilityIsReduceMotionEnabled()) {
 		[self.layer removeAnimationForKey:@"jikan.wiggle.rotation"];
 		[self.layer removeAnimationForKey:@"jikan.wiggle.bob"];
@@ -467,7 +486,6 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		return;
 	}
 	if (editing) {
-		_showingWattage = NO;
 		[self.layer removeAnimationForKey:@"jikan.wiggle.rotation"];
 		[self.layer removeAnimationForKey:@"jikan.wiggle.bob"];
 
@@ -669,15 +687,14 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	if (!self.window) return;
 	if (!isCharging) {
 		[self enterEditMode:NO];
-		_showingWattage = NO;
+		_selectedStackItem = JikanStackEstimate;
 	}
 	[self _preferencesPossiblyChanged:nil];
 }
 
 - (void)_preferencesPossiblyChanged:(NSNotification *)notification {
 #pragma unused(notification)
-	[self _updateTapGestureState];
-	if (!TTTapToShowWattageEnabled()) _showingWattage = NO;
+	[self _reloadStackPreferences];
 	_latestTargetPercent = [TT100 targetPercent];
 	[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 	[self _applyBackgroundOpacity];
@@ -685,28 +702,43 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 - (void)_updateTapGestureState {
 	if (!_tapGesture) return;
-	_tapGesture.enabled = TTTapToShowWattageEnabled() && (isCharging || _previewMode) && !_editingMode;
+	_tapGesture.enabled = _activeStackItems.count > 1 && (isCharging || _previewMode) && !_editingMode;
+	self.accessibilityTraits = _tapGesture.enabled ? UIAccessibilityTraitButton : UIAccessibilityTraitStaticText;
+	self.accessibilityHint = _tapGesture.enabled ? JikanLocalizedString(@"jikan.platter.accessibility.next_item", @"Shows the next Stack item") : nil;
 }
 
 - (void)_handleTap:(UITapGestureRecognizer *)gesture {
 	if (gesture.state != UIGestureRecognizerStateRecognized) return;
-	if (!TTTapToShowWattageEnabled() || (!isCharging && !_previewMode) || _editingMode) return;
+	[self _advanceStack];
+}
 
-	_showingWattage = !_showingWattage;
-	if (_showingWattage) {
-		[self _updateWattageLabel];
-	} else {
-		[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
-	}
+- (BOOL)accessibilityActivate {
+	if (!_tapGesture.enabled) return NO;
+	[self _advanceStack];
+	return YES;
+}
+
+- (void)_advanceStack {
+	if (_activeStackItems.count < 2 || (!isCharging && !_previewMode) || _editingMode) return;
+	NSUInteger index = [_activeStackItems indexOfObject:_selectedStackItem];
+	_selectedStackItem = _activeStackItems[(index == NSNotFound ? 0 : index + 1) % _activeStackItems.count];
+	[self _renderCurrentItem];
+	if (UIAccessibilityIsVoiceOverRunning()) UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, self.accessibilityLabel);
 }
 
 - (void)_updateWattageLabel {
 	NSDictionary *batteryInfo = _latestBatteryInfo;
 
-	double watts = [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
+	double watts = _previewMode ? 5.0 : [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
 
 	if (isfinite(watts) && watts >= 0) {
-		_timeRemainingLabel.text = [NSString stringWithFormat:@"%.1fW", watts];
+		NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+		formatter.locale = [NSLocale currentLocale];
+		formatter.numberStyle = NSNumberFormatterDecimalStyle;
+		formatter.minimumFractionDigits = 1;
+		formatter.maximumFractionDigits = 1;
+		NSString *number = [formatter stringFromNumber:@(watts)];
+		_timeRemainingLabel.text = number ? [NSString stringWithFormat:@"%@ W", number] : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	} else {
 		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}

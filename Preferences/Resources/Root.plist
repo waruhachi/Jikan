@@ -40,9 +40,9 @@
 			<key>default</key>
 			<string>apple</string>
 			<key>validTitles</key>
-			<array><string>Jikan</string><string>Apple</string></array>
+			<array><string>Apple</string><string>Jikan</string></array>
 			<key>validValues</key>
-			<array><string>jikan</string><string>apple</string></array>
+			<array><string>apple</string><string>jikan</string></array>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
@@ -51,6 +51,20 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Pill Display</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+			<string>JikanStackController</string>
+			<key>label</key>
+			<string>Stack</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string> </string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -63,20 +77,6 @@
 			<string>showAfterFullCharge</string>
 			<key>label</key>
 			<string>Show after full charge</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>tapToShowWattage</string>
-			<key>label</key>
-			<string>Show current wattage</string>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
@@ -319,8 +319,6 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Time Estimate</string>
-			<key>id</key>
-			<string>timeEstimateGroup</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -330,7 +328,7 @@
 			<key>cellClass</key>
 			<string>TextCellWithIcon</string>
 			<key>label</key>
-			<string>Charge Limit</string>
+			<string>Estimate Target</string>
 			<key>sfIcon</key>
 			<string>battery.75percent</string>
 			<key>infoAction</key>
