@@ -89,6 +89,8 @@ static NSString *JikanSHA256(NSString *path) {
 		self.sawDisconnected = YES;
 		return;
 	}
+	NSNumber *charging = JikanFeatureNumber(batteryInfo, @"IsCharging");
+	if (charging && !charging.boolValue) self.predictedAt = 0;
 	if (self.sessionValid) return;
 	if (!self.wasConnected) {
 		self.wasConnected = YES;
