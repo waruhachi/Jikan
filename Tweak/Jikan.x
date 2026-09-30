@@ -6,7 +6,7 @@ static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferen
 static NSString *const kJikanOpenNCPreviewNotification = @"moe.waru.jikan.preview.nc.request";
 static NSInteger _tt100CurrentSessionId = -1;
 static NSInteger _tt100LastSOC = -1;
-static CFAbsoluteTime _tt100LastSOCTime = 0;
+static NSTimeInterval _tt100LastSOCMonotonicTime = NAN;
 static NSMutableDictionary<NSNumber *, NSMutableArray<NSNumber *> *> *_tt100Durations;
 static NSString *_tt100CurrentChargerClass = nil;
 static NSString *_tt100CurrentChargerIdentity = nil;
@@ -467,6 +467,12 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 	}
 }
 
+static NSTimeInterval TT100MonotonicSeconds(void) {
+	struct timespec time;
+	if (clock_gettime(CLOCK_MONOTONIC_RAW, &time) != 0) return NAN;
+	return (double)time.tv_sec + (double)time.tv_nsec / 1e9;
+}
+
 static void TT100SessionMaybeStart(NSDictionary *batteryInfo) {
 	if (_tt100CurrentSessionId >= 0) return;
 	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
@@ -485,7 +491,7 @@ static void TT100SessionMaybeStart(NSDictionary *batteryInfo) {
 		[[TT100Database shared] updateSession:_tt100CurrentSessionId chargerClass:_tt100CurrentChargerClass isWireless:_tt100CurrentIsWireless];
 	}
 	_tt100LastSOC = soc;
-	_tt100LastSOCTime = CFAbsoluteTimeGetCurrent();
+	_tt100LastSOCMonotonicTime = TT100MonotonicSeconds();
 	if (!_tt100Durations) _tt100Durations = [NSMutableDictionary new];
 }
 
@@ -504,7 +510,7 @@ static void TT100SessionMaybeEnd(NSDictionary *batteryInfo) {
 	_tt100Durations = [NSMutableDictionary new];
 	_tt100CurrentSessionId = -1;
 	_tt100LastSOC = -1;
-	_tt100LastSOCTime = 0;
+	_tt100LastSOCMonotonicTime = NAN;
 	_tt100CurrentChargerClass = nil;
 	_tt100CurrentChargerIdentity = nil;
 	_tt100CurrentIsWireless = NO;
@@ -516,21 +522,16 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
 	if (!pctMax || !pctCurr || pctMax.intValue <= 0) return;
 	NSInteger soc = (NSInteger)lrint((pctCurr.doubleValue / pctMax.doubleValue) * 100.0);
-	if (_tt100LastSOC < 0) {
+	NSTimeInterval now = TT100MonotonicSeconds();
+	NSTimeInterval delta = now - _tt100LastSOCMonotonicTime;
+	if (_tt100LastSOC < 0 || soc < _tt100LastSOC || !isfinite(now) ||
+		!isfinite(_tt100LastSOCMonotonicTime) || !isfinite(delta) || delta <= 0) {
 		_tt100LastSOC = soc;
-		_tt100LastSOCTime = CFAbsoluteTimeGetCurrent();
-		return;
-	}
-	if (soc < _tt100LastSOC) {
-		_tt100LastSOC = soc;
-		_tt100LastSOCTime = CFAbsoluteTimeGetCurrent();
+		_tt100LastSOCMonotonicTime = now;
 		return;
 	}
 	if (soc == _tt100LastSOC) return;
-	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
-	CFAbsoluteTime delta = now - _tt100LastSOCTime;
-	if (delta <= 0) delta = 1;
-	const NSTimeInterval nowEpoch = now + kCFAbsoluteTimeIntervalSince1970;
+	const NSTimeInterval nowEpoch = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
 	NSInteger steps = soc - _tt100LastSOC;
 	for (NSInteger step = 1; step <= steps; step++) {
 		NSInteger reached = _tt100LastSOC + step;
@@ -559,7 +560,7 @@ static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
 		[_tt100Durations removeAllObjects];
 	}
 	_tt100LastSOC = soc;
-	_tt100LastSOCTime = now;
+	_tt100LastSOCMonotonicTime = now;
 }
 
 static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
@@ -1047,7 +1048,7 @@ static void TTApplyEnabledState(void) {
 			BOOL paused = [batteryInfo[@"IsCharging"] respondsToSelector:@selector(boolValue)] && ![batteryInfo[@"IsCharging"] boolValue];
 			if (paused) {
 				_tt100LastSOC = [_ttLatestSnapshot[@"displayPercent"] integerValue];
-				_tt100LastSOCTime = CFAbsoluteTimeGetCurrent();
+				_tt100LastSOCMonotonicTime = TT100MonotonicSeconds();
 			} else
 				TT100RecordTicksIfNeeded(batteryInfo);
 		} else {

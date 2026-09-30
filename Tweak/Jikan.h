@@ -5,6 +5,7 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <spawn.h>
+#import <time.h>
 
 #import "../Shared/JikanEstimateSettings.h"
 #import "JikanPlatterView/JikanPlatterView.h"
