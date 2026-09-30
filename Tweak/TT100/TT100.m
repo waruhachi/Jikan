@@ -473,7 +473,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 		return @{};
 	}
 
-	NSRegularExpression *re = [NSRegularExpression regularExpressionWithPattern:@"INSERT INTO\\s+battery_history\\s*\\(\\s*pct\\s*,\\s*seconds(?:\\s*,\\s*timestamp)?\\s*\\)\\s*VALUES\\s*\\(\\s*(\\d+)\\s*,\\s*([0-9]+\\.?[0-9]*)(?:\\s*,\\s*'([0-9:-\\s]+)')?\\s*\\)" options:NSRegularExpressionCaseInsensitive error:&err];
+	NSRegularExpression *re = [NSRegularExpression regularExpressionWithPattern:@"INSERT INTO\\s+battery_history\\s*\\(\\s*pct\\s*,\\s*seconds(?:\\s*,\\s*timestamp)?\\s*\\)\\s*VALUES\\s*\\(\\s*(\\d+)\\s*,\\s*([0-9]+\\.?[0-9]*)(?:\\s*,\\s*'([0-9:\\s-]+)')?\\s*\\)" options:NSRegularExpressionCaseInsensitive error:&err];
 	if (!re) {
 		NSLog(@"[TT100] Regex error: %@", err);
 		return @{};
