@@ -69,6 +69,7 @@
 "jikan.prefs.section.pill_display" = "Tuỳ chỉnh hình bo tròn";
 "jikan.prefs.section.pill_position" = "Vị trí hình bo tròn";
 "jikan.prefs.section.pill_preview" = "Xem trước hình bo tròn";
+"jikan.prefs.section.pill_style" = "Kiểu hình bo tròn";
 "jikan.prefs.section.reset" = "Đặt lại";
 
 "jikan.prefs.slider.estimate_target.title" = "Mục tiêu dự đoán";

@@ -69,6 +69,7 @@
 "jikan.prefs.section.pill_display" = "Anzeige";
 "jikan.prefs.section.pill_position" = "Position";
 "jikan.prefs.section.pill_preview" = "Vorschau";
+"jikan.prefs.section.pill_style" = "Pill-Stil";
 "jikan.prefs.section.reset" = "Einstellungen zurücksetzen";
 
 "jikan.prefs.slider.estimate_target.title" = "Geschätztes Maximum";

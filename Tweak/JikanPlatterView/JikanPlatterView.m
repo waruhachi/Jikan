@@ -101,6 +101,117 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 @implementation JikanPlatterView
 
+- (void)_setupProgressRingAppearance {
+	_redesignContentView = [[UIView alloc] init];
+	_redesignContentView.userInteractionEnabled = NO;
+	[self addSubview:_redesignContentView];
+
+	_redesignRingView = [[UIView alloc] init];
+	[_redesignContentView addSubview:_redesignRingView];
+	_redesignRingTrack = [CAShapeLayer layer];
+	_redesignRingTrack.fillColor = UIColor.clearColor.CGColor;
+	_redesignRingTrack.strokeColor = [UIColor colorWithWhite:0.54 alpha:0.56].CGColor;
+	_redesignRingTrack.lineCap = kCALineCapRound;
+	[_redesignRingView.layer addSublayer:_redesignRingTrack];
+	_redesignRingProgress = [CAShapeLayer layer];
+	_redesignRingProgress.fillColor = UIColor.clearColor.CGColor;
+	_redesignRingProgress.strokeColor = UIColor.systemGreenColor.CGColor;
+	_redesignRingProgress.lineCap = kCALineCapRound;
+	[_redesignRingView.layer addSublayer:_redesignRingProgress];
+
+	UIImageSymbolConfiguration *boltConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightBold];
+	UIImage *bolt = [[UIImage systemImageNamed:@"bolt.fill" withConfiguration:boltConfig] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+	_redesignBoltView = [[UIImageView alloc] initWithImage:bolt];
+	_redesignBoltView.tintColor = UIColor.systemGreenColor;
+	_redesignBoltView.contentMode = UIViewContentModeScaleAspectFit;
+	[_redesignRingView addSubview:_redesignBoltView];
+
+	_redesignDivider = [[UIView alloc] init];
+	_redesignDivider.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.33];
+	[_redesignContentView addSubview:_redesignDivider];
+
+	_redesignPrimaryLabel = [[UILabel alloc] init];
+	_redesignPrimaryLabel.textColor = UIColor.whiteColor;
+	_redesignPrimaryLabel.textAlignment = NSTextAlignmentLeft;
+	_redesignPrimaryLabel.numberOfLines = 1;
+	_redesignPrimaryLabel.lineBreakMode = NSLineBreakByClipping;
+	[_redesignContentView addSubview:_redesignPrimaryLabel];
+	_redesignSecondaryLabel = [[UILabel alloc] init];
+	_redesignSecondaryLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.83];
+	_redesignSecondaryLabel.textAlignment = NSTextAlignmentLeft;
+	_redesignSecondaryLabel.numberOfLines = 1;
+	_redesignSecondaryLabel.lineBreakMode = NSLineBreakByClipping;
+	[_redesignContentView addSubview:_redesignSecondaryLabel];
+	_redesignPrimaryLabel.text = _timeRemainingLabel.text;
+	_redesignSecondaryLabel.text = _staticLabel.text;
+}
+
+- (void)_layoutProgressRingAppearance {
+	CGFloat width = CGRectGetWidth(self.bounds);
+	CGFloat height = CGRectGetHeight(self.bounds);
+	if (width <= 0.0 || height <= 0.0) return;
+	_redesignContentView.frame = self.bounds;
+	CGFloat ringSize = MAX(24.0, height * 0.68);
+	_redesignRingView.frame = CGRectMake(10.0, (height - ringSize) * 0.5, ringSize, ringSize);
+	CGFloat lineWidth = MAX(2.5, ringSize * 0.09);
+	CGFloat ringInset = lineWidth * 0.5 + 1.0;
+	UIBezierPath *ringPath = [UIBezierPath bezierPathWithArcCenter:CGPointMake(ringSize * 0.5, ringSize * 0.5)
+															radius:ringSize * 0.5 - ringInset
+														startAngle:(CGFloat)-M_PI_2
+														  endAngle:(CGFloat)(M_PI * 1.5)
+														 clockwise:YES];
+	_redesignRingTrack.frame = _redesignRingView.bounds;
+	_redesignRingProgress.frame = _redesignRingView.bounds;
+	_redesignRingTrack.path = ringPath.CGPath;
+	_redesignRingProgress.path = ringPath.CGPath;
+	_redesignRingTrack.lineWidth = lineWidth;
+	_redesignRingProgress.lineWidth = lineWidth;
+	_redesignRingProgress.strokeEnd = MIN(1.0, MAX(0.0, (CGFloat)_latestDisplayPercent / MAX(1, _latestTargetPercent)));
+	CGFloat boltSize = ringSize * 0.47;
+	_redesignBoltView.frame = CGRectMake((ringSize - boltSize) * 0.5, (ringSize - boltSize) * 0.5, boltSize, boltSize);
+
+	CGFloat dividerX = CGRectGetMaxX(_redesignRingView.frame) + 9.0;
+	_redesignDivider.frame = CGRectMake(dividerX, height * 0.24, 1.0, height * 0.52);
+	CGFloat textX = CGRectGetMaxX(_redesignDivider.frame) + 10.0;
+	CGFloat textWidth = MAX(1.0, width - textX - 12.0);
+	BOOL bold = UIAccessibilityIsBoldTextEnabled() || self.traitCollection.legibilityWeight == UILegibilityWeightBold;
+	UIFont *primary = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:
+			[UIFont monospacedDigitSystemFontOfSize:19.0 weight:bold ? UIFontWeightBold : UIFontWeightSemibold]
+																	   compatibleWithTraitCollection:self.traitCollection];
+	UIFont *secondary = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:
+			[UIFont systemFontOfSize:12.0 weight:bold ? UIFontWeightSemibold : UIFontWeightMedium]
+																			compatibleWithTraitCollection:self.traitCollection];
+	CGFloat lowerScale = 0.0;
+	CGFloat upperScale = 1.0;
+	for (NSUInteger i = 0; i < 16; i++) {
+		CGFloat scale = (lowerScale + upperScale) * 0.5;
+		UIFont *p = [primary fontWithSize:primary.pointSize * scale];
+		UIFont *s = [secondary fontWithSize:secondary.pointSize * scale];
+		CGFloat pWidth = [_redesignPrimaryLabel.text sizeWithAttributes:@{NSFontAttributeName: p}].width;
+		CGFloat sWidth = [_redesignSecondaryLabel.text sizeWithAttributes:@{NSFontAttributeName: s}].width;
+		if (pWidth <= textWidth && sWidth <= textWidth && p.lineHeight + s.lineHeight + 1.0 <= height - 7.0)
+			lowerScale = scale;
+		else
+			upperScale = scale;
+	}
+	_redesignPrimaryLabel.font = [primary fontWithSize:primary.pointSize * MAX(0.01, lowerScale)];
+	_redesignSecondaryLabel.font = [secondary fontWithSize:secondary.pointSize * MAX(0.01, lowerScale)];
+	CGFloat totalTextHeight = _redesignPrimaryLabel.font.lineHeight + _redesignSecondaryLabel.font.lineHeight + 1.0;
+	CGFloat textY = (height - totalTextHeight) * 0.5;
+	_redesignPrimaryLabel.frame = CGRectMake(textX, textY, textWidth, _redesignPrimaryLabel.font.lineHeight);
+	_redesignSecondaryLabel.frame = CGRectMake(textX, CGRectGetMaxY(_redesignPrimaryLabel.frame) + 1.0, textWidth, _redesignSecondaryLabel.font.lineHeight);
+}
+
+- (void)_updatePillAppearance {
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	BOOL usesRing = [JikanPillAppearance(prefs) isEqualToString:JikanPillAppearanceProgressRing];
+	if (_usesProgressRingAppearance == usesRing) return;
+	_usesProgressRingAppearance = usesRing;
+	_textStack.hidden = usesRing;
+	_redesignContentView.hidden = !usesRing;
+	[self setNeedsLayout];
+}
+
 - (void)_captureBackgroundBaseAlphas {
 	_backgroundBaseAlpha = _backgroundView ? _backgroundView.alpha : 1.0;
 	_styleOverlayBaseAlpha = _styleOverlayView ? _styleOverlayView.alpha : 0.12;
@@ -163,6 +274,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 - (void)applyBatterySnapshot:(NSDictionary *)snapshot {
 	[self _reloadStackPreferences];
+	[self _updatePillAppearance];
 	_latestBatteryInfo = [snapshot[@"batteryInfo"] isKindOfClass:[NSDictionary class]] ? snapshot[@"batteryInfo"] : nil;
 	_latestTimeString = [snapshot[@"timeString"] isKindOfClass:[NSString class]] ? snapshot[@"timeString"] : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	_latestHasEstimate = [snapshot[@"hasEstimate"] boolValue];
@@ -172,6 +284,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	if (!self.window) return;
 	NSString *speed = [snapshot[@"chargingSpeed"] isKindOfClass:[NSString class]] ? snapshot[@"chargingSpeed"] : @"normal";
 	_boltImageView.tintColor = TTBoltColorForSpeed(speed);
+	_redesignBoltView.tintColor = _boltImageView.tintColor;
+	_redesignRingProgress.strokeColor = _boltImageView.tintColor.CGColor;
 	[self updateWithTimeString:_latestTimeString];
 	[self _applyBackgroundOpacity];
 }
@@ -199,6 +313,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 	[self _applyBackgroundOpacity];
 	[self _updatePreviewOutlineAppearance];
+	if (_usesProgressRingAppearance) [self _layoutProgressRingAppearance];
 }
 
 - (void)_setupSubviews {
@@ -266,6 +381,9 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	_textStack.spacing = 2.0;
 	_textStack.translatesAutoresizingMaskIntoConstraints = NO;
 	[self addSubview:_textStack];
+	[self _setupProgressRingAppearance];
+	_redesignContentView.hidden = YES;
+	[self _updatePillAppearance];
 	[_timeRemainingLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
 	[_staticLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
 
@@ -288,6 +406,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 - (void)_contentSizeChanged {
 	self.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", _timeRemainingLabel.text ?: @"", _staticLabel.text ?: @""];
+	_redesignPrimaryLabel.text = _timeRemainingLabel.text;
+	_redesignSecondaryLabel.text = _staticLabel.text;
 	[self setNeedsLayout];
 	if (self.contentSizeDidChange) self.contentSizeDidChange();
 }
@@ -312,6 +432,21 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (CGSize)preferredSizeForMaximumWidth:(CGFloat)width height:(CGFloat)height {
+	[self _updatePillAppearance];
+	if (_usesProgressRingAppearance) {
+		BOOL bold = UIAccessibilityIsBoldTextEnabled() || self.traitCollection.legibilityWeight == UILegibilityWeightBold;
+		UIFont *primaryFont = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:
+				[UIFont monospacedDigitSystemFontOfSize:19.0 weight:bold ? UIFontWeightBold : UIFontWeightSemibold]
+																			   compatibleWithTraitCollection:self.traitCollection];
+		UIFont *secondaryFont = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:
+				[UIFont systemFontOfSize:12.0 weight:bold ? UIFontWeightSemibold : UIFontWeightMedium]
+																					compatibleWithTraitCollection:self.traitCollection];
+		CGFloat labelWidth = MAX([_redesignPrimaryLabel.text sizeWithAttributes:@{NSFontAttributeName: primaryFont}].width,
+			[_redesignSecondaryLabel.text sizeWithAttributes:@{NSFontAttributeName: secondaryFont}].width);
+		CGFloat ringSize = MAX(24.0, height * 0.68);
+		CGFloat desiredWidth = ceil(10.0 + ringSize + 9.0 + 1.0 + 10.0 + labelWidth + 12.0);
+		return CGSizeMake(MIN(width, MAX(116.0, desiredWidth)), height);
+	}
 	// Start with the user's text size and weight, then fit both lines together
 	// inside the capsule. Text must never increase the pill's height.
 	[self _updateTypographyForCurrentSize];
@@ -695,6 +830,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 - (void)_preferencesPossiblyChanged:(NSNotification *)notification {
 #pragma unused(notification)
 	[self _reloadStackPreferences];
+	[self _updatePillAppearance];
 	_latestTargetPercent = [TT100 targetPercent];
 	[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 	[self _applyBackgroundOpacity];

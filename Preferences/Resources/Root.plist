@@ -50,6 +50,20 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Pill Style</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSStaticTextCell</string>
+			<key>cellClass</key>
+			<string>JikanAppearanceCell</string>
+			<key>height</key>
+			<real>116</real>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Pill Display</string>
 		</dict>
 		<dict>
@@ -65,20 +79,6 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string> </string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>moe.waru.jikan.preferences</string>
-			<key>key</key>
-			<string>showAfterFullCharge</string>
-			<key>label</key>
-			<string>Show after full charge</string>
-			<key>PostNotification</key>
-			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -319,6 +319,26 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Time Estimate</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>showAfterFullCharge</string>
+			<key>label</key>
+			<string>Show after full charge</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string> </string>
 		</dict>
 		<dict>
 			<key>cell</key>

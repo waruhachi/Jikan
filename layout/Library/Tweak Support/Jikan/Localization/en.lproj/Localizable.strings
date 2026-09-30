@@ -69,6 +69,7 @@
 "jikan.prefs.section.pill_display" = "Pill Display";
 "jikan.prefs.section.pill_position" = "Pill Position";
 "jikan.prefs.section.pill_preview" = "Pill Preview";
+"jikan.prefs.section.pill_style" = "Pill Style";
 "jikan.prefs.section.reset" = "Reset";
 
 "jikan.prefs.slider.estimate_target.title" = "Estimate Target";

@@ -1,3 +1,4 @@
+#import "../../Shared/JikanAppearanceSettings.h"
 #import "../../Shared/JikanStackSettings.h"
 #import "JikanRootListController.h"
 
@@ -328,6 +329,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 			@"Lock Y Axis": @"jikan.prefs.row.lock_y_axis",
 			@"Show Preview": @"jikan.prefs.row.show_preview",
 			@"Pill Display": @"jikan.prefs.section.pill_display",
+			@"Pill Style": @"jikan.prefs.section.pill_style",
 			@"Show after full charge": @"jikan.prefs.row.show_after_full_charge",
 			@"Stack": @"jikan.prefs.row.stack",
 			@"Tap and Hold the Slider Knob to Edit": @"jikan.prefs.footer.slider_hint",
@@ -980,6 +982,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		@"tapToShowWattage",
 		JikanStackItemsKey,
 		JikanTemperatureUnitKey,
+		JikanPillAppearanceKey,
 		kBatteryEstimateTargetKey,
 		kBatteryEstimateSyncedKey,
 		JikanEstimateSourceKey,

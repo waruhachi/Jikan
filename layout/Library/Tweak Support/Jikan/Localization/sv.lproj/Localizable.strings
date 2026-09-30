@@ -69,6 +69,7 @@
 "jikan.prefs.section.pill_display" = "Pillvisning";
 "jikan.prefs.section.pill_position" = "Pillposition";
 "jikan.prefs.section.pill_preview" = "Pillförhandsvisning";
+"jikan.prefs.section.pill_style" = "Pillstil";
 "jikan.prefs.section.reset" = "Återställ";
 
 "jikan.prefs.slider.estimate_target.title" = "Målnivå för uppskattning";
