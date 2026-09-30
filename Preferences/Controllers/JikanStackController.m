@@ -1,8 +1,5 @@
 #import "JikanStackItemController.h"
 
-static NSString *const kJikanStackSuite = @"moe.waru.jikan.preferences";
-static NSString *const kJikanStackReload = @"moe.waru.jikan.preferences.reload";
-
 @interface JikanStackController : PSViewController <UITableViewDataSource, UITableViewDelegate>
 @property (nonatomic, strong) UITableView *stackTable;
 @property (nonatomic, strong) NSMutableArray<NSString *> *activeItems;
@@ -26,7 +23,7 @@ static NSString *const kJikanStackReload = @"moe.waru.jikan.preferences.reload";
 
 - (void)viewWillAppear:(BOOL)animated {
 	[super viewWillAppear:animated];
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanStackSuite];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	self.activeItems = [JikanStackItems(prefs) mutableCopy];
 	[self.stackTable reloadData];
 }
@@ -40,10 +37,10 @@ static NSString *const kJikanStackReload = @"moe.waru.jikan.preferences.reload";
 }
 
 - (void)_saveItems {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanStackSuite];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	[prefs setObject:JikanNormalizeStackItems(self.activeItems) forKey:JikanStackItemsKey];
 	[prefs synchronize];
-	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanStackReload, NULL, NULL, YES);
+	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
 }
 
 - (NSString *)_nameForItem:(NSString *)item {

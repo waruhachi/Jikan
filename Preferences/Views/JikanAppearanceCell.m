@@ -1,8 +1,5 @@
 #import "JikanAppearanceCell.h"
 
-static NSString *const kJikanAppearanceSuite = @"moe.waru.jikan.preferences";
-static NSString *const kJikanAppearanceReload = @"moe.waru.jikan.preferences.reload";
-
 @interface JikanAppearanceOptionView : UIControl
 @property (nonatomic, assign) BOOL showsProgressRing;
 @property (nonatomic, strong) UIView *samplePill;
@@ -193,18 +190,18 @@ static NSString *const kJikanAppearanceReload = @"moe.waru.jikan.preferences.rel
 }
 
 - (void)_updateSelection {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanAppearanceSuite];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	BOOL ringSelected = [JikanPillAppearance(prefs) isEqualToString:JikanPillAppearanceProgressRing];
 	self.classicOption.selected = !ringSelected;
 	self.ringOption.selected = ringSelected;
 }
 
 - (void)_chooseAppearance:(JikanAppearanceOptionView *)option {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanAppearanceSuite];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	[prefs setObject:option.showsProgressRing ? JikanPillAppearanceProgressRing : JikanPillAppearanceClassic forKey:JikanPillAppearanceKey];
 	[prefs synchronize];
 	[self _updateSelection];
-	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanAppearanceReload, NULL, NULL, YES);
+	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
 }
 
 @end

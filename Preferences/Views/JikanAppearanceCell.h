@@ -5,6 +5,7 @@
 
 #import "../../Localization/JikanLocalization.h"
 #import "../../Shared/JikanAppearanceSettings.h"
+#import "../../Shared/JikanPreferences.h"
 
 @interface JikanAppearanceCell : PSTableCell
 @end

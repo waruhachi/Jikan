@@ -4,6 +4,7 @@
 
 #import "../../Localization/JikanLocalization.h"
 #import "../../Shared/JikanAppearanceSettings.h"
+#import "../../Shared/JikanPreferences.h"
 #import "../../Shared/JikanStackSettings.h"
 #import "../TT100/TT100.h"
 

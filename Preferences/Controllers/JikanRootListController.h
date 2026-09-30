@@ -6,7 +6,11 @@
 #import <objc/runtime.h>
 
 #import "../../Localization/JikanLocalization.h"
+#import "../../Shared/JikanAppearanceSettings.h"
 #import "../../Shared/JikanEstimateSettings.h"
+#import "../../Shared/JikanPositionSettings.h"
+#import "../../Shared/JikanPreferences.h"
+#import "../../Shared/JikanStackSettings.h"
 #import "../Views/AnimatedTitleView.h"
 #import "../Views/JikanHeaderView.h"
 

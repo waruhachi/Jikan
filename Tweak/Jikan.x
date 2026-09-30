@@ -1,9 +1,6 @@
 #import "Jikan.h"
 
 BOOL isCharging = NO;
-static NSString *const kJikanPrefsSuite = @"moe.waru.jikan.preferences";
-static NSString *const kJikanPrefsReloadNotification = @"moe.waru.jikan.preferences.reload";
-static NSString *const kJikanOpenNCPreviewNotification = @"moe.waru.jikan.preview.nc.request";
 static NSInteger _tt100CurrentSessionId = -1;
 static NSInteger _tt100LastSOC = -1;
 static NSTimeInterval _tt100LastSOCMonotonicTime = NAN;
@@ -106,13 +103,6 @@ static void TTEndPreviewSession(void) {
 	[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
 }
 
-static CGFloat TTPercentToNorm(id value, CGFloat fallback) {
-	double v = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : (double)(fallback * 100.0);
-	if (!isfinite(v)) v = (double)(fallback * 100.0);
-	v = MAX(0.0, MIN(100.0, v));
-	return (CGFloat)(v / 100.0);
-}
-
 static CGRect TTPlatterViewport(UIView *host) {
 	// A stable content coordinate system must travel with the Cover Sheet.
 	// Intersecting with the window during dismissal pins/clamps the pill to
@@ -126,7 +116,7 @@ static CGRect TTPlatterViewport(UIView *host) {
 }
 
 static void TTLoadPreferences(void) {
-	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
+	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	static NSString *estimateSignature;
 	NSString *source = JikanEstimateSource(preferences);
 	NSString *newSignature = [NSString stringWithFormat:@"%@:%ld", source, (long)JikanEstimateTarget(preferences, source)];
@@ -136,42 +126,20 @@ static void TTLoadPreferences(void) {
 	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
 	hideQuickActionButtonsOnlyWhenCharging = [preferences objectForKey:@"hideQuickActionButtonsOnlyWhenCharging"] ? [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"] : NO;
 	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
-	lockPreviewXAxis = [preferences objectForKey:@"lockPreviewXAxis"] ? [preferences boolForKey:@"lockPreviewXAxis"] : NO;
-	lockPreviewYAxis = [preferences objectForKey:@"lockPreviewYAxis"] ? [preferences boolForKey:@"lockPreviewYAxis"] : NO;
+	lockPreviewXAxis = [preferences objectForKey:JikanPreviewXAxisLockKey] ? [preferences boolForKey:JikanPreviewXAxisLockKey] : NO;
+	lockPreviewYAxis = [preferences objectForKey:JikanPreviewYAxisLockKey] ? [preferences boolForKey:JikanPreviewYAxisLockKey] : NO;
 	double opacityPercent = [preferences objectForKey:@"pillBackgroundOpacityPercent"] ? [preferences doubleForKey:@"pillBackgroundOpacityPercent"] : 100.0;
 	if (!isfinite(opacityPercent)) opacityPercent = 100.0;
 	opacityPercent = MAX(0.0, MIN(100.0, opacityPercent));
 	pillBackgroundOpacity = (CGFloat)(opacityPercent / 100.0);
-	platterHasCustomPosition = ([preferences objectForKey:@"platterPosXNorm"] != nil && [preferences objectForKey:@"platterPosYNorm"] != nil);
-	platterPosXNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosXNorm"] : 0.5;
-	platterPosYNorm = platterHasCustomPosition ? [preferences doubleForKey:@"platterPosYNorm"] : 0.84;
-	platterHasCustomPositionLandscape = ([preferences objectForKey:@"platterPosXNormLandscape"] != nil && [preferences objectForKey:@"platterPosYNormLandscape"] != nil);
-	platterPosXNormLandscape = platterHasCustomPositionLandscape ? [preferences doubleForKey:@"platterPosXNormLandscape"] : 0.5;
-	platterPosYNormLandscape = platterHasCustomPositionLandscape ? [preferences doubleForKey:@"platterPosYNormLandscape"] : 0.84;
-	platterPosXNorm = isfinite(platterPosXNorm) ? MAX(0.05, MIN(0.95, platterPosXNorm)) : 0.5;
-	platterPosYNorm = isfinite(platterPosYNorm) ? MAX(0.05, MIN(0.95, platterPosYNorm)) : 0.84;
-	platterPosXNormLandscape = isfinite(platterPosXNormLandscape) ? MAX(0.05, MIN(0.95, platterPosXNormLandscape)) : 0.5;
-	platterPosYNormLandscape = isfinite(platterPosYNormLandscape) ? MAX(0.05, MIN(0.95, platterPosYNormLandscape)) : 0.84;
-
-	id px = [preferences objectForKey:@"pillPosXPortraitPercent"];
-	id py = [preferences objectForKey:@"pillPosYPortraitPercent"];
-	if (px || py) {
-		platterPosXNorm = TTPercentToNorm(px, platterPosXNorm);
-		platterPosYNorm = TTPercentToNorm(py, platterPosYNorm);
-		platterPosXNorm = isfinite(platterPosXNorm) ? MAX(0.05, MIN(0.95, platterPosXNorm)) : 0.5;
-		platterPosYNorm = isfinite(platterPosYNorm) ? MAX(0.05, MIN(0.95, platterPosYNorm)) : 0.84;
-		platterHasCustomPosition = YES;
-	}
-
-	id lx = [preferences objectForKey:@"pillPosXLandscapePercent"];
-	id ly = [preferences objectForKey:@"pillPosYLandscapePercent"];
-	if (lx || ly) {
-		platterPosXNormLandscape = TTPercentToNorm(lx, platterPosXNormLandscape);
-		platterPosYNormLandscape = TTPercentToNorm(ly, platterPosYNormLandscape);
-		platterPosXNormLandscape = isfinite(platterPosXNormLandscape) ? MAX(0.05, MIN(0.95, platterPosXNormLandscape)) : 0.5;
-		platterPosYNormLandscape = isfinite(platterPosYNormLandscape) ? MAX(0.05, MIN(0.95, platterPosYNormLandscape)) : 0.84;
-		platterHasCustomPositionLandscape = YES;
-	}
+	JikanPillPosition portrait = JikanReadPillPosition(preferences, NO);
+	platterPosXNorm = portrait.x;
+	platterPosYNorm = portrait.y;
+	platterHasCustomPosition = portrait.hasCustomPosition;
+	JikanPillPosition landscape = JikanReadPillPosition(preferences, YES);
+	platterPosXNormLandscape = landscape.x;
+	platterPosYNormLandscape = landscape.y;
+	platterHasCustomPositionLandscape = landscape.hasCustomPosition;
 }
 
 static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -788,20 +756,10 @@ static void TTApplyEnabledState(void) {
 			platterHasCustomPosition = YES;
 		}
 
-		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanPrefsSuite];
-		if (isLandscape) {
-			[prefs setDouble:platterPosXNormLandscape forKey:@"platterPosXNormLandscape"];
-			[prefs setDouble:platterPosYNormLandscape forKey:@"platterPosYNormLandscape"];
-			[prefs setDouble:(platterPosXNormLandscape * 100.0) forKey:@"pillPosXLandscapePercent"];
-			[prefs setDouble:(platterPosYNormLandscape * 100.0) forKey:@"pillPosYLandscapePercent"];
-		} else {
-			[prefs setDouble:platterPosXNorm forKey:@"platterPosXNorm"];
-			[prefs setDouble:platterPosYNorm forKey:@"platterPosYNorm"];
-			[prefs setDouble:(platterPosXNorm * 100.0) forKey:@"pillPosXPortraitPercent"];
-			[prefs setDouble:(platterPosYNorm * 100.0) forKey:@"pillPosYPortraitPercent"];
-		}
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
+		JikanSavePillPosition(prefs, isLandscape, nx, ny);
 		[prefs synchronize];
-		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, NULL, YES);
+		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
 
 		objc_setAssociatedObject(self, kTTPlatterDraggingKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 		objc_setAssociatedObject(self, kTTPlatterDragStartCenterKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -1032,8 +990,8 @@ static void TTApplyEnabledState(void) {
 		%init(JikanQuickActionVisibility, JikanQuickActionControl = visibilityClass);
 	}
 	TTLoadPreferences();
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTPrefsDidChange, (__bridge CFStringRef)kJikanPrefsReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTNCPreviewRequestReceived, (__bridge CFStringRef)kJikanOpenNCPreviewNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTPrefsDidChange, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTNCPreviewRequestReceived, (__bridge CFStringRef)JikanPreviewRequestNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	[[NSNotificationCenter defaultCenter] addObserverForName:TT100InternalDidRefreshBatteryInfoNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
 		if (!enabled) return;
 		_ttLatestSnapshot = [note.userInfo copy];

@@ -8,6 +8,8 @@
 #import <time.h>
 
 #import "../Shared/JikanEstimateSettings.h"
+#import "../Shared/JikanPositionSettings.h"
+#import "../Shared/JikanPreferences.h"
 #import "JikanPlatterView/JikanPlatterView.h"
 #import "TT100/TT100.h"
 #import "TT100/TT100Database.h"

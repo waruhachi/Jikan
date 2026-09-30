@@ -71,7 +71,7 @@ static UIView *TTFindFirstSubviewWithClassNameFragment(UIView *root, NSString *f
 }
 
 static BOOL TTShowAfterFullChargeEnabled(void) {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	if (![prefs objectForKey:@"showAfterFullCharge"]) return NO;
 	return [prefs boolForKey:@"showAfterFullCharge"];
 }
@@ -88,7 +88,7 @@ static UIColor *TTBoltColorForSpeed(NSString *speed) {
 }
 
 static CGFloat TTPillBackgroundOpacity(void) {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	id value = [prefs objectForKey:@"pillBackgroundOpacityPercent"];
 	double percent = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 100.0;
 	if (!isfinite(percent)) percent = 100.0;
@@ -203,7 +203,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)_updatePillAppearance {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	BOOL usesRing = [JikanPillAppearance(prefs) isEqualToString:JikanPillAppearanceProgressRing];
 	if (_usesProgressRingAppearance == usesRing) return;
 	_usesProgressRingAppearance = usesRing;
@@ -532,7 +532,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)_reloadStackPreferences {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	NSArray<NSString *> *items = JikanStackItems(prefs);
 	if (![_activeStackItems isEqualToArray:items]) _activeStackItems = [items copy];
 	if (![_activeStackItems containsObject:_selectedStackItem]) _selectedStackItem = JikanStackEstimate;
@@ -546,7 +546,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		return;
 	}
 	if ([item isEqualToString:JikanStackTemperature]) {
-		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 		NSDictionary *batteryInfo = _previewMode ? @{@"Temperature": @3700} : _latestBatteryInfo;
 		_timeRemainingLabel.text = JikanFormattedBatteryTemperature(batteryInfo, JikanResolvedTemperatureUnit(prefs)) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.battery_temperature", @"battery temperature");

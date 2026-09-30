@@ -64,7 +64,7 @@ static double TT100DisplaySOC(NSDictionary *batteryInfo) {
 }
 
 static NSInteger TT100EstimateTargetPercent(void) {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	return JikanEstimateTarget(prefs, JikanEstimateSource(prefs));
 }
 
@@ -327,7 +327,7 @@ static void TT100PowerChanged(void *context) {
 	dispatch_async(tt100RefreshQueue, ^{
 		@autoreleasepool {
 			NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-			NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+			NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 			NSString *source = JikanEstimateSource(prefs);
 			NSInteger target = JikanEstimateTarget(prefs, source);
 			if (!tt100AppleEstimator) tt100AppleEstimator = [TT100AppleEstimator new];
@@ -556,7 +556,7 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 }
 
 + (NSString *)estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:@"moe.waru.jikan.preferences"];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	if ([JikanEstimateSource(prefs) isEqualToString:@"apple"]) {
 		if ([NSThread isMainThread]) return tt100LatestSnapshot[@"timeString"] ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 		return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");

@@ -9,6 +9,7 @@
 
 #import "../../Localization/JikanLocalization.h"
 #import "../../Shared/JikanEstimateSettings.h"
+#import "../../Shared/JikanPreferences.h"
 #import "TT100AppleEstimator.h"
 #import "TT100Database.h"
 

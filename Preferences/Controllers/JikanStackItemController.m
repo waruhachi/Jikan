@@ -1,8 +1,5 @@
 #import "JikanStackItemController.h"
 
-static NSString *const kJikanStackSuite = @"moe.waru.jikan.preferences";
-static NSString *const kJikanStackReload = @"moe.waru.jikan.preferences.reload";
-
 @interface JikanStackItemController () <UITableViewDataSource, UITableViewDelegate>
 @property (nonatomic, strong) UITableView *settingsTable;
 @end
@@ -48,7 +45,7 @@ static NSString *const kJikanStackReload = @"moe.waru.jikan.preferences.reload";
 	NSArray<NSString *> *values = @[@"celsius", @"fahrenheit"];
 	NSArray<NSString *> *names = @[JikanLocalizedString(@"jikan.stack.unit.celsius", @"Celsius"), JikanLocalizedString(@"jikan.stack.unit.fahrenheit", @"Fahrenheit")];
 	cell.textLabel.text = names[indexPath.row];
-	NSString *selected = JikanResolvedTemperatureUnit([[NSUserDefaults alloc] initWithSuiteName:kJikanStackSuite]);
+	NSString *selected = JikanResolvedTemperatureUnit([[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite]);
 	BOOL checked = [selected isEqualToString:values[indexPath.row]];
 	UIImage *checkImage = [UIImage systemImageNamed:@"checkmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightSemibold]];
 	if (checked && checkImage) {
@@ -69,10 +66,10 @@ static NSString *const kJikanStackReload = @"moe.waru.jikan.preferences.reload";
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
 	[tableView deselectRowAtIndexPath:indexPath animated:YES];
 	NSArray<NSString *> *values = @[@"celsius", @"fahrenheit"];
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:kJikanStackSuite];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	[prefs setObject:values[indexPath.row] forKey:JikanTemperatureUnitKey];
 	[prefs synchronize];
-	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)kJikanStackReload, NULL, NULL, YES);
+	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
 	[tableView reloadData];
 }
 
