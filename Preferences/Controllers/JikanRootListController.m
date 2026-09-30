@@ -19,65 +19,11 @@
 @property (nonatomic, strong) NSURLSessionDataTask *jikanDetectionTask;
 @property (nonatomic, copy) NSString *jikanDetectionSource;
 @property (nonatomic, assign) NSInteger jikanDetectionTarget;
-@property (nonatomic, weak) UIAlertController *jikanSliderEditorAlert;
-@property (nonatomic, weak) UIAlertAction *jikanSliderEditorSave;
-@property (nonatomic, copy) NSDictionary *jikanSliderEditorConfig;
-@property (nonatomic, strong) NSLocale *jikanSliderEditorLocale;
+@property (nonatomic, strong) JikanSliderEditor *jikanSliderEditor;
 @end
 
-static NSString *const kPillBackgroundOpacityKey = @"pillBackgroundOpacityPercent";
 static NSString *const kBatteryEstimateTargetKey = @"batteryEstimateTargetPercent";
 static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithChargeLimiter";
-static const void *kJikanSliderEditorInstalledKey = &kJikanSliderEditorInstalledKey;
-static const void *kJikanSliderEditorConfigKey = &kJikanSliderEditorConfigKey;
-static const void *kJikanSliderThumbOnlyKey = &kJikanSliderThumbOnlyKey;
-
-static NSDictionary<NSString *, NSNumber *> *JikanSliderDefaults(void) {
-	NSMutableDictionary<NSString *, NSNumber *> *defaults = [JikanPillPositionSliderDefaults() mutableCopy];
-	defaults[kPillBackgroundOpacityKey] = @100;
-	defaults[kBatteryEstimateTargetKey] = @100;
-	return defaults;
-}
-
-static BOOL JikanParseNumber(NSString *text, NSLocale *locale, double *result) {
-	if (![text isKindOfClass:NSString.class]) return NO;
-	NSString *input = [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-	if (!input.length) return NO;
-	NSNumberFormatter *formatter = [NSNumberFormatter new];
-	formatter.locale = locale;
-	formatter.numberStyle = NSNumberFormatterDecimalStyle;
-	formatter.usesGroupingSeparator = NO;
-	formatter.lenient = NO;
-	NSString *decimal = formatter.decimalSeparator;
-	NSString *unsignedInput = input;
-	if ([input hasPrefix:@"+"] || [input hasPrefix:@"-"]) unsignedInput = [input substringFromIndex:1];
-	NSArray<NSString *> *parts = [unsignedInput componentsSeparatedByString:decimal];
-	if (parts.count > 2) return NO;
-	NSUInteger digitCount = 0;
-	for (NSString *part in parts) {
-		if ([part rangeOfCharacterFromSet:NSCharacterSet.decimalDigitCharacterSet.invertedSet].location != NSNotFound) return NO;
-		digitCount += part.length;
-	}
-	if (!digitCount) return NO;
-	NSNumber *number = [formatter numberFromString:input];
-	if (!number || !isfinite(number.doubleValue)) return NO;
-	if (result) *result = number.doubleValue;
-	return YES;
-}
-
-static NSNumber *JikanNormalizedSliderValue(id value, NSString *key) {
-	NSNumber *fallback = JikanSliderDefaults()[key];
-	if (!fallback) return nil;
-	double raw = fallback.doubleValue;
-	if ([value isKindOfClass:NSNumber.class]) raw = [value doubleValue];
-	else if ([value isKindOfClass:NSString.class]) {
-		JikanParseNumber(value, [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"], &raw);
-	}
-	if (!isfinite(raw)) raw = fallback.doubleValue;
-	double minimum = [key isEqualToString:kBatteryEstimateTargetKey] ? 1.0 : 0.0;
-	return @((NSInteger)llround(MAX(minimum, MIN(100.0, raw))));
-}
-
 static NSNumber *JikanDetectedLimit(id value) {
 	double raw = 0;
 	if ([value isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)value) != CFBooleanGetTypeID()) raw = [value doubleValue];
@@ -105,35 +51,6 @@ static BOOL JikanChargeLimiterInstalled(NSOperation *operation) {
 		}
 	}
 	return NO;
-}
-
-@interface UISlider (JikanThumbOnlyTracking)
-- (BOOL)jikan_beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event;
-@end
-
-@implementation UISlider (JikanThumbOnlyTracking)
-
-- (BOOL)jikan_beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
-	if ([objc_getAssociatedObject(self, kJikanSliderThumbOnlyKey) boolValue]) {
-		CGPoint point = [touch locationInView:self];
-		CGRect trackRect = [self trackRectForBounds:self.bounds];
-		CGRect thumbRect = [self thumbRectForBounds:self.bounds trackRect:trackRect value:self.value];
-		if (!CGRectContainsPoint(CGRectInset(thumbRect, -12.0, -12.0), point)) {
-			return NO;
-		}
-	}
-	return [self jikan_beginTrackingWithTouch:touch withEvent:event];
-}
-
-@end
-
-static void JikanInstallSliderTrackingGuardIfNeeded(void) {
-	static dispatch_once_t onceToken;
-	dispatch_once(&onceToken, ^{
-		Method original = class_getInstanceMethod([UISlider class], @selector(beginTrackingWithTouch:withEvent:));
-		Method replacement = class_getInstanceMethod([UISlider class], @selector(jikan_beginTrackingWithTouch:withEvent:));
-		if (original && replacement) method_exchangeImplementations(original, replacement);
-	});
 }
 
 @implementation JikanRootListController
@@ -201,7 +118,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[super viewWillDisappear:animated];
 	self.jikanPageActive = NO;
 	[self _cancelChargeLimiterDetection];
-	[self _dismissSliderEditor];
+	[self.jikanSliderEditor dismiss];
 }
 
 - (void)dealloc {
@@ -215,7 +132,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	NSString *key = [specifier propertyForKey:@"key"];
 	[self _cancelChargeLimiterDetection];
 	if ([key isEqualToString:JikanEstimateSourceKey]) {
-		[self _dismissSliderEditor];
+		[self.jikanSliderEditor dismiss];
 		value = [value isKindOfClass:NSString.class] && [value isEqualToString:@"jikan"] ? @"jikan" : @"apple";
 		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 		if ([value isEqualToString:@"apple"] && ![prefs objectForKey:JikanEstimateAppleTargetKey]) {
@@ -624,34 +541,28 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 }
 
-- (NSArray<NSDictionary *> *)_sliderEditorConfigs {
-	return @[
-		@{@"id": @"pillBackgroundOpacitySlider", @"key": kPillBackgroundOpacityKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.opacity.title", @"Pill Background Opacity"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
-		@{@"id": @"batteryEstimateTargetSlider", @"key": kBatteryEstimateTargetKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.estimate_target.title", @"Estimate Target"), @"min": @1.0, @"max": @100.0, @"decimals": @0},
-		@{@"id": @"pillPosXPortraitSlider", @"key": JikanPillPortraitXPercentKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_x.title", @"Portrait X"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
-		@{@"id": @"pillPosYPortraitSlider", @"key": JikanPillPortraitYPercentKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.portrait_y.title", @"Portrait Y"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
-		@{@"id": @"pillPosXLandscapeSlider", @"key": JikanPillLandscapeXPercentKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_x.title", @"Landscape X"), @"min": @0.0, @"max": @100.0, @"decimals": @0},
-		@{@"id": @"pillPosYLandscapeSlider", @"key": JikanPillLandscapeYPercentKey, @"title": JikanLocalizedString(@"jikan.prefs.slider.landscape_y.title", @"Landscape Y"), @"min": @0.0, @"max": @100.0, @"decimals": @0}
-	];
-}
-
-- (UISlider *)_firstSliderInView:(UIView *)view {
-	if ([view isKindOfClass:[UISlider class]]) return (UISlider *)view;
-	for (UIView *subview in view.subviews) {
-		UISlider *slider = [self _firstSliderInView:subview];
-		if (slider) return slider;
+- (JikanSliderEditor *)_sliderEditor {
+	if (!self.jikanSliderEditor) {
+		__weak typeof(self) weakSelf = self;
+		self.jikanSliderEditor = [[JikanSliderEditor alloc] initWithController:self canEdit:^{
+			return weakSelf.jikanPageActive;
+		} willEdit:^{
+			[weakSelf _cancelChargeLimiterDetection];
+		} didEdit:^{
+			[weakSelf _scheduleSpecifiersReload:YES];
+		}];
 	}
-	return nil;
+	return self.jikanSliderEditor;
 }
 
 - (void)_installSliderLongPressEditorsIfNeeded {
-	JikanInstallSliderTrackingGuardIfNeeded();
+	JikanSliderEditor *editor = [self _sliderEditor];
 
 	UITableView *tableView = self.table;
 	for (UITableViewCell *cell in tableView.visibleCells) {
 		NSIndexPath *indexPath = [tableView indexPathForCell:cell];
 		if (!indexPath) continue;
-		[self _configureSliderEditorForCell:cell specifier:[self specifierAtIndexPath:indexPath]];
+		[editor configureCell:cell specifier:[self specifierAtIndexPath:indexPath]];
 	}
 }
 
@@ -662,127 +573,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	cell.hidden = hidden;
 	cell.accessibilityElementsHidden = hidden;
 	cell.userInteractionEnabled = !hidden;
-	if (!hidden) [self _configureSliderEditorForCell:cell specifier:specifier];
+	if (!hidden) [[self _sliderEditor] configureCell:cell specifier:specifier];
 	return cell;
-}
-
-- (void)_configureSliderEditorForCell:(UITableViewCell *)cell specifier:(PSSpecifier *)specifier {
-	UISlider *slider = [self _firstSliderInView:cell.contentView];
-	if (!slider) return;
-	NSDictionary *config = nil;
-	for (NSDictionary *candidate in [self _sliderEditorConfigs]) {
-		if ([candidate[@"id"] isEqual:[specifier propertyForKey:PSIDKey]]) {
-			config = candidate;
-			break;
-		}
-	}
-	objc_setAssociatedObject(slider, kJikanSliderEditorConfigKey, config, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	objc_setAssociatedObject(slider, kJikanSliderThumbOnlyKey, @(config != nil), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	if (!config || [objc_getAssociatedObject(slider, kJikanSliderEditorInstalledKey) boolValue]) return;
-	JikanInstallSliderTrackingGuardIfNeeded();
-
-	UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(_handleSliderKnobHold:)];
-	hold.minimumPressDuration = 0.35;
-	hold.cancelsTouchesInView = NO;
-	[slider addGestureRecognizer:hold];
-	objc_setAssociatedObject(slider, kJikanSliderEditorInstalledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-- (void)_handleSliderKnobHold:(UILongPressGestureRecognizer *)gesture {
-	if (gesture.state != UIGestureRecognizerStateBegan) return;
-	if (![gesture.view isKindOfClass:[UISlider class]]) return;
-
-	UISlider *slider = (UISlider *)gesture.view;
-	CGRect trackRect = [slider trackRectForBounds:slider.bounds];
-	CGRect thumbRect = [slider thumbRectForBounds:slider.bounds trackRect:trackRect value:slider.value];
-	CGPoint touch = [gesture locationInView:slider];
-	if (!CGRectContainsPoint(CGRectInset(thumbRect, -12.0, -12.0), touch)) return;
-
-	NSDictionary *config = objc_getAssociatedObject(slider, kJikanSliderEditorConfigKey);
-	if (![config isKindOfClass:[NSDictionary class]]) return;
-	[self _presentSliderEditorWithConfig:config fallbackValue:slider.value];
-}
-
-- (void)_dismissSliderEditor {
-	UIAlertController *alert = self.jikanSliderEditorAlert;
-	self.jikanSliderEditorAlert = nil;
-	self.jikanSliderEditorSave = nil;
-	self.jikanSliderEditorConfig = nil;
-	self.jikanSliderEditorLocale = nil;
-	if (alert) [alert dismissViewControllerAnimated:NO completion:nil];
-}
-
-- (BOOL)_sliderEditorValue:(double *)value {
-	NSString *text = self.jikanSliderEditorAlert.textFields.firstObject.text;
-	double parsed = 0;
-	if (!JikanParseNumber(text, self.jikanSliderEditorLocale, &parsed)) return NO;
-	if (parsed < [self.jikanSliderEditorConfig[@"min"] doubleValue] || parsed > [self.jikanSliderEditorConfig[@"max"] doubleValue]) return NO;
-	if (value) *value = parsed;
-	return YES;
-}
-
-- (void)_sliderEditorTextChanged:(UITextField *)field {
-#pragma unused(field)
-	BOOL valid = [self _sliderEditorValue:NULL];
-	self.jikanSliderEditorSave.enabled = valid;
-	NSString *format = valid ? JikanLocalizedString(@"jikan.prefs.alert.slider_range.message", @"Enter a value from %.0f to %.0f") : JikanLocalizedString(@"jikan.prefs.alert.slider_invalid.message", @"Enter a valid number from %.0f to %.0f.");
-	self.jikanSliderEditorAlert.message = [NSString stringWithFormat:format, [self.jikanSliderEditorConfig[@"min"] doubleValue], [self.jikanSliderEditorConfig[@"max"] doubleValue]];
-}
-
-- (void)_presentSliderEditorWithConfig:(NSDictionary *)config fallbackValue:(double)fallback {
-	NSString *prefsKey = config[@"key"];
-	if ([prefsKey isEqualToString:kBatteryEstimateTargetKey]) {
-		NSUserDefaults *currentPrefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-		if ([JikanEstimateSource(currentPrefs) isEqualToString:@"apple"]) return;
-	}
-	NSString *title = config[@"title"];
-	if (!JikanSliderDefaults()[prefsKey] || !title.length || !self.jikanPageActive || self.presentedViewController) return;
-	[self _cancelChargeLimiterDetection];
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	NSNumber *currentValue = JikanNormalizedSliderValue([prefs objectForKey:prefsKey] ?: @(fallback), prefsKey);
-	NSLocale *locale = NSLocale.currentLocale;
-	NSNumberFormatter *formatter = [NSNumberFormatter new];
-	formatter.locale = locale;
-	formatter.numberStyle = NSNumberFormatterDecimalStyle;
-	formatter.usesGroupingSeparator = NO;
-	formatter.maximumFractionDigits = 0;
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:nil preferredStyle:UIAlertControllerStyleAlert];
-	[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-		textField.keyboardType = UIKeyboardTypeDecimalPad;
-		textField.text = [formatter stringFromNumber:currentValue];
-		[textField addTarget:self action:@selector(_sliderEditorTextChanged:) forControlEvents:UIControlEventEditingChanged];
-	}];
-	self.jikanSliderEditorAlert = alert;
-	self.jikanSliderEditorConfig = config;
-	self.jikanSliderEditorLocale = locale;
-	__weak typeof(self) weakSelf = self;
-	__weak UIAlertController *weakAlert = alert;
-	UIAlertAction *save = [UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.save", @"Save") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
-		__strong typeof(weakSelf) self = weakSelf;
-		if (!self || !self.jikanPageActive || self.jikanSliderEditorAlert != weakAlert) return;
-		double value = 0;
-		if (![self _sliderEditorValue:&value]) return;
-		PSSpecifier *specifier = [self specifierForID:config[@"id"]];
-		if (!specifier) return;
-		[self setPreferenceValue:JikanNormalizedSliderValue(@(value), prefsKey) specifier:specifier];
-		self.jikanSliderEditorAlert = nil;
-		self.jikanSliderEditorSave = nil;
-		self.jikanSliderEditorConfig = nil;
-		self.jikanSliderEditorLocale = nil;
-		[self _scheduleSpecifiersReload:YES];
-	}];
-	[alert addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.cancel", @"Cancel") style:UIAlertActionStyleCancel handler:^(__unused UIAlertAction *action) {
-		if (weakSelf.jikanSliderEditorAlert == weakAlert) {
-			weakSelf.jikanSliderEditorAlert = nil;
-			weakSelf.jikanSliderEditorSave = nil;
-			weakSelf.jikanSliderEditorConfig = nil;
-			weakSelf.jikanSliderEditorLocale = nil;
-		}
-	}]];
-	[alert addAction:save];
-	self.jikanSliderEditorSave = save;
-	[self _sliderEditorTextChanged:alert.textFields.firstObject];
-	[self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)_normalizeStoredSliderValues {
@@ -950,7 +742,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)resetPreferences {
 	[self _cancelChargeLimiterDetection];
-	[self _dismissSliderEditor];
+	[self.jikanSliderEditor dismiss];
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	if (!prefs) return;
 
@@ -1003,7 +795,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)resetPillPosition {
 	[self _cancelChargeLimiterDetection];
-	[self _dismissSliderEditor];
+	[self.jikanSliderEditor dismiss];
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	if (!prefs) return;
 

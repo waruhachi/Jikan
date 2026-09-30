@@ -13,6 +13,8 @@
 #import "../../Shared/JikanStackSettings.h"
 #import "../Views/AnimatedTitleView.h"
 #import "../Views/JikanHeaderView.h"
+#import "JikanSliderEditor.h"
+#import "JikanSliderSettings.h"
 
 typedef NS_ENUM(NSInteger, JikanDynamicSpecifierOperatorType) {
 	JikanEqualToOperatorType,
