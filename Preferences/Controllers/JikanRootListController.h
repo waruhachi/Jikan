@@ -13,6 +13,7 @@
 #import "../../Shared/JikanStackSettings.h"
 #import "../Views/AnimatedTitleView.h"
 #import "../Views/JikanHeaderView.h"
+#import "JikanChargeLimiterDetector.h"
 #import "JikanSliderEditor.h"
 #import "JikanSliderSettings.h"
 

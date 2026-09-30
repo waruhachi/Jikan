@@ -14,9 +14,7 @@
 @property (nonatomic, assign) NSUInteger jikanReloadGeneration;
 @property (nonatomic, assign) BOOL jikanObservingPreferences;
 @property (nonatomic, assign) BOOL jikanPageActive;
-@property (nonatomic, assign) NSUInteger jikanDetectionGeneration;
-@property (nonatomic, strong) NSOperation *jikanDetectionOperation;
-@property (nonatomic, strong) NSURLSessionDataTask *jikanDetectionTask;
+@property (nonatomic, strong) JikanChargeLimiterDetector *jikanChargeLimiterDetector;
 @property (nonatomic, copy) NSString *jikanDetectionSource;
 @property (nonatomic, assign) NSInteger jikanDetectionTarget;
 @property (nonatomic, strong) JikanSliderEditor *jikanSliderEditor;
@@ -24,35 +22,6 @@
 
 static NSString *const kBatteryEstimateTargetKey = @"batteryEstimateTargetPercent";
 static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithChargeLimiter";
-static NSNumber *JikanDetectedLimit(id value) {
-	double raw = 0;
-	if ([value isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)value) != CFBooleanGetTypeID()) raw = [value doubleValue];
-	else if (![value isKindOfClass:NSString.class] || !JikanParseNumber(value, [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"], &raw))
-		return nil;
-	if (!isfinite(raw) || raw < 1 || raw > 100) return nil;
-	return @(raw);
-}
-
-static BOOL JikanIsChargeLimiterApp(NSString *path) {
-	BOOL directory = NO;
-	return [path.lastPathComponent isEqualToString:@"ChargeLimiter.app"] &&
-		[NSFileManager.defaultManager fileExistsAtPath:path isDirectory:&directory] && directory;
-}
-
-static BOOL JikanChargeLimiterInstalled(NSOperation *operation) {
-	if (operation.cancelled) return NO;
-	if (JikanIsChargeLimiterApp(jbroot(@"/Applications/ChargeLimiter.app")) || JikanIsChargeLimiterApp(@"/Applications/ChargeLimiter.app")) return YES;
-	for (NSString *root in @[@"/var/containers/Bundle/Application", @"/private/var/containers/Bundle/Application"]) {
-		if (operation.cancelled) return NO;
-		for (NSString *entry in [NSFileManager.defaultManager contentsOfDirectoryAtPath:root error:nil]) {
-			if (operation.cancelled) return NO;
-			NSString *path = [[root stringByAppendingPathComponent:entry] stringByAppendingPathComponent:@"ChargeLimiter.app"];
-			if (JikanIsChargeLimiterApp(path)) return YES;
-		}
-	}
-	return NO;
-}
-
 @implementation JikanRootListController
 
 static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -122,8 +91,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)dealloc {
-	[_jikanDetectionOperation cancel];
-	[_jikanDetectionTask cancel];
+	[_jikanChargeLimiterDetector cancel];
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidBecomeActiveNotification object:nil];
 	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL);
 }
@@ -608,15 +576,10 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)_cancelChargeLimiterDetection {
-	self.jikanDetectionGeneration++;
-	[self.jikanDetectionOperation cancel];
-	[self.jikanDetectionTask cancel];
-	self.jikanDetectionOperation = nil;
-	self.jikanDetectionTask = nil;
+	[self.jikanChargeLimiterDetector cancel];
 }
 
-- (void)_finishChargeLimiterDetection:(NSNumber *)detected generation:(NSUInteger)generation {
-	if (generation != self.jikanDetectionGeneration) return;
+- (void)_finishChargeLimiterDetection:(NSNumber *)detected {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	NSString *source = JikanEstimateSource(prefs);
 	if (![source isEqualToString:self.jikanDetectionSource] || JikanEstimateTarget(prefs, source) != self.jikanDetectionTarget) {
@@ -652,69 +615,17 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[self presentViewController:alert animated:YES completion:nil];
 }
 
-- (void)_requestChargeLimiterLimitForGeneration:(NSUInteger)generation {
-	if (generation != self.jikanDetectionGeneration || !self.jikanPageActive) return;
-	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://127.0.0.1:1230"]];
-	request.HTTPMethod = @"POST";
-	request.timeoutInterval = 1.5;
-	[request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-	request.HTTPBody = [NSJSONSerialization dataWithJSONObject:@{@"api": @"get_conf", @"key": @"charge_above"} options:0 error:nil];
-	__weak typeof(self) weakSelf = self;
-	self.jikanDetectionTask = [NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-		NSNumber *detected = nil;
-		if (!error && data.length && [response isKindOfClass:NSHTTPURLResponse.class] && ((NSHTTPURLResponse *)response).statusCode == 200) {
-			id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
-			if ([json isKindOfClass:NSDictionary.class]) {
-				id status = json[@"status"];
-				double statusValue = NAN;
-				if ([status isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)status) != CFBooleanGetTypeID()) statusValue = [status doubleValue];
-				else if ([status isKindOfClass:NSString.class])
-					JikanParseNumber(status, [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"], &statusValue);
-				if (statusValue == 0) detected = JikanDetectedLimit(json[@"data"]);
-			}
-		}
-		dispatch_async(dispatch_get_main_queue(), ^{
-			[weakSelf _finishChargeLimiterDetection:detected generation:generation];
-		});
-	}];
-	[self.jikanDetectionTask resume];
-}
-
 - (void)detectBatteryLimit {
 	if (!self.jikanPageActive || self.presentedViewController) return;
 	[self _cancelChargeLimiterDetection];
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	self.jikanDetectionSource = JikanEstimateSource(prefs);
 	self.jikanDetectionTarget = JikanEstimateTarget(prefs, self.jikanDetectionSource);
-	NSUInteger generation = self.jikanDetectionGeneration;
+	if (!self.jikanChargeLimiterDetector) self.jikanChargeLimiterDetector = [JikanChargeLimiterDetector new];
 	__weak typeof(self) weakSelf = self;
-	NSBlockOperation *operation = [NSBlockOperation new];
-	__weak NSBlockOperation *weakOperation = operation;
-	[operation addExecutionBlock:^{
-		NSBlockOperation *operation = weakOperation;
-		if (!operation || operation.cancelled) return;
-		BOOL installed = JikanChargeLimiterInstalled(operation);
-		if (operation.cancelled) return;
-		NSNumber *detected = nil;
-		if (installed) {
-			NSDictionary *config = [NSDictionary dictionaryWithContentsOfFile:@"/var/root/aldente.conf"];
-			detected = JikanDetectedLimit(config[@"charge_above"]);
-		}
-		if (operation.cancelled) return;
-		dispatch_async(dispatch_get_main_queue(), ^{
-			__strong typeof(weakSelf) self = weakSelf;
-			if (!self || generation != self.jikanDetectionGeneration || operation.cancelled) return;
-			self.jikanDetectionOperation = nil;
-			if (detected || !installed) [self _finishChargeLimiterDetection:detected generation:generation];
-			else
-				[self _requestChargeLimiterLimitForGeneration:generation];
-		});
+	[self.jikanChargeLimiterDetector detectLimitWithCompletion:^(NSNumber *detected) {
+		[weakSelf _finishChargeLimiterDetection:detected];
 	}];
-	self.jikanDetectionOperation = operation;
-	dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ [operation start]; });
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-		[weakSelf _finishChargeLimiterDetection:nil generation:generation];
-	});
 }
 
 - (void)showBatteryLimitSourceInfo {
