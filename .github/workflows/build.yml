@@ -1,0 +1,44 @@
+name: Build and Release Tweak
+
+permissions:
+    contents: write
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: macos-latest
+        strategy:
+            matrix:
+                scheme: [rootful, rootless, roothide]
+                include:
+                    - scheme: rootful
+                      scheme_arg: ""
+                    - scheme: rootless
+                      scheme_arg: "THEOS_PACKAGE_SCHEME=rootless"
+                    - scheme: roothide
+                      scheme_arg: "THEOS_PACKAGE_SCHEME=roothide"
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Set up Theos
+              uses: waruhachi/theos-action@v2.6.3
+              with:
+                  theos-src: "waruhachi/theos"
+                  theos-branch: "main"
+                  sdks-src: "waruhachi/sdks"
+                  sdks-branch: "main"
+
+            - name: Build Package
+              shell: bash
+              run: |
+                  make clean package ${{ matrix.scheme_arg }}
+
+            - name: Upload DEB
+              uses: actions/upload-artifact@v7
+              with:
+                  name: ${{ matrix.scheme }}-package
+                  path: packages/*.deb

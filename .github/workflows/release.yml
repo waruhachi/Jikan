@@ -1,0 +1,119 @@
+name: Release Tweak
+
+permissions:
+    contents: write
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    build:
+        runs-on: macos-latest
+        strategy:
+            matrix:
+                scheme: [rootful, rootless, roothide]
+                include:
+                    - scheme: rootful
+                      scheme_arg: ""
+                    - scheme: rootless
+                      scheme_arg: "THEOS_PACKAGE_SCHEME=rootless"
+                    - scheme: roothide
+                      scheme_arg: "THEOS_PACKAGE_SCHEME=roothide"
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Set up Theos
+              uses: waruhachi/theos-action@v2.6.3
+              with:
+                  theos-src: "waruhachi/theos"
+                  theos-branch: "main"
+                  sdks-src: "waruhachi/sdks"
+                  sdks-branch: "main"
+
+            - name: Build Package
+              shell: bash
+              run: |
+                  make clean package FINALPACKAGE=1 STRIP=0 ${{ matrix.scheme_arg }}
+
+            - name: Upload DEB
+              uses: actions/upload-artifact@v7
+              with:
+                  name: ${{ matrix.scheme }}-package
+                  path: packages/*.deb
+
+    release:
+        needs: build
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Read package version
+              id: package_metadata
+              shell: bash
+              run: |
+                  version=$(awk -F': *' '$1 == "Version" { print $2 }' layout/DEBIAN/control)
+                  echo "version=$version" >> "$GITHUB_OUTPUT"
+
+            - name: Download all DEBs
+              uses: actions/download-artifact@v8
+              with:
+                  path: packages
+                  merge-multiple: true
+
+            - name: Generate Checksums
+              id: metadata
+              shell: bash
+              run: |
+                  for pkg in packages/*_iphoneos-arm.deb; do
+                    if [ -f "$pkg" ]; then
+                      echo "### Rootful (iphoneos-arm)" >> release_body.md
+                      echo "* MD5: $(md5 -q $pkg)" >> release_body.md
+                      echo "* SHA1: $(shasum -a 1 $pkg | awk '{ print $1 }')" >> release_body.md
+                      echo "* SHA256: $(shasum -a 256 $pkg | awk '{ print $1 }')" >> release_body.md
+                      echo "" >> release_body.md
+                      break
+                    fi
+                  done
+
+                  for pkg in packages/*_iphoneos-arm64.deb; do
+                    if [ -f "$pkg" ]; then
+                      echo "### Rootless (iphoneos-arm64)" >> release_body.md
+                      echo "* MD5: $(md5 -q $pkg)" >> release_body.md
+                      echo "* SHA1: $(shasum -a 1 $pkg | awk '{ print $1 }')" >> release_body.md
+                      echo "* SHA256: $(shasum -a 256 $pkg | awk '{ print $1 }')" >> release_body.md
+                      echo "" >> release_body.md
+                      break
+                    fi
+                  done
+
+                  for pkg in packages/*_iphoneos-arm64e.deb; do
+                    if [ -f "$pkg" ]; then
+                      echo "### RootHide (iphoneos-arm64e)" >> release_body.md
+                      echo "* MD5: $(md5 -q $pkg)" >> release_body.md
+                      echo "* SHA1: $(shasum -a 1 $pkg | awk '{ print $1 }')" >> release_body.md
+                      echo "* SHA256: $(shasum -a 256 $pkg | awk '{ print $1 }')" >> release_body.md
+                      echo "" >> release_body.md
+                      break
+                    fi
+                  done
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v3
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  tag_name: ${{ github.event.release.tag_name }}
+                  name: ${{ github.event.repository.name }} v${{ steps.package_metadata.outputs.version }}
+                  body_path: release_body.md
+                  files: packages/**/*.deb
+                  append_body: true
+
+            - name: Delete build artifacts
+              uses: geekyeggo/delete-artifact@v6
+              with:
+                  name: |
+                      rootful-package
+                      rootless-package
+                      roothide-package
+                  failOnError: false
