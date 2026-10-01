@@ -74,20 +74,6 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	return YES;
 }
 
-- (BOOL)openIfNeeded {
-	__block BOOL ok = NO;
-	dispatch_sync(_queue, ^{ ok = [self _openOnQueue]; });
-	return ok;
-}
-
-- (void)close {
-	dispatch_sync(_queue, ^{
-		_ready = NO;
-		if (_db) sqlite3_close_v2(_db);
-		_db = NULL;
-	});
-}
-
 - (BOOL)_exec:(NSString *)sql {
 	char *err = NULL;
 	if (sqlite3_exec(_db, sql.UTF8String, NULL, NULL, &err) != SQLITE_OK) {
@@ -208,10 +194,6 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	return ok;
 }
 
-- (NSInteger)beginSessionWithStartSOC:(NSInteger)soc {
-	return [self beginSessionWithStartSOC:soc timestamp:CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970];
-}
-
 - (NSInteger)beginSessionWithStartSOC:(NSInteger)soc timestamp:(NSTimeInterval)ts {
 	__block NSInteger newId = -1;
 	dispatch_sync(_queue, ^{
@@ -229,10 +211,6 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 		[self _pruneOnQueue:128];
 	});
 	return newId;
-}
-
-- (void)endSessionId:(NSInteger)sessionId endSOC:(NSInteger)soc {
-	[self endSessionId:sessionId endSOC:soc timestamp:CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970];
 }
 
 - (void)endSessionId:(NSInteger)sessionId endSOC:(NSInteger)soc timestamp:(NSTimeInterval)ts {
@@ -262,36 +240,6 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 			sqlite3_bind_text(stmt, 1, chargerClass.UTF8String, -1, SQLITE_TRANSIENT);
 			sqlite3_bind_int(stmt, 2, isWireless ? 1 : 0);
 			sqlite3_bind_int(stmt, 3, (int)sessionId);
-			[self _stepDone:stmt];
-		}
-		sqlite3_finalize(stmt);
-	});
-}
-
-- (void)markPlateauStartForSession:(NSInteger)sessionId timestamp:(NSTimeInterval)ts {
-	if (sessionId < 0) return;
-	dispatch_async(_queue, ^{
-		if (![self _openOnQueue]) return;
-		const char *sql = "UPDATE sessions SET plateau_detected=1, plateau_start_ts=? WHERE id=? AND plateau_detected=0";
-		sqlite3_stmt *stmt = NULL;
-		if ([self _prepare:sql statement:&stmt]) {
-			sqlite3_bind_double(stmt, 1, ts);
-			sqlite3_bind_int(stmt, 2, (int)sessionId);
-			[self _stepDone:stmt];
-		}
-		sqlite3_finalize(stmt);
-	});
-}
-
-- (void)markPlateauEndForSession:(NSInteger)sessionId timestamp:(NSTimeInterval)ts {
-	if (sessionId < 0) return;
-	dispatch_async(_queue, ^{
-		if (![self _openOnQueue]) return;
-		const char *sql = "UPDATE sessions SET plateau_end_ts=? WHERE id=? AND plateau_end_ts IS NULL";
-		sqlite3_stmt *stmt = NULL;
-		if ([self _prepare:sql statement:&stmt]) {
-			sqlite3_bind_double(stmt, 1, ts);
-			sqlite3_bind_int(stmt, 2, (int)sessionId);
 			[self _stepDone:stmt];
 		}
 		sqlite3_finalize(stmt);
@@ -436,22 +384,6 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	return foundAny;
 }
 
-- (void)insertUnlockEventAt:(NSTimeInterval)ts wasCharging:(BOOL)charging soc:(NSInteger)soc {
-	dispatch_async(_queue, ^{
-		if (![self _openOnQueue]) return;
-		const char *sql = "INSERT INTO unlock_events(ts,was_charging,soc) VALUES(?,?,?)";
-		sqlite3_stmt *stmt = NULL;
-		if ([self _prepare:sql statement:&stmt]) {
-			sqlite3_bind_double(stmt, 1, ts);
-			sqlite3_bind_int(stmt, 2, charging ? 1 : 0);
-			sqlite3_bind_int(stmt, 3, (int)soc);
-			[self _stepDone:stmt];
-		}
-		sqlite3_finalize(stmt);
-		if (++_writesSincePrune >= 128) [self _pruneOnQueue:128];
-	});
-}
-
 - (BOOL)_pruneOnQueue:(NSUInteger)recentCount {
 	recentCount = MIN(recentCount, (NSUInteger)128);
 	if (![self _exec:@"BEGIN IMMEDIATE;"]) return NO;
@@ -467,13 +399,6 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 	else
 		_writesSincePrune = 0;
 	return ok;
-}
-
-- (void)pruneOldTickDataKeepingRecentSessions:(NSUInteger)recentCount {
-	dispatch_async(_queue, ^{
-		if (![self _openOnQueue]) return;
-		[self _pruneOnQueue:recentCount];
-	});
 }
 
 @end

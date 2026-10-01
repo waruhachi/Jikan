@@ -1,19 +1,12 @@
 #import <Foundation/Foundation.h>
-#import <Foundation/NSObjCRuntime.h>
 #import <math.h>
 #import <sqlite3.h>
 
 @interface TT100Database : NSObject
 + (instancetype)shared;
-- (BOOL)openIfNeeded;
-- (void)close;
-- (NSInteger)beginSessionWithStartSOC:(NSInteger)soc;
 - (NSInteger)beginSessionWithStartSOC:(NSInteger)soc timestamp:(NSTimeInterval)ts;
-- (void)endSessionId:(NSInteger)sessionId endSOC:(NSInteger)soc;
 - (void)endSessionId:(NSInteger)sessionId endSOC:(NSInteger)soc timestamp:(NSTimeInterval)ts;
 - (void)updateSession:(NSInteger)sessionId chargerClass:(NSString *)chargerClass isWireless:(BOOL)isWireless;
-- (void)markPlateauStartForSession:(NSInteger)sessionId timestamp:(NSTimeInterval)ts;
-- (void)markPlateauEndForSession:(NSInteger)sessionId timestamp:(NSTimeInterval)ts;
 - (void)insertTickForSession:(NSInteger)sessionId
 						 soc:(NSInteger)soc
 						  ts:(NSTimeInterval)ts
@@ -29,7 +22,5 @@
 							 uncertainty:(double *)uncertainty
 							sampleCounts:(int *)sampleCounts
 							 lastUpdated:(double *)lastUpdated;
-- (void)insertUnlockEventAt:(NSTimeInterval)ts wasCharging:(BOOL)charging soc:(NSInteger)soc;
-- (void)pruneOldTickDataKeepingRecentSessions:(NSUInteger)recentCount;
 
 @end
