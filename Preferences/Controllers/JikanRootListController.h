@@ -1,6 +1,7 @@
 #import <Preferences/PSListController.h>
 #import <Preferences/PSListItemsController.h>
 #import <Preferences/PSSpecifier.h>
+#import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
 #import <math.h>
 #import <objc/runtime.h>
@@ -17,17 +18,7 @@
 #import "JikanSliderEditor.h"
 #import "JikanSliderSettings.h"
 
-typedef NS_ENUM(NSInteger, JikanDynamicSpecifierOperatorType) {
-	JikanEqualToOperatorType,
-	JikanNotEqualToOperatorType,
-	JikanGreaterThanOperatorType,
-	JikanLessThanOperatorType,
-};
-
 @interface JikanRootListController : PSListController
-@property (nonatomic, assign) BOOL hasDynamicSpecifiers;
-@property (nonatomic, retain) NSMutableDictionary *dynamicSpecifiers;
-
 - (void)resetPreferences;
 - (void)resetPillPosition;
 - (void)openNotificationCenterPreview;

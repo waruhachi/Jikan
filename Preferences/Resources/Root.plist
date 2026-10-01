@@ -101,6 +101,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>JikanSliderCell</string>
 			<key>id</key>
 			<string>pillBackgroundOpacitySlider</string>
 			<key>default</key>
@@ -116,7 +118,7 @@
 			<key>max</key>
 			<real>100</real>
 			<key>showValue</key>
-			<true/>
+			<false/>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -195,6 +197,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>JikanSliderCell</string>
 			<key>id</key>
 			<string>pillPosXPortraitSlider</string>
 			<key>default</key>
@@ -210,7 +214,7 @@
 			<key>max</key>
 			<real>100</real>
 			<key>showValue</key>
-			<true/>
+			<false/>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -223,6 +227,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>JikanSliderCell</string>
 			<key>id</key>
 			<string>pillPosYPortraitSlider</string>
 			<key>default</key>
@@ -238,7 +244,7 @@
 			<key>max</key>
 			<real>100</real>
 			<key>showValue</key>
-			<true/>
+			<false/>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -261,6 +267,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>JikanSliderCell</string>
 			<key>id</key>
 			<string>pillPosXLandscapeSlider</string>
 			<key>default</key>
@@ -276,7 +284,7 @@
 			<key>max</key>
 			<real>100</real>
 			<key>showValue</key>
-			<true/>
+			<false/>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -289,6 +297,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>JikanSliderCell</string>
 			<key>id</key>
 			<string>pillPosYLandscapeSlider</string>
 			<key>default</key>
@@ -304,7 +314,7 @@
 			<key>max</key>
 			<real>100</real>
 			<key>showValue</key>
-			<true/>
+			<false/>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -357,6 +367,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>JikanSliderCell</string>
 			<key>id</key>
 			<string>batteryEstimateTargetSlider</string>
 			<key>default</key>
@@ -372,7 +384,7 @@
 			<key>max</key>
 			<real>100</real>
 			<key>showValue</key>
-			<true/>
+			<false/>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -385,6 +397,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSliderCell</string>
+			<key>cellClass</key>
+			<string>JikanSliderCell</string>
 			<key>id</key>
 			<string>batteryEstimateAppleTargetSlider</string>
 			<key>label</key>
@@ -400,7 +414,7 @@
 			<key>max</key>
 			<real>100</real>
 			<key>showValue</key>
-			<true/>
+			<false/>
 			<key>isContinuous</key>
 			<true/>
 			<key>isSegmented</key>
@@ -455,12 +469,12 @@
 			<string>moe.waru.jikan.preferences</string>
 			<key>key</key>
 			<string>hideQuickActionButtonsOnlyWhenCharging</string>
+			<key>id</key>
+			<string>hideQuickActionsChargingOnlyToggleID</string>
 			<key>label</key>
 			<string>Only While Charging</string>
 			<key>height</key>
 			<real>44</real>
-			<key>dynamicRule</key>
-			<string>hideQuickActionsToggleID, ==, 0</string>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>

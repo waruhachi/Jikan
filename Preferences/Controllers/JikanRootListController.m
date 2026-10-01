@@ -18,10 +18,14 @@
 @property (nonatomic, copy) NSString *jikanDetectionSource;
 @property (nonatomic, assign) NSInteger jikanDetectionTarget;
 @property (nonatomic, strong) JikanSliderEditor *jikanSliderEditor;
+@property (nonatomic, strong) PSSpecifier *jikanQuickActionChargingSpecifier;
+@property (nonatomic, assign) BOOL jikanAnimatingQuickActionRow;
+@property (nonatomic, assign) NSUInteger jikanQuickActionAnimationGeneration;
 @end
 
 static NSString *const kBatteryEstimateTargetKey = @"batteryEstimateTargetPercent";
 static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithChargeLimiter";
+static NSString *const kQuickActionsChargingOnlySpecifierID = @"hideQuickActionsChargingOnlyToggleID";
 @implementation JikanRootListController
 
 static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -38,8 +42,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[self _localizeSpecifiersInPlace:_specifiers];
+		[self _filterQuickActionChargingSpecifier:_specifiers];
 		[self _updateBatteryLimitInfoSpecifier];
-		[self collectDynamicSpecifiersFromArray:_specifiers];
 		[self _configureAxisSliderLeftImages];
 		if (!self.jikanObservingPreferences) {
 			CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
@@ -73,7 +77,10 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	JikanHeaderView *header = [[JikanHeaderView alloc] initWithTitle:@"Jikan" subtitles:subtitles bundle:[self bundle]];
 	header.frame = CGRectMake(0.0, 0.0, CGRectGetWidth(self.view.bounds), 180.0);
 	UITableView *tableView = self.table ?: [self valueForKey:@"_table"];
-	if (tableView) tableView.tableHeaderView = header;
+	if (tableView) {
+		tableView.tableHeaderView = header;
+		tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+	}
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
@@ -126,15 +133,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 	[super setPreferenceValue:value specifier:specifier];
 	if ([key isEqualToString:JikanEstimateSourceKey]) [self _scheduleSpecifiersReload:YES];
-
-	if (self.hasDynamicSpecifiers) {
-		NSString *specifierID = [specifier propertyForKey:PSIDKey];
-		PSSpecifier *dynamicSpecifier = [self.dynamicSpecifiers objectForKey:specifierID];
-		if (dynamicSpecifier) {
-			[self.table beginUpdates];
-			[self.table endUpdates];
-		}
-	}
+	if ([key isEqualToString:@"hideQuickActionButtons"]) [self _updateQuickActionChargingSpecifierAnimated];
 }
 
 - (void)viewDidLayoutSubviews {
@@ -142,7 +141,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (void)reloadSpecifiers {
-	if ([self _isAnyPreferenceSliderTracking]) {
+	if ([self _isAnyPreferenceSliderTracking] || self.jikanAnimatingQuickActionRow) {
 		[self _scheduleSpecifiersReload:NO];
 		return;
 	}
@@ -152,7 +151,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[super reloadSpecifiers];
 	[self _localizeSpecifiersInPlace:self.specifiers];
 	[self _updateBatteryLimitInfoSpecifier];
-	[self collectDynamicSpecifiersFromArray:self.specifiers];
 	[self _configureAxisSliderLeftImages];
 	[self _installSliderLongPressEditorsIfNeeded];
 }
@@ -168,29 +166,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	} else {
 		[spec removePropertyForKey:@"infoAction"];
 	}
-}
-
-- (void)collectDynamicSpecifiersFromArray:(NSArray *)array {
-	if (!self.dynamicSpecifiers) {
-		self.dynamicSpecifiers = [NSMutableDictionary new];
-	} else {
-		[self.dynamicSpecifiers removeAllObjects];
-	}
-
-	for (PSSpecifier *specifier in array) {
-		NSString *dynamicSpecifierRule = [specifier propertyForKey:@"dynamicRule"];
-		if (dynamicSpecifierRule.length == 0) continue;
-
-		NSArray *ruleComponents = [dynamicSpecifierRule componentsSeparatedByString:@", "];
-		if (ruleComponents.count == 3) {
-			NSString *opposingSpecifierID = [ruleComponents objectAtIndex:0];
-			[self.dynamicSpecifiers setObject:specifier forKey:opposingSpecifierID];
-		} else {
-			[NSException raise:NSInternalInconsistencyException format:@"dynamicRule key requires three components (Specifier ID, Comparator, Value To Compare To). You have %ld of 3 (%@) for specifier '%@'.", (long)ruleComponents.count, dynamicSpecifierRule, [specifier propertyForKey:PSTitleKey]];
-		}
-	}
-
-	self.hasDynamicSpecifiers = (self.dynamicSpecifiers.count > 0);
 }
 
 - (NSString *)_localizedPreferenceText:(NSString *)text {
@@ -272,19 +247,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
 	PSSpecifier *specifier = [self specifierAtIndexPath:indexPath];
 	if ([self _isHiddenEstimateSpecifier:specifier]) return 0;
-	if (self.hasDynamicSpecifiers) {
-		PSSpecifier *dynamicSpecifier = specifier;
-		if ([self.dynamicSpecifiers.allValues containsObject:dynamicSpecifier]) {
-			BOOL shouldHide = [self shouldHideSpecifier:dynamicSpecifier];
-			UITableViewCell *specifierCell = [dynamicSpecifier propertyForKey:PSTableCellKey];
-			specifierCell.clipsToBounds = shouldHide;
-			if (shouldHide) return 0;
-		}
-
-		if ([dynamicSpecifier propertyForKey:@"height"] != 0) {
-			return [[dynamicSpecifier propertyForKey:@"height"] doubleValue];
-		}
-	}
+	id height = [specifier propertyForKey:@"height"];
+	if (height) return [height doubleValue];
 
 	return UITableViewAutomaticDimension;
 }
@@ -297,50 +261,58 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		(!apple && [identifier isEqualToString:@"batteryEstimateAppleTargetSlider"]);
 }
 
-- (BOOL)shouldHideSpecifier:(PSSpecifier *)specifier {
-	if (!specifier) return NO;
-
-	NSString *dynamicSpecifierRule = [specifier propertyForKey:@"dynamicRule"];
-	NSArray *ruleComponents = [dynamicSpecifierRule componentsSeparatedByString:@", "];
-	if (ruleComponents.count != 3) return NO;
-
-	PSSpecifier *opposingSpecifier = [self specifierForID:[ruleComponents objectAtIndex:0]];
-	id opposingValue = [self readPreferenceValue:opposingSpecifier];
-	id requiredValue = [ruleComponents objectAtIndex:2];
-
-	if ([opposingValue isKindOfClass:NSNumber.class]) {
-		JikanDynamicSpecifierOperatorType operatorType = [self operatorTypeForString:[ruleComponents objectAtIndex:1]];
-		switch (operatorType) {
-			case JikanEqualToOperatorType:
-				return ([opposingValue intValue] == [requiredValue intValue]);
-			case JikanNotEqualToOperatorType:
-				return ([opposingValue intValue] != [requiredValue intValue]);
-			case JikanGreaterThanOperatorType:
-				return ([opposingValue intValue] > [requiredValue intValue]);
-			case JikanLessThanOperatorType:
-				return ([opposingValue intValue] < [requiredValue intValue]);
-		}
+- (void)_filterQuickActionChargingSpecifier:(NSMutableArray<PSSpecifier *> *)specifiers {
+	PSSpecifier *parent = nil;
+	PSSpecifier *child = nil;
+	for (PSSpecifier *specifier in specifiers) {
+		NSString *identifier = [specifier propertyForKey:PSIDKey];
+		if ([identifier isEqualToString:@"hideQuickActionsToggleID"]) parent = specifier;
+		if ([identifier isEqualToString:kQuickActionsChargingOnlySpecifierID]) child = specifier;
 	}
-
-	if ([opposingValue isKindOfClass:NSString.class]) {
-		return [opposingValue isEqualToString:requiredValue];
+	self.jikanQuickActionChargingSpecifier = child;
+	if (parent && child && [self _isQuickActionChargingOptionHiddenForParent:parent]) {
+		[specifiers removeObject:child];
 	}
-
-	if ([opposingValue isKindOfClass:NSArray.class]) {
-		return [opposingValue containsObject:requiredValue];
-	}
-
-	return NO;
 }
 
-- (JikanDynamicSpecifierOperatorType)operatorTypeForString:(NSString *)string {
-	NSDictionary *operatorValues = @{
-		@"==": @(JikanEqualToOperatorType),
-		@"!=": @(JikanNotEqualToOperatorType),
-		@">": @(JikanGreaterThanOperatorType),
-		@"<": @(JikanLessThanOperatorType)
-	};
-	return [operatorValues[string] intValue];
+- (void)_updateQuickActionChargingSpecifierAnimated {
+	PSSpecifier *parent = [self specifierForID:@"hideQuickActionsToggleID"];
+	PSSpecifier *child = self.jikanQuickActionChargingSpecifier;
+	if (!parent || !child) return;
+	BOOL hidden = [self _isQuickActionChargingOptionHiddenForParent:parent];
+	BOOL present = [self.specifiers containsObject:child];
+	if (hidden == !present) return;
+
+	BOOL animated = !UIAccessibilityIsReduceMotionEnabled();
+	NSUInteger generation = ++self.jikanQuickActionAnimationGeneration;
+	self.jikanAnimatingQuickActionRow = animated;
+	__weak typeof(self) weakSelf = self;
+	[CATransaction begin];
+	[CATransaction setCompletionBlock:^{
+		__strong typeof(weakSelf) self = weakSelf;
+		if (self && generation == self.jikanQuickActionAnimationGeneration) self.jikanAnimatingQuickActionRow = NO;
+	}];
+	if (hidden) {
+		[self removeSpecifier:child animated:animated];
+	} else {
+		[self insertSpecifier:child afterSpecifier:parent animated:animated];
+	}
+	[CATransaction commit];
+}
+
+- (BOOL)_isQuickActionChargingOptionHiddenForParent:(PSSpecifier *)parent {
+	id opposingValue = [self readPreferenceValue:parent];
+	// Preserve the existing comparisons for stored values without parsing a rule.
+	if ([opposingValue isKindOfClass:NSNumber.class]) {
+		return [opposingValue intValue] == 0;
+	}
+	if ([opposingValue isKindOfClass:NSString.class]) {
+		return [opposingValue isEqualToString:@"0"];
+	}
+	if ([opposingValue isKindOfClass:NSArray.class]) {
+		return [opposingValue containsObject:@"0"];
+	}
+	return NO;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -369,7 +341,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)_scheduleSpecifiersReload:(BOOL)immediate {
 	BOOL tracking = [self _isAnyPreferenceSliderTracking];
-	if (immediate && !tracking) {
+	BOOL deferReload = tracking || self.jikanAnimatingQuickActionRow;
+	if (immediate && !deferReload) {
 		[self reloadSpecifiers];
 		return;
 	}
@@ -377,7 +350,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
 	if (self.jikanReloadQueued) return;
 
-	NSTimeInterval delay = tracking ? 0.10 : MAX(0.08, 0.25 - (now - self.jikanLastReloadTime));
+	NSTimeInterval delay = deferReload ? 0.10 : MAX(0.08, 0.25 - (now - self.jikanLastReloadTime));
 	self.jikanReloadQueued = YES;
 	NSUInteger generation = ++self.jikanReloadGeneration;
 	__weak typeof(self) weakSelf = self;
@@ -388,7 +361,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		if (!self.viewIfLoaded.window) {
 			return;
 		}
-		if ([self _isAnyPreferenceSliderTracking]) {
+		if ([self _isAnyPreferenceSliderTracking] || self.jikanAnimatingQuickActionRow) {
 			[self _scheduleSpecifiersReload:NO];
 			return;
 		}
@@ -536,6 +509,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
 	UITableViewCell *cell = [super tableView:tableView cellForRowAtIndexPath:indexPath];
+	if ([cell isKindOfClass:PSTableCell.class]) [(PSTableCell *)cell setSeparatorStyle:UITableViewCellSeparatorStyleNone];
 	PSSpecifier *specifier = [self specifierAtIndexPath:indexPath];
 	BOOL hidden = [self _isHiddenEstimateSpecifier:specifier];
 	cell.hidden = hidden;
