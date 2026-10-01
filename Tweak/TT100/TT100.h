@@ -12,7 +12,10 @@
 #import "../../Shared/JikanPreferences.h"
 #import "../JikanPresentationStore/JikanPresentationStore.h"
 #import "TT100AppleEstimator.h"
+#import "TT100BatteryProvider.h"
 #import "TT100Database.h"
+#import "TT100HistoryEstimator.h"
+#import "TT100LegacyHistory.h"
 
 FOUNDATION_EXPORT NSString *TT100PLSQLPath(void);
 
