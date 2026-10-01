@@ -4,43 +4,13 @@
 
 #import "../../Localization/JikanLocalization.h"
 #import "../../Shared/JikanAppearanceSettings.h"
+#import "../../Shared/JikanPillContentView/JikanPillContentView.h"
 #import "../../Shared/JikanPreferences.h"
 #import "../../Shared/JikanStackSettings.h"
 #import "../JikanPresentationStore/JikanPresentationState.h"
 #import "../TT100/TT100.h"
 
-@interface JikanPlatterView : UIView {
-	UILabel *_staticLabel;
-	UILabel *_timeRemainingLabel;
-	UIView *_containerView;
-	UIStackView *_textStack;
-	UIView *_backgroundView;
-	UIView *_styleOverlayView;
-	UIView *_contentTintReplicaView;
-	CAShapeLayer *_previewOutlineLayer;
-	UIImageView *_boltImageView;
-	UITapGestureRecognizer *_tapGesture;
-	JikanPresentationState *_presentationState;
-	NSArray<NSString *> *_activeStackItems;
-	NSString *_selectedStackItem;
-	BOOL _previewMode;
-	BOOL _editingMode;
-	BOOL _usesLiquidGlass;
-	BOOL _usesLockScreenGlass;
-	float _glassLuminance;
-	CGFloat _backgroundBaseAlpha;
-	CGFloat _styleOverlayBaseAlpha;
-	CGFloat _contentTintBaseAlpha;
-	BOOL _usesProgressRingAppearance;
-	UIView *_redesignContentView;
-	UIView *_redesignRingView;
-	UIView *_redesignDivider;
-	UILabel *_redesignPrimaryLabel;
-	UILabel *_redesignSecondaryLabel;
-	UIImageView *_redesignBoltView;
-	CAShapeLayer *_redesignRingTrack;
-	CAShapeLayer *_redesignRingProgress;
-}
+@interface JikanPlatterView : UIView
 @property (nonatomic, copy) void (^contentSizeDidChange)(void);
 - (CGSize)preferredSizeForMaximumWidth:(CGFloat)width height:(CGFloat)height;
 - (void)applyPresentationState:(JikanPresentationState *)state;

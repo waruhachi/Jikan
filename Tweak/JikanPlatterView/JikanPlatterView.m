@@ -72,127 +72,31 @@ static CGFloat TTWiggleRandomOffset(void) {
 	return ((arc4random_uniform(1000) / 1000.0) - 0.5) * 0.03;
 }
 
-static UIColor *TTBoltColorForSpeed(NSString *speed) {
-	if ([speed isEqualToString:@"slow"]) {
-		return [UIColor systemYellowColor];
-	}
-	return [UIColor systemGreenColor];
-}
-
 static const CGFloat kTTPreviewOutlineLineWidth = 2.5;
 static const CGFloat kTTPreviewOutlineGap = 2.0;
 
+@interface JikanPlatterView () {
+	UIView *_backgroundView;
+	UIView *_styleOverlayView;
+	UIView *_contentTintReplicaView;
+	CAShapeLayer *_previewOutlineLayer;
+	UITapGestureRecognizer *_tapGesture;
+	JikanPresentationState *_presentationState;
+	NSArray<NSString *> *_activeStackItems;
+	NSString *_selectedStackItem;
+	BOOL _previewMode;
+	BOOL _editingMode;
+	BOOL _usesLiquidGlass;
+	BOOL _usesLockScreenGlass;
+	float _glassLuminance;
+	CGFloat _backgroundBaseAlpha;
+	CGFloat _styleOverlayBaseAlpha;
+	CGFloat _contentTintBaseAlpha;
+	JikanPillContentView *_contentView;
+}
+@end
+
 @implementation JikanPlatterView
-
-- (void)_setupProgressRingAppearance {
-	_redesignContentView = [[UIView alloc] init];
-	_redesignContentView.userInteractionEnabled = NO;
-	[self addSubview:_redesignContentView];
-
-	_redesignRingView = [[UIView alloc] init];
-	[_redesignContentView addSubview:_redesignRingView];
-	_redesignRingTrack = [CAShapeLayer layer];
-	_redesignRingTrack.fillColor = UIColor.clearColor.CGColor;
-	_redesignRingTrack.strokeColor = [UIColor colorWithWhite:0.54 alpha:0.56].CGColor;
-	_redesignRingTrack.lineCap = kCALineCapRound;
-	[_redesignRingView.layer addSublayer:_redesignRingTrack];
-	_redesignRingProgress = [CAShapeLayer layer];
-	_redesignRingProgress.fillColor = UIColor.clearColor.CGColor;
-	_redesignRingProgress.strokeColor = UIColor.systemGreenColor.CGColor;
-	_redesignRingProgress.lineCap = kCALineCapRound;
-	[_redesignRingView.layer addSublayer:_redesignRingProgress];
-
-	UIImageSymbolConfiguration *boltConfig = [UIImageSymbolConfiguration configurationWithPointSize:16.0 weight:UIImageSymbolWeightBold];
-	UIImage *bolt = [[UIImage systemImageNamed:@"bolt.fill" withConfiguration:boltConfig] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-	_redesignBoltView = [[UIImageView alloc] initWithImage:bolt];
-	_redesignBoltView.tintColor = UIColor.systemGreenColor;
-	_redesignBoltView.contentMode = UIViewContentModeScaleAspectFit;
-	[_redesignRingView addSubview:_redesignBoltView];
-
-	_redesignDivider = [[UIView alloc] init];
-	_redesignDivider.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.33];
-	[_redesignContentView addSubview:_redesignDivider];
-
-	_redesignPrimaryLabel = [[UILabel alloc] init];
-	_redesignPrimaryLabel.textColor = UIColor.whiteColor;
-	_redesignPrimaryLabel.textAlignment = NSTextAlignmentLeft;
-	_redesignPrimaryLabel.numberOfLines = 1;
-	_redesignPrimaryLabel.lineBreakMode = NSLineBreakByClipping;
-	[_redesignContentView addSubview:_redesignPrimaryLabel];
-	_redesignSecondaryLabel = [[UILabel alloc] init];
-	_redesignSecondaryLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.83];
-	_redesignSecondaryLabel.textAlignment = NSTextAlignmentLeft;
-	_redesignSecondaryLabel.numberOfLines = 1;
-	_redesignSecondaryLabel.lineBreakMode = NSLineBreakByClipping;
-	[_redesignContentView addSubview:_redesignSecondaryLabel];
-	_redesignPrimaryLabel.text = _timeRemainingLabel.text;
-	_redesignSecondaryLabel.text = _staticLabel.text;
-}
-
-- (void)_layoutProgressRingAppearance {
-	CGFloat width = CGRectGetWidth(self.bounds);
-	CGFloat height = CGRectGetHeight(self.bounds);
-	if (width <= 0.0 || height <= 0.0) return;
-	_redesignContentView.frame = self.bounds;
-	CGFloat ringSize = MAX(24.0, height * 0.68);
-	_redesignRingView.frame = CGRectMake(10.0, (height - ringSize) * 0.5, ringSize, ringSize);
-	CGFloat lineWidth = MAX(2.5, ringSize * 0.09);
-	CGFloat ringInset = lineWidth * 0.5 + 1.0;
-	UIBezierPath *ringPath = [UIBezierPath bezierPathWithArcCenter:CGPointMake(ringSize * 0.5, ringSize * 0.5)
-															radius:ringSize * 0.5 - ringInset
-														startAngle:(CGFloat)-M_PI_2
-														  endAngle:(CGFloat)(M_PI * 1.5)
-														 clockwise:YES];
-	_redesignRingTrack.frame = _redesignRingView.bounds;
-	_redesignRingProgress.frame = _redesignRingView.bounds;
-	_redesignRingTrack.path = ringPath.CGPath;
-	_redesignRingProgress.path = ringPath.CGPath;
-	_redesignRingTrack.lineWidth = lineWidth;
-	_redesignRingProgress.lineWidth = lineWidth;
-	_redesignRingProgress.strokeEnd = MIN(1.0, MAX(0.0, (CGFloat)_presentationState.snapshot.displayPercent / MAX(1, _presentationState.settings.targetPercent)));
-	CGFloat boltSize = ringSize * 0.47;
-	_redesignBoltView.frame = CGRectMake((ringSize - boltSize) * 0.5, (ringSize - boltSize) * 0.5, boltSize, boltSize);
-
-	CGFloat dividerX = CGRectGetMaxX(_redesignRingView.frame) + 9.0;
-	_redesignDivider.frame = CGRectMake(dividerX, height * 0.24, 1.0, height * 0.52);
-	CGFloat textX = CGRectGetMaxX(_redesignDivider.frame) + 10.0;
-	CGFloat textWidth = MAX(1.0, width - textX - 12.0);
-	BOOL bold = UIAccessibilityIsBoldTextEnabled() || self.traitCollection.legibilityWeight == UILegibilityWeightBold;
-	UIFont *primary = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:
-			[UIFont monospacedDigitSystemFontOfSize:19.0 weight:bold ? UIFontWeightBold : UIFontWeightSemibold]
-																	   compatibleWithTraitCollection:self.traitCollection];
-	UIFont *secondary = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:
-			[UIFont systemFontOfSize:12.0 weight:bold ? UIFontWeightSemibold : UIFontWeightMedium]
-																			compatibleWithTraitCollection:self.traitCollection];
-	CGFloat lowerScale = 0.0;
-	CGFloat upperScale = 1.0;
-	for (NSUInteger i = 0; i < 16; i++) {
-		CGFloat scale = (lowerScale + upperScale) * 0.5;
-		UIFont *p = [primary fontWithSize:primary.pointSize * scale];
-		UIFont *s = [secondary fontWithSize:secondary.pointSize * scale];
-		CGFloat pWidth = [_redesignPrimaryLabel.text sizeWithAttributes:@{NSFontAttributeName: p}].width;
-		CGFloat sWidth = [_redesignSecondaryLabel.text sizeWithAttributes:@{NSFontAttributeName: s}].width;
-		if (pWidth <= textWidth && sWidth <= textWidth && p.lineHeight + s.lineHeight + 1.0 <= height - 7.0)
-			lowerScale = scale;
-		else
-			upperScale = scale;
-	}
-	_redesignPrimaryLabel.font = [primary fontWithSize:primary.pointSize * MAX(0.01, lowerScale)];
-	_redesignSecondaryLabel.font = [secondary fontWithSize:secondary.pointSize * MAX(0.01, lowerScale)];
-	CGFloat totalTextHeight = _redesignPrimaryLabel.font.lineHeight + _redesignSecondaryLabel.font.lineHeight + 1.0;
-	CGFloat textY = (height - totalTextHeight) * 0.5;
-	_redesignPrimaryLabel.frame = CGRectMake(textX, textY, textWidth, _redesignPrimaryLabel.font.lineHeight);
-	_redesignSecondaryLabel.frame = CGRectMake(textX, CGRectGetMaxY(_redesignPrimaryLabel.frame) + 1.0, textWidth, _redesignSecondaryLabel.font.lineHeight);
-}
-
-- (void)_updatePillAppearance {
-	BOOL usesRing = [_presentationState.settings.appearance isEqualToString:JikanPillAppearanceProgressRing];
-	if (_usesProgressRingAppearance == usesRing) return;
-	_usesProgressRingAppearance = usesRing;
-	_textStack.hidden = usesRing;
-	_redesignContentView.hidden = !usesRing;
-	[self setNeedsLayout];
-}
 
 - (void)_captureBackgroundBaseAlphas {
 	_backgroundBaseAlpha = _backgroundView ? _backgroundView.alpha : 1.0;
@@ -224,8 +128,6 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 		[self _setupSubviews];
 
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIAccessibilityBoldTextStatusDidChangeNotification object:nil];
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIContentSizeCategoryDidChangeNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_localeChanged:) name:NSCurrentLocaleDidChangeNotification object:nil];
 	}
 
@@ -256,16 +158,13 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	BOOL wasConnected = _presentationState.snapshot.externalPowerConnected;
 	_presentationState = state;
 	[self _reloadStackPreferences];
-	[self _updatePillAppearance];
+	_contentView.appearance = state.settings.appearance;
 	if (wasConnected && !state.snapshot.externalPowerConnected) {
 		[self enterEditMode:NO];
 		_selectedStackItem = JikanStackEstimate;
 	}
 	[self setPreviewMode:state.usesPreviewContent];
 	if (!self.window) return;
-	_boltImageView.tintColor = TTBoltColorForSpeed(state.snapshot.chargingSpeed);
-	_redesignBoltView.tintColor = _boltImageView.tintColor;
-	_redesignRingProgress.strokeColor = _boltImageView.tintColor.CGColor;
 	[self _renderCurrentItem];
 	[self _applyBackgroundOpacity];
 }
@@ -293,7 +192,6 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 	[self _applyBackgroundOpacity];
 	[self _updatePreviewOutlineAppearance];
-	if (_usesProgressRingAppearance) [self _layoutProgressRingAppearance];
 }
 
 - (void)_setupSubviews {
@@ -330,72 +228,27 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	_contentTintReplicaView.alpha = 0.0;
 	[self addSubview:_contentTintReplicaView];
 
-	_containerView = [[UIView alloc] init];
-	_containerView.translatesAutoresizingMaskIntoConstraints = NO;
-
-	UIImage *boltImage = [[UIImage systemImageNamed:@"bolt.fill"] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-	_boltImageView = [[UIImageView alloc] initWithImage:boltImage];
-	_boltImageView.tintColor = [UIColor greenColor];
-	_boltImageView.translatesAutoresizingMaskIntoConstraints = NO;
-	[_containerView addSubview:_boltImageView];
-
-	_timeRemainingLabel = [[UILabel alloc] init];
-	_timeRemainingLabel.translatesAutoresizingMaskIntoConstraints = NO;
-	_timeRemainingLabel.textColor = [UIColor whiteColor];
-	_timeRemainingLabel.adjustsFontForContentSizeCategory = NO;
-	_timeRemainingLabel.numberOfLines = 1;
-	_timeRemainingLabel.textAlignment = NSTextAlignmentCenter;
-	_timeRemainingLabel.text = JikanLocalizedString(@"jikan.platter.preview.time", @"0 minutes");
-	[_containerView addSubview:_timeRemainingLabel];
-
-	_staticLabel = [[UILabel alloc] init];
-	_staticLabel.translatesAutoresizingMaskIntoConstraints = NO;
-	_staticLabel.textColor = [UIColor whiteColor];
-	_staticLabel.adjustsFontForContentSizeCategory = NO;
-	_staticLabel.numberOfLines = 1;
-	_staticLabel.textAlignment = NSTextAlignmentCenter;
-	_staticLabel.text = [self _estimateSubtitle];
-	_textStack = [[UIStackView alloc] initWithArrangedSubviews:@[_containerView, _staticLabel]];
-	_textStack.axis = UILayoutConstraintAxisVertical;
-	_textStack.alignment = UIStackViewAlignmentCenter;
-	_textStack.spacing = 2.0;
-	_textStack.translatesAutoresizingMaskIntoConstraints = NO;
-	[self addSubview:_textStack];
-	[self _setupProgressRingAppearance];
-	_redesignContentView.hidden = YES;
-	[self _updatePillAppearance];
-	[_timeRemainingLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
-	[_staticLabel setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisVertical];
+	_contentView = [[JikanPillContentView alloc] init];
+	_contentView.translatesAutoresizingMaskIntoConstraints = NO;
+	[_contentView applyContent:[[JikanPillContent alloc] initWithPrimaryText:JikanLocalizedString(@"jikan.platter.preview.time", @"0 minutes")
+															   secondaryText:[JikanPillContent estimateSubtitleForTargetPercent:100]
+																	progress:0.0
+															   chargingSpeed:@"normal"]];
+	__weak JikanPlatterView *weakSelf = self;
+	_contentView.contentSizeDidChange = ^{ [weakSelf _contentSizeChanged]; };
+	[self addSubview:_contentView];
 
 	_tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleTap:)];
 	[self addGestureRecognizer:_tapGesture];
 	[self _updateTapGestureState];
 	[self _captureBackgroundBaseAlphas];
 	[self _applyBackgroundOpacity];
-
-	[self _updateTypographyForCurrentSize];
-}
-
-- (void)_updateTypographyForCurrentSize {
-	BOOL bold = UIAccessibilityIsBoldTextEnabled() || self.traitCollection.legibilityWeight == UILegibilityWeightBold;
-	UIFont *primary = [UIFont monospacedDigitSystemFontOfSize:20.0 weight:bold ? UIFontWeightBold : UIFontWeightSemibold];
-	UIFont *secondary = [UIFont systemFontOfSize:14.0 weight:bold ? UIFontWeightSemibold : UIFontWeightMedium];
-	_timeRemainingLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:primary compatibleWithTraitCollection:self.traitCollection];
-	_staticLabel.font = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:secondary compatibleWithTraitCollection:self.traitCollection];
 }
 
 - (void)_contentSizeChanged {
-	self.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", _timeRemainingLabel.text ?: @"", _staticLabel.text ?: @""];
-	_redesignPrimaryLabel.text = _timeRemainingLabel.text;
-	_redesignSecondaryLabel.text = _staticLabel.text;
+	self.accessibilityLabel = [NSString stringWithFormat:@"%@, %@", _contentView.content.primaryText ?: @"", _contentView.content.secondaryText ?: @""];
 	[self setNeedsLayout];
 	if (self.contentSizeDidChange) self.contentSizeDidChange();
-}
-
-- (void)_textSettingsChanged:(NSNotification *)notification {
-#pragma unused(notification)
-	[self _updateTypographyForCurrentSize];
-	[self _contentSizeChanged];
 }
 
 - (void)_localeChanged:(NSNotification *)notification {
@@ -403,63 +256,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	[self _renderCurrentItem];
 }
 
-- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
-	[super traitCollectionDidChange:previousTraitCollection];
-	if (![self.traitCollection.preferredContentSizeCategory isEqual:previousTraitCollection.preferredContentSizeCategory] ||
-		self.traitCollection.legibilityWeight != previousTraitCollection.legibilityWeight) {
-		[self _textSettingsChanged:nil];
-	}
-}
-
 - (CGSize)preferredSizeForMaximumWidth:(CGFloat)width height:(CGFloat)height {
-	[self _updatePillAppearance];
-	if (_usesProgressRingAppearance) {
-		BOOL bold = UIAccessibilityIsBoldTextEnabled() || self.traitCollection.legibilityWeight == UILegibilityWeightBold;
-		UIFont *primaryFont = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleHeadline] scaledFontForFont:
-				[UIFont monospacedDigitSystemFontOfSize:19.0 weight:bold ? UIFontWeightBold : UIFontWeightSemibold]
-																			   compatibleWithTraitCollection:self.traitCollection];
-		UIFont *secondaryFont = [[UIFontMetrics metricsForTextStyle:UIFontTextStyleSubheadline] scaledFontForFont:
-				[UIFont systemFontOfSize:12.0 weight:bold ? UIFontWeightSemibold : UIFontWeightMedium]
-																					compatibleWithTraitCollection:self.traitCollection];
-		CGFloat labelWidth = MAX([_redesignPrimaryLabel.text sizeWithAttributes:@{NSFontAttributeName: primaryFont}].width,
-			[_redesignSecondaryLabel.text sizeWithAttributes:@{NSFontAttributeName: secondaryFont}].width);
-		CGFloat ringSize = MAX(24.0, height * 0.68);
-		CGFloat desiredWidth = ceil(10.0 + ringSize + 9.0 + 1.0 + 10.0 + labelWidth + 12.0);
-		return CGSizeMake(MIN(width, MAX(116.0, desiredWidth)), height);
-	}
-	// Start with the user's text size and weight, then fit both lines together
-	// inside the capsule. Text must never increase the pill's height.
-	[self _updateTypographyForCurrentSize];
-	CGSize primary = [_timeRemainingLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
-	CGSize secondary = [_staticLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
-	CGFloat desiredWidth = MIN(width, MAX(96.0, ceil(MAX(primary.width + 14.0, secondary.width) + 32.0)));
-	CGFloat contentWidth = MAX(1.0, desiredWidth - 33.0);
-	CGFloat contentHeight = MAX(1.0, height - 17.0);
-	UIFont *primaryFont = _timeRemainingLabel.font;
-	UIFont *secondaryFont = _staticLabel.font;
-	CGFloat lowerScale = 0.0;
-	CGFloat upperScale = 1.0;
-	CGFloat scale = 1.0;
-	// Optical spacing changes with font size. Measure the fitted fonts instead
-	// of assuming that their text widths scale linearly with the point size.
-	for (NSUInteger attempt = 0; attempt < 12; attempt++) {
-		_timeRemainingLabel.font = [primaryFont fontWithSize:primaryFont.pointSize * scale];
-		_staticLabel.font = [secondaryFont fontWithSize:secondaryFont.pointSize * scale];
-		primary = [_timeRemainingLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
-		secondary = [_staticLabel sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)];
-		BOOL fits = primary.width + 14.0 <= contentWidth && secondary.width <= contentWidth &&
-			MAX(10.0, primary.height) + _textStack.spacing + secondary.height <= contentHeight;
-		if (fits) {
-			lowerScale = scale;
-			if (scale == 1.0) break;
-		} else {
-			upperScale = scale;
-		}
-		scale = (lowerScale + upperScale) * 0.5;
-	}
-	_timeRemainingLabel.font = [primaryFont fontWithSize:primaryFont.pointSize * lowerScale];
-	_staticLabel.font = [secondaryFont fontWithSize:secondaryFont.pointSize * lowerScale];
-	return CGSizeMake(desiredWidth, height);
+	return [_contentView preferredSizeForMaximumWidth:width height:height];
 }
 
 - (void)setupConstraints {
@@ -479,31 +277,11 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		[_contentTintReplicaView.topAnchor constraintEqualToAnchor:self.topAnchor],
 		[_contentTintReplicaView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
 
-		[_textStack.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-		[_textStack.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-		[_textStack.widthAnchor constraintEqualToAnchor:self.widthAnchor constant:-32.0],
-		[_textStack.topAnchor constraintGreaterThanOrEqualToAnchor:self.topAnchor constant:8.0],
-		[_textStack.bottomAnchor constraintLessThanOrEqualToAnchor:self.bottomAnchor constant:-8.0],
-		[_containerView.widthAnchor constraintLessThanOrEqualToAnchor:_textStack.widthAnchor],
-		[_containerView.heightAnchor constraintGreaterThanOrEqualToConstant:10.0],
-
-		[_boltImageView.leadingAnchor constraintEqualToAnchor:_containerView.leadingAnchor],
-		[_boltImageView.centerYAnchor constraintEqualToAnchor:_timeRemainingLabel.centerYAnchor],
-		[_boltImageView.widthAnchor constraintEqualToConstant:10.0],
-		[_boltImageView.heightAnchor constraintEqualToConstant:10.0],
-
-		[_timeRemainingLabel.leadingAnchor constraintEqualToAnchor:_boltImageView.trailingAnchor constant:4.0],
-		[_timeRemainingLabel.trailingAnchor constraintEqualToAnchor:_containerView.trailingAnchor],
-		[_timeRemainingLabel.centerYAnchor constraintEqualToAnchor:_containerView.centerYAnchor],
-		[_timeRemainingLabel.topAnchor constraintEqualToAnchor:_containerView.topAnchor],
-		[_staticLabel.widthAnchor constraintLessThanOrEqualToAnchor:_textStack.widthAnchor],
+		[_contentView.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+		[_contentView.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+		[_contentView.topAnchor constraintEqualToAnchor:self.topAnchor],
+		[_contentView.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
 	]];
-}
-
-- (NSString *)_estimateSubtitle {
-	NSInteger target = _presentationState ? _presentationState.settings.targetPercent : 100;
-	if (target < 100) return [NSString stringWithFormat:JikanLocalizedString(@"jikan.platter.label.until_target", @"until %ld%% charged"), (long)target];
-	return JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 }
 
 - (void)_reloadStackPreferences {
@@ -515,31 +293,28 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 - (void)_renderCurrentItem {
 	NSString *item = _selectedStackItem ?: JikanStackEstimate;
+	NSString *primaryText;
+	NSString *secondaryText;
+	NSDictionary *batteryInfo = _presentationState.snapshot.batteryInfo;
 	if ([item isEqualToString:JikanStackWattage]) {
-		[self _updateWattageLabel];
-		return;
-	}
-	if ([item isEqualToString:JikanStackTemperature]) {
-		NSDictionary *batteryInfo = _previewMode ? @{@"Temperature": @3700} : _presentationState.snapshot.batteryInfo;
-		_timeRemainingLabel.text = JikanFormattedBatteryTemperature(batteryInfo, JikanResolveTemperatureUnit(_presentationState.settings.temperatureUnit)) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.battery_temperature", @"battery temperature");
-		[self _contentSizeChanged];
-		return;
-	}
-	if ([item isEqualToString:JikanStackVoltage]) {
-		_timeRemainingLabel.text = JikanFormattedBatteryVoltage(_previewMode ? @{@"Voltage": @4000} : _presentationState.snapshot.batteryInfo) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.battery_voltage", @"battery voltage");
-		[self _contentSizeChanged];
-		return;
-	}
-	if (_presentationState.snapshot.targetReached && _presentationState.settings.showAfterFullCharge && !_previewMode) {
-		_timeRemainingLabel.text = [NSString stringWithFormat:@"%ld%%", (long)_presentationState.snapshot.displayPercent];
-		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
+		double watts = _previewMode ? 5.0 : [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
+		primaryText = [JikanPillContent formattedWattage:watts];
+		secondaryText = JikanLocalizedString(@"jikan.platter.label.current_wattage", @"current wattage");
+	} else if ([item isEqualToString:JikanStackTemperature]) {
+		primaryText = JikanFormattedBatteryTemperature(_previewMode ? @{@"Temperature": @3700} : batteryInfo, JikanResolveTemperatureUnit(_presentationState.settings.temperatureUnit)) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		secondaryText = JikanLocalizedString(@"jikan.platter.label.battery_temperature", @"battery temperature");
+	} else if ([item isEqualToString:JikanStackVoltage]) {
+		primaryText = JikanFormattedBatteryVoltage(_previewMode ? @{@"Voltage": @4000} : batteryInfo) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		secondaryText = JikanLocalizedString(@"jikan.platter.label.battery_voltage", @"battery voltage");
+	} else if (_presentationState.snapshot.targetReached && _presentationState.settings.showAfterFullCharge && !_previewMode) {
+		primaryText = [NSString stringWithFormat:@"%ld%%", (long)_presentationState.snapshot.displayPercent];
+		secondaryText = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
 	} else {
-		_timeRemainingLabel.text = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : (_presentationState.snapshot.timeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A"));
-		_staticLabel.text = [self _estimateSubtitle];
+		primaryText = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : (_presentationState.snapshot.timeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A"));
+		secondaryText = [JikanPillContent estimateSubtitleForTargetPercent:_presentationState ? _presentationState.settings.targetPercent : 100];
 	}
-	[self _contentSizeChanged];
+	double progress = (double)_presentationState.snapshot.displayPercent / MAX(1, _presentationState.settings.targetPercent);
+	[_contentView applyContent:[[JikanPillContent alloc] initWithPrimaryText:primaryText secondaryText:secondaryText progress:progress chargingSpeed:_presentationState.snapshot.chargingSpeed]];
 }
 
 - (void)setPreviewMode:(BOOL)preview {
@@ -814,26 +589,6 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	_selectedStackItem = _activeStackItems[(index == NSNotFound ? 0 : index + 1) % _activeStackItems.count];
 	[self _renderCurrentItem];
 	if (UIAccessibilityIsVoiceOverRunning()) UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, self.accessibilityLabel);
-}
-
-- (void)_updateWattageLabel {
-	NSDictionary *batteryInfo = _presentationState.snapshot.batteryInfo;
-
-	double watts = _previewMode ? 5.0 : [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
-
-	if (isfinite(watts) && watts >= 0) {
-		NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
-		formatter.locale = [NSLocale currentLocale];
-		formatter.numberStyle = NSNumberFormatterDecimalStyle;
-		formatter.minimumFractionDigits = 1;
-		formatter.maximumFractionDigits = 1;
-		NSString *number = [formatter stringFromNumber:@(watts)];
-		_timeRemainingLabel.text = number ? [NSString stringWithFormat:@"%@ W", number] : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-	} else {
-		_timeRemainingLabel.text = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-	}
-	_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.current_wattage", @"current wattage");
-	[self _contentSizeChanged];
 }
 
 @end

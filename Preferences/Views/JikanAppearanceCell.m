@@ -3,15 +3,9 @@
 @interface JikanAppearanceOptionView : UIControl
 @property (nonatomic, assign) BOOL showsProgressRing;
 @property (nonatomic, strong) UIView *samplePill;
-@property (nonatomic, strong) UIView *ringView;
-@property (nonatomic, strong) UIView *divider;
-@property (nonatomic, strong) UIImageView *boltView;
-@property (nonatomic, strong) UILabel *sampleTime;
-@property (nonatomic, strong) UILabel *sampleSubtitle;
+@property (nonatomic, strong) JikanPillContentView *content;
 @property (nonatomic, strong) UIView *selectionCircle;
 @property (nonatomic, strong) UIImageView *checkView;
-@property (nonatomic, strong) CAShapeLayer *ringTrack;
-@property (nonatomic, strong) CAShapeLayer *ringProgress;
 - (instancetype)initWithProgressRing:(BOOL)progressRing;
 @end
 
@@ -33,50 +27,10 @@
 	_samplePill.userInteractionEnabled = NO;
 	[self addSubview:_samplePill];
 
-	_ringView = [[UIView alloc] init];
-	_ringView.hidden = !progressRing;
-	[_samplePill addSubview:_ringView];
-	_ringTrack = [CAShapeLayer layer];
-	_ringTrack.fillColor = UIColor.clearColor.CGColor;
-	_ringTrack.strokeColor = [UIColor colorWithWhite:0.55 alpha:0.7].CGColor;
-	_ringTrack.lineWidth = 3.0;
-	[_ringView.layer addSublayer:_ringTrack];
-	_ringProgress = [CAShapeLayer layer];
-	_ringProgress.fillColor = UIColor.clearColor.CGColor;
-	_ringProgress.strokeColor = UIColor.systemGreenColor.CGColor;
-	_ringProgress.lineWidth = 3.0;
-	_ringProgress.lineCap = kCALineCapRound;
-	_ringProgress.strokeEnd = 0.72;
-	[_ringView.layer addSublayer:_ringProgress];
-
-	_divider = [[UIView alloc] init];
-	_divider.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.36];
-	_divider.hidden = !progressRing;
-	[_samplePill addSubview:_divider];
-
-	UIImageSymbolConfiguration *boltConfig = [UIImageSymbolConfiguration configurationWithPointSize:15.0 weight:UIImageSymbolWeightBold];
-	_boltView = [[UIImageView alloc] initWithImage:[[UIImage systemImageNamed:@"bolt.fill" withConfiguration:boltConfig] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]];
-	_boltView.tintColor = UIColor.systemGreenColor;
-	_boltView.contentMode = UIViewContentModeScaleAspectFit;
-	[_samplePill addSubview:_boltView];
-
-	_sampleTime = [[UILabel alloc] init];
-	_sampleTime.text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
-	_sampleTime.textColor = UIColor.whiteColor;
-	_sampleTime.font = [UIFont monospacedDigitSystemFontOfSize:15.0 weight:UIFontWeightSemibold];
-	_sampleTime.textAlignment = progressRing ? NSTextAlignmentLeft : NSTextAlignmentCenter;
-	_sampleTime.adjustsFontSizeToFitWidth = YES;
-	_sampleTime.minimumScaleFactor = 0.4;
-	[_samplePill addSubview:_sampleTime];
-
-	_sampleSubtitle = [[UILabel alloc] init];
-	_sampleSubtitle.text = [NSString stringWithFormat:JikanLocalizedString(@"jikan.platter.label.until_target", @"until %ld%% charged"), (long)95];
-	_sampleSubtitle.textColor = [UIColor colorWithWhite:1.0 alpha:0.84];
-	_sampleSubtitle.font = [UIFont systemFontOfSize:10.0 weight:UIFontWeightMedium];
-	_sampleSubtitle.textAlignment = progressRing ? NSTextAlignmentLeft : NSTextAlignmentCenter;
-	_sampleSubtitle.adjustsFontSizeToFitWidth = YES;
-	_sampleSubtitle.minimumScaleFactor = 0.4;
-	[_samplePill addSubview:_sampleSubtitle];
+	_content = [[JikanPillContentView alloc] init];
+	_content.appearance = progressRing ? JikanPillAppearanceProgressRing : JikanPillAppearanceClassic;
+	[_content applyContent:[JikanPillContent previewContentForTargetPercent:95]];
+	[_samplePill addSubview:_content];
 
 	_selectionCircle = [[UIView alloc] init];
 	_selectionCircle.userInteractionEnabled = NO;
@@ -105,36 +59,8 @@
 	CGFloat pillHeight = 54.0;
 	_samplePill.frame = CGRectMake((width - pillWidth) * 0.5, 12.0, pillWidth, pillHeight);
 	_samplePill.layer.cornerRadius = pillHeight * 0.5;
-	CGFloat contentX;
-	CGFloat contentWidth;
-	if (_showsProgressRing) {
-		_ringView.frame = CGRectMake(9.0, 10.0, 34.0, 34.0);
-		UIBezierPath *ringPath = [UIBezierPath bezierPathWithArcCenter:CGPointMake(17.0, 17.0) radius:15.0
-															startAngle:(CGFloat)-M_PI_2
-															  endAngle:(CGFloat)(M_PI * 1.5)
-															 clockwise:YES];
-		_ringTrack.frame = _ringView.bounds;
-		_ringProgress.frame = _ringView.bounds;
-		_ringTrack.path = ringPath.CGPath;
-		_ringProgress.path = ringPath.CGPath;
-		_boltView.frame = CGRectMake(17.0, 19.0, 18.0, 18.0);
-		_divider.frame = CGRectMake(51.0, 13.0, 1.0, 28.0);
-		contentX = 59.0;
-		contentWidth = MAX(1.0, pillWidth - contentX - 8.0);
-	} else {
-		CGFloat boltWidth = 10.0;
-		CGFloat gap = 4.0;
-		CGFloat textWidth = MIN(ceil([_sampleTime.text sizeWithAttributes:@{NSFontAttributeName: _sampleTime.font}].width), pillWidth - 18.0 - boltWidth - gap);
-		CGFloat rowWidth = boltWidth + gap + textWidth;
-		CGFloat rowX = (pillWidth - rowWidth) * 0.5;
-		_boltView.frame = CGRectMake(rowX, 12.0, boltWidth, 16.0);
-		contentX = rowX + boltWidth + gap;
-		contentWidth = textWidth;
-	}
-	_sampleTime.frame = CGRectMake(contentX, 8.0, contentWidth, 22.0);
-	_sampleSubtitle.frame = _showsProgressRing
-		? CGRectMake(contentX, 30.0, contentWidth, 16.0)
-		: CGRectMake(9.0, 30.0, pillWidth - 18.0, 16.0);
+	_content.frame = _samplePill.bounds;
+	[_content preferredSizeForMaximumWidth:pillWidth height:pillHeight];
 	_selectionCircle.frame = CGRectMake((width - 22.0) * 0.5, 80.0, 22.0, 22.0);
 	_selectionCircle.layer.cornerRadius = 11.0;
 	_checkView.frame = _selectionCircle.bounds;
