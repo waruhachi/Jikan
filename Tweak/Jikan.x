@@ -1,66 +1,20 @@
 #import "Jikan.h"
 
-BOOL isCharging = NO;
-static BOOL enabled;
-static BOOL hideQuickActionButtons;
-static BOOL hideQuickActionButtonsOnlyWhenCharging;
-static BOOL showAfterFullCharge;
-static BOOL lockPreviewXAxis;
-static BOOL lockPreviewYAxis;
-static CGFloat pillBackgroundOpacity;
-static CGFloat platterPosXNorm;
-static CGFloat platterPosYNorm;
-static BOOL platterHasCustomPosition;
-static CGFloat platterPosXNormLandscape;
-static CGFloat platterPosYNormLandscape;
-static BOOL platterHasCustomPositionLandscape;
-
+static JikanPresentationStore *_ttPresentationStore;
 static JikanSessionRecorder *_ttSessionRecorder;
 static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
-static BOOL _ttPreviewSessionActive = NO;
 static BOOL _ttMonitoringEnabled = NO;
-static NSDictionary *_ttLatestSnapshot;
-static void TTApplyEnabledState(void);
+static void TTApplyEnabledState(NSDictionary *lastBatteryInfo);
 
 static const void *kTTCoverSheetCoordinatorKey = &kTTCoverSheetCoordinatorKey;
 
 static JikanCoverSheetCoordinator *TTCoverSheetCoordinator(UIView *view) {
 	JikanCoverSheetCoordinator *coordinator = objc_getAssociatedObject(view, kTTCoverSheetCoordinatorKey);
 	if (!coordinator) {
-		coordinator = [[JikanCoverSheetCoordinator alloc] initWithRootView:view configurationProvider:^{
-			return (JikanCoverSheetConfiguration){
-				.enabled = enabled,
-				.hideQuickActionButtons = hideQuickActionButtons,
-				.hideQuickActionButtonsOnlyWhenCharging = hideQuickActionButtonsOnlyWhenCharging,
-				.showAfterFullCharge = showAfterFullCharge,
-				.lockPreviewXAxis = lockPreviewXAxis,
-				.lockPreviewYAxis = lockPreviewYAxis,
-				.charging = isCharging,
-				.previewActive = _ttPreviewSessionActive,
-				.portraitPosition = {platterPosXNorm, platterPosYNorm, platterHasCustomPosition},
-				.landscapePosition = {platterPosXNormLandscape, platterPosYNormLandscape, platterHasCustomPositionLandscape}};
-		} snapshotProvider:^{
-			return _ttLatestSnapshot;
-		} positionChanged:^(BOOL landscape, JikanPillPosition position) {
-			if (landscape) {
-				platterPosXNormLandscape = position.x;
-				platterPosYNormLandscape = position.y;
-				platterHasCustomPositionLandscape = position.hasCustomPosition;
-			} else {
-				platterPosXNorm = position.x;
-				platterPosYNorm = position.y;
-				platterHasCustomPosition = position.hasCustomPosition;
-			}
-		}];
+		coordinator = [[JikanCoverSheetCoordinator alloc] initWithRootView:view presentationStore:_ttPresentationStore];
 		objc_setAssociatedObject(view, kTTCoverSheetCoordinatorKey, coordinator, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 	return coordinator;
-}
-
-static BOOL TTShouldHideQuickActionButtonsNow(void) {
-	if (!enabled || !hideQuickActionButtons) return NO;
-	if (!hideQuickActionButtonsOnlyWhenCharging) return YES;
-	return isCharging;
 }
 
 static const char *TTUnqualifiedType(const char *type) {
@@ -118,87 +72,26 @@ static BOOL TTOpenNotificationCenterPreview(void) {
 static void TTNCPreviewRequestReceived(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
 #pragma unused(center, observer, name, object, userInfo)
 	dispatch_async(dispatch_get_main_queue(), ^{
-		if (!enabled) return;
-		_ttPreviewSessionActive = TTOpenNotificationCenterPreview();
-		[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
+		if (!_ttPresentationStore.state.settings.enabled) return;
+		[_ttPresentationStore setPreviewActive:TTOpenNotificationCenterPreview()];
 	});
 }
 
 static void TTEndPreviewSession(void) {
-	if (!_ttPreviewSessionActive) return;
-	_ttPreviewSessionActive = NO;
-	[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
-}
-
-static void TTLoadPreferences(void) {
-	NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	static NSString *estimateSignature;
-	NSString *source = JikanEstimateSource(preferences);
-	NSString *newSignature = [NSString stringWithFormat:@"%@:%ld", source, (long)JikanEstimateTarget(preferences, source)];
-	if (estimateSignature && ![estimateSignature isEqualToString:newSignature]) _ttLatestSnapshot = nil;
-	estimateSignature = newSignature;
-	enabled = [preferences objectForKey:@"enabled"] ? [preferences boolForKey:@"enabled"] : YES;
-	hideQuickActionButtons = [preferences objectForKey:@"hideQuickActionButtons"] ? [preferences boolForKey:@"hideQuickActionButtons"] : NO;
-	hideQuickActionButtonsOnlyWhenCharging = [preferences objectForKey:@"hideQuickActionButtonsOnlyWhenCharging"] ? [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"] : NO;
-	showAfterFullCharge = [preferences objectForKey:@"showAfterFullCharge"] ? [preferences boolForKey:@"showAfterFullCharge"] : NO;
-	lockPreviewXAxis = [preferences objectForKey:JikanPreviewXAxisLockKey] ? [preferences boolForKey:JikanPreviewXAxisLockKey] : NO;
-	lockPreviewYAxis = [preferences objectForKey:JikanPreviewYAxisLockKey] ? [preferences boolForKey:JikanPreviewYAxisLockKey] : NO;
-	double opacityPercent = [preferences objectForKey:@"pillBackgroundOpacityPercent"] ? [preferences doubleForKey:@"pillBackgroundOpacityPercent"] : 100.0;
-	if (!isfinite(opacityPercent)) opacityPercent = 100.0;
-	opacityPercent = MAX(0.0, MIN(100.0, opacityPercent));
-	pillBackgroundOpacity = (CGFloat)(opacityPercent / 100.0);
-	JikanPillPosition portrait = JikanReadPillPosition(preferences, NO);
-	platterPosXNorm = portrait.x;
-	platterPosYNorm = portrait.y;
-	platterHasCustomPosition = portrait.hasCustomPosition;
-	JikanPillPosition landscape = JikanReadPillPosition(preferences, YES);
-	platterPosXNormLandscape = landscape.x;
-	platterPosYNormLandscape = landscape.y;
-	platterHasCustomPositionLandscape = landscape.hasCustomPosition;
+	[_ttPresentationStore setPreviewActive:NO];
 }
 
 static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
 #pragma unused(center, observer, name, object, userInfo)
 	dispatch_async(dispatch_get_main_queue(), ^{
-		TTLoadPreferences();
+		NSDictionary *lastBatteryInfo = _ttPresentationStore.state.snapshot.batteryInfo;
 		[TT100 preferencesDidChange];
-		TTApplyEnabledState();
+		TTApplyEnabledState(lastBatteryInfo);
 	});
 }
 
-static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
-	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NO;
-
-	id external = batteryInfo[@"ExternalConnected"];
-	if ([external respondsToSelector:@selector(boolValue)]) return [external boolValue];
-
-	id charging = batteryInfo[@"IsCharging"];
-	if ([charging respondsToSelector:@selector(boolValue)]) {
-		return [charging boolValue];
-	}
-
-	id fullyCharged = batteryInfo[@"FullyCharged"];
-	if ([fullyCharged respondsToSelector:@selector(boolValue)] && [fullyCharged boolValue]) {
-		return YES;
-	}
-
-	NSDictionary *adapter = [batteryInfo[@"AdapterDetails"] isKindOfClass:[NSDictionary class]] ? batteryInfo[@"AdapterDetails"] : nil;
-	if (adapter.count > 0) {
-		id current = adapter[@"Current"];
-		if ([current respondsToSelector:@selector(doubleValue)] && fabs([current doubleValue]) > 0.0) {
-			return YES;
-		}
-		id voltage = adapter[@"Voltage"];
-		if ([voltage respondsToSelector:@selector(doubleValue)] && fabs([voltage doubleValue]) > 0.0) {
-			return YES;
-		}
-	}
-
-	return NO;
-}
-
-static void TTApplyEnabledState(void) {
-	if (enabled) {
+static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
+	if (_ttPresentationStore.state.settings.enabled) {
 		if (!_ttMonitoringEnabled) {
 			_ttMonitoringEnabled = YES;
 			[TT100 startMonitoring];
@@ -207,13 +100,9 @@ static void TTApplyEnabledState(void) {
 		}
 	} else {
 		_ttMonitoringEnabled = NO;
+		[_ttSessionRecorder finishWithBatteryInfo:lastBatteryInfo];
 		[TT100 stopMonitoring];
-		[_ttSessionRecorder finishWithBatteryInfo:_ttLatestSnapshot[@"batteryInfo"]];
-		_ttLatestSnapshot = nil;
-		_ttPreviewSessionActive = NO;
-		isCharging = NO;
 	}
-	[[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
 }
 
 %group JikanQuickActionVisibility
@@ -227,7 +116,7 @@ static void TTApplyEnabledState(void) {
 %hook _UIBatteryView
 - (void)setChargingState:(NSInteger)state {
 	%orig;
-	if (enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
+	if (_ttPresentationStore.state.settings.enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
 }
 %end
 
@@ -236,7 +125,7 @@ static void TTApplyEnabledState(void) {
 - (void)refreshSupportedButtons {
 	[JikanQuickActionAdapter setButtonsInView:self hidden:NO];
 	%orig;
-	BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
+	BOOL shouldHide = _ttPresentationStore.state.shouldHideQuickActionButtons;
 	[JikanQuickActionAdapter setButtonsInView:self hidden:shouldHide];
 }
 
@@ -246,7 +135,7 @@ static void TTApplyEnabledState(void) {
 
 - (void)didMoveToWindow {
 	%orig;
-	if (!self.window) _ttPreviewSessionActive = NO;
+	if (!self.window) [_ttPresentationStore setPreviewActive:NO];
 	[TTCoverSheetCoordinator(self) didMoveToWindow];
 }
 
@@ -263,7 +152,7 @@ static void TTApplyEnabledState(void) {
 	%orig;
 	UIView *view = self.view;
 	if ([view isKindOfClass:NSClassFromString(@"CSCoverSheetView")]) {
-		if (enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
+		if (_ttPresentationStore.state.settings.enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
 		[TTCoverSheetCoordinator(view) refresh];
 	}
 }
@@ -281,24 +170,21 @@ static void TTApplyEnabledState(void) {
 %end
 
 %ctor {
+	_ttPresentationStore = [JikanPresentationStore sharedInstance];
 	_ttSessionRecorder = [JikanSessionRecorder new];
 	%init;
 	Class visibilityClass = [JikanQuickActionAdapter visibilityControlClass];
 	if (visibilityClass) {
 		%init(JikanQuickActionVisibility, JikanQuickActionControl = visibilityClass);
 	}
-	TTLoadPreferences();
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTPrefsDidChange, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTNCPreviewRequestReceived, (__bridge CFStringRef)JikanPreviewRequestNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	[[NSNotificationCenter defaultCenter] addObserverForName:TT100InternalDidRefreshBatteryInfoNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
-		if (!enabled) return;
-		_ttLatestSnapshot = [note.userInfo copy];
-		NSDictionary *batteryInfo = _ttLatestSnapshot[@"batteryInfo"];
+		if (!_ttPresentationStore.state.settings.enabled) return;
+		NSDictionary *snapshot = note.userInfo;
+		NSDictionary *batteryInfo = snapshot[@"batteryInfo"];
 		if (!batteryInfo.count) return;
-		BOOL wasCharging = isCharging;
-		isCharging = TTInferChargingStateFromBatteryInfo(batteryInfo);
-		[_ttSessionRecorder consumeSnapshot:_ttLatestSnapshot charging:isCharging];
-		if (wasCharging != isCharging) [[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
+		[_ttSessionRecorder consumeSnapshot:snapshot charging:[snapshot[@"externalPowerConnected"] boolValue]];
 	}];
-	dispatch_async(dispatch_get_main_queue(), ^{ TTApplyEnabledState(); });
+	dispatch_async(dispatch_get_main_queue(), ^{ TTApplyEnabledState(nil); });
 }

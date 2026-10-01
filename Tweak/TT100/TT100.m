@@ -1,9 +1,5 @@
 #import "TT100.h"
 
-NSString *const TT100BatteryInfoUpdatedNotification = @"TT100BatteryInfoUpdated";
-NSString *const TT100InternalDidRefreshBatteryInfoNotification = @"TT100InternalDidRefreshBatteryInfo";
-NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChanged";
-
 NSString *TT100PLSQLPath(void) {
 	static NSString *cachedPath = nil;
 	static dispatch_once_t onceToken;
@@ -64,6 +60,7 @@ static double TT100DisplaySOC(NSDictionary *batteryInfo) {
 }
 
 static NSInteger TT100EstimateTargetPercent(void) {
+	if ([NSThread isMainThread]) return [JikanPresentationStore sharedInstance].state.settings.targetPercent;
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	return JikanEstimateTarget(prefs, JikanEstimateSource(prefs));
 }
@@ -243,7 +240,6 @@ static NSString *TT100ChargingSpeed(NSDictionary *batteryInfo, BOOL isWireless) 
 
 static NSTimer *tt100PollingTimer = nil;
 static dispatch_queue_t tt100RefreshQueue;
-static NSDictionary *tt100LatestSnapshot;
 static BOOL tt100Monitoring;
 static BOOL tt100RefreshInFlight;
 static BOOL tt100RefreshPending;
@@ -261,7 +257,7 @@ static void TT100PowerChanged(void *context) {
 
 + (NSDictionary *)latestSnapshot {
 	NSAssert([NSThread isMainThread], @"latestSnapshot must be read on the main thread");
-	return tt100LatestSnapshot;
+	return [JikanPresentationStore sharedInstance].state.snapshot.dictionary;
 }
 
 + (void)startMonitoring {
@@ -295,7 +291,7 @@ static void TT100PowerChanged(void *context) {
 		tt100PowerSource = NULL;
 	}
 	tt100RefreshPending = NO;
-	tt100LatestSnapshot = nil;
+	[[JikanPresentationStore sharedInstance] clearBatterySnapshot];
 	if (tt100RefreshQueue) dispatch_async(tt100RefreshQueue, ^{ [tt100AppleEstimator reset]; });
 }
 
@@ -305,7 +301,7 @@ static void TT100PowerChanged(void *context) {
 		return;
 	}
 	tt100Generation++;
-	tt100LatestSnapshot = nil;
+	[[JikanPresentationStore sharedInstance] reloadPreferences];
 	if (tt100Monitoring) [[self sharedInstance] _refreshBatteryInfo];
 }
 
@@ -324,12 +320,13 @@ static void TT100PowerChanged(void *context) {
 	tt100RefreshInFlight = YES;
 	tt100RefreshPending = NO;
 	NSUInteger generation = tt100Generation;
+	JikanPresentationStore *presentationStore = [JikanPresentationStore sharedInstance];
+	JikanPresentationState *presentation = presentationStore.state;
 	dispatch_async(tt100RefreshQueue, ^{
 		@autoreleasepool {
 			NSDictionary *batteryInfo = [TT100 fetchBatteryInfo];
-			NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-			NSString *source = JikanEstimateSource(prefs);
-			NSInteger target = JikanEstimateTarget(prefs, source);
+			NSString *source = presentation.settings.estimateSource;
+			NSInteger target = presentation.settings.targetPercent;
 			if (!tt100AppleEstimator) tt100AppleEstimator = [TT100AppleEstimator new];
 			[tt100AppleEstimator observeBatteryInfo:batteryInfo];
 			NSDictionary *appleResult = [source isEqualToString:@"apple"] ? [tt100AppleEstimator resultForBatteryInfo:batteryInfo target:target] : nil;
@@ -368,10 +365,8 @@ static void TT100PowerChanged(void *context) {
 			};
 			dispatch_async(dispatch_get_main_queue(), ^{
 				if (tt100Monitoring && generation == tt100Generation) {
-					tt100LatestSnapshot = snapshot;
-					[[NSNotificationCenter defaultCenter] postNotificationName:TT100InternalDidRefreshBatteryInfoNotification object:self userInfo:snapshot];
-					if (tt100Monitoring && generation == tt100Generation) {
-						[[NSNotificationCenter defaultCenter] postNotificationName:TT100BatteryInfoUpdatedNotification object:self userInfo:snapshot];
+					BOOL published = [presentationStore publishBatteryDictionary:snapshot generation:presentation.estimateGeneration publisher:self];
+					if (published && tt100Monitoring && generation == tt100Generation) {
 						if ([snapshot[@"estimateStatus"] isEqualToString:@"waiting_for_first_prediction"]) {
 							dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 								if (tt100Monitoring && generation == tt100Generation) [self _refreshBatteryInfo];
@@ -556,12 +551,12 @@ static NSDate *TT100ParseDate(NSString *dateString) {
 }
 
 + (NSString *)estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	if ([JikanEstimateSource(prefs) isEqualToString:@"apple"]) {
-		if ([NSThread isMainThread]) return tt100LatestSnapshot[@"timeString"] ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	JikanPresentationSettings *settings = [NSThread isMainThread] ? [JikanPresentationStore sharedInstance].state.settings : [[JikanPresentationSettings alloc] initWithPreferences:[[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite]];
+	if ([settings.estimateSource isEqualToString:@"apple"]) {
+		if ([NSThread isMainThread]) return [self latestSnapshot][@"timeString"] ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 		return JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 	}
-	return [self _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:[self targetPercent]];
+	return [self _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:settings.targetPercent];
 }
 
 + (NSString *)_estimatedTT100WithBatteryInfo:(NSDictionary *)batteryInfo targetPercent:(NSInteger)targetPercent {

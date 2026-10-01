@@ -1,7 +1,5 @@
 #import "JikanPlatterView.h"
 
-extern BOOL isCharging;
-
 static BOOL TTConfigureLockScreenGlass(UIView *view, UIView *container) {
 	if (@available(iOS 26.0, *)) {
 		SEL backgroundSetter = NSSelectorFromString(@"cs_setLockPickGlassBackgroundWithLuminance:");
@@ -70,12 +68,6 @@ static UIView *TTFindFirstSubviewWithClassNameFragment(UIView *root, NSString *f
 	return nil;
 }
 
-static BOOL TTShowAfterFullChargeEnabled(void) {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	if (![prefs objectForKey:@"showAfterFullCharge"]) return NO;
-	return [prefs boolForKey:@"showAfterFullCharge"];
-}
-
 static CGFloat TTWiggleRandomOffset(void) {
 	return ((arc4random_uniform(1000) / 1000.0) - 0.5) * 0.03;
 }
@@ -85,15 +77,6 @@ static UIColor *TTBoltColorForSpeed(NSString *speed) {
 		return [UIColor systemYellowColor];
 	}
 	return [UIColor systemGreenColor];
-}
-
-static CGFloat TTPillBackgroundOpacity(void) {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	id value = [prefs objectForKey:@"pillBackgroundOpacityPercent"];
-	double percent = [value respondsToSelector:@selector(doubleValue)] ? [value doubleValue] : 100.0;
-	if (!isfinite(percent)) percent = 100.0;
-	percent = MAX(0.0, MIN(100.0, percent));
-	return (CGFloat)(percent / 100.0);
 }
 
 static const CGFloat kTTPreviewOutlineLineWidth = 2.5;
@@ -166,7 +149,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	_redesignRingProgress.path = ringPath.CGPath;
 	_redesignRingTrack.lineWidth = lineWidth;
 	_redesignRingProgress.lineWidth = lineWidth;
-	_redesignRingProgress.strokeEnd = MIN(1.0, MAX(0.0, (CGFloat)_latestDisplayPercent / MAX(1, _latestTargetPercent)));
+	_redesignRingProgress.strokeEnd = MIN(1.0, MAX(0.0, (CGFloat)_presentationState.snapshot.displayPercent / MAX(1, _presentationState.settings.targetPercent)));
 	CGFloat boltSize = ringSize * 0.47;
 	_redesignBoltView.frame = CGRectMake((ringSize - boltSize) * 0.5, (ringSize - boltSize) * 0.5, boltSize, boltSize);
 
@@ -203,8 +186,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)_updatePillAppearance {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	BOOL usesRing = [JikanPillAppearance(prefs) isEqualToString:JikanPillAppearanceProgressRing];
+	BOOL usesRing = [_presentationState.settings.appearance isEqualToString:JikanPillAppearanceProgressRing];
 	if (_usesProgressRingAppearance == usesRing) return;
 	_usesProgressRingAppearance = usesRing;
 	_textStack.hidden = usesRing;
@@ -219,7 +201,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)_applyBackgroundOpacity {
-	CGFloat factor = TTPillBackgroundOpacity();
+	CGFloat factor = _presentationState ? _presentationState.settings.backgroundOpacity : 1.0;
 	if (!isfinite(factor)) factor = 1.0;
 	factor = MAX(0.0, MIN(1.0, factor));
 
@@ -242,7 +224,6 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 		[self _setupSubviews];
 
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_chargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIAccessibilityBoldTextStatusDidChangeNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_textSettingsChanged:) name:UIContentSizeCategoryDidChangeNotification object:nil];
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_localeChanged:) name:NSCurrentLocaleDidChangeNotification object:nil];
@@ -266,27 +247,26 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		return;
 	}
 
-	[self applyBatterySnapshot:[TT100 latestSnapshot]];
-	[self _preferencesPossiblyChanged:nil];
+	[self _renderCurrentItem];
 	[self _updateTapGestureState];
 	[self _applyBackgroundOpacity];
 }
 
-- (void)applyBatterySnapshot:(NSDictionary *)snapshot {
+- (void)applyPresentationState:(JikanPresentationState *)state {
+	BOOL wasConnected = _presentationState.snapshot.externalPowerConnected;
+	_presentationState = state;
 	[self _reloadStackPreferences];
 	[self _updatePillAppearance];
-	_latestBatteryInfo = [snapshot[@"batteryInfo"] isKindOfClass:[NSDictionary class]] ? snapshot[@"batteryInfo"] : nil;
-	_latestTimeString = [snapshot[@"timeString"] isKindOfClass:[NSString class]] ? snapshot[@"timeString"] : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-	_latestHasEstimate = [snapshot[@"hasEstimate"] boolValue];
-	_latestTargetReached = [snapshot[@"targetReached"] boolValue];
-	_latestDisplayPercent = MAX(0, MIN(100, [snapshot[@"displayPercent"] integerValue]));
-	_latestTargetPercent = MAX(1, MIN(100, snapshot[@"targetPercent"] ? [snapshot[@"targetPercent"] integerValue] : [TT100 targetPercent]));
+	if (wasConnected && !state.snapshot.externalPowerConnected) {
+		[self enterEditMode:NO];
+		_selectedStackItem = JikanStackEstimate;
+	}
+	[self setPreviewMode:state.usesPreviewContent];
 	if (!self.window) return;
-	NSString *speed = [snapshot[@"chargingSpeed"] isKindOfClass:[NSString class]] ? snapshot[@"chargingSpeed"] : @"normal";
-	_boltImageView.tintColor = TTBoltColorForSpeed(speed);
+	_boltImageView.tintColor = TTBoltColorForSpeed(state.snapshot.chargingSpeed);
 	_redesignBoltView.tintColor = _boltImageView.tintColor;
 	_redesignRingProgress.strokeColor = _boltImageView.tintColor.CGColor;
-	[self updateWithTimeString:_latestTimeString];
+	[self _renderCurrentItem];
 	[self _applyBackgroundOpacity];
 }
 
@@ -521,19 +501,13 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (NSString *)_estimateSubtitle {
-	NSInteger target = _latestTargetPercent > 0 ? _latestTargetPercent : [TT100 targetPercent];
+	NSInteger target = _presentationState ? _presentationState.settings.targetPercent : 100;
 	if (target < 100) return [NSString stringWithFormat:JikanLocalizedString(@"jikan.platter.label.until_target", @"until %ld%% charged"), (long)target];
 	return JikanLocalizedString(@"jikan.platter.label.until_fully_charged", @"until fully charged");
 }
 
-- (void)updateWithTimeString:(NSString *)timeString {
-	if (timeString.length > 0) _latestTimeString = timeString;
-	[self _renderCurrentItem];
-}
-
 - (void)_reloadStackPreferences {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	NSArray<NSString *> *items = JikanStackItems(prefs);
+	NSArray<NSString *> *items = _presentationState.settings.stackItems ?: @[JikanStackEstimate];
 	if (![_activeStackItems isEqualToArray:items]) _activeStackItems = [items copy];
 	if (![_activeStackItems containsObject:_selectedStackItem]) _selectedStackItem = JikanStackEstimate;
 	[self _updateTapGestureState];
@@ -546,24 +520,23 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		return;
 	}
 	if ([item isEqualToString:JikanStackTemperature]) {
-		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-		NSDictionary *batteryInfo = _previewMode ? @{@"Temperature": @3700} : _latestBatteryInfo;
-		_timeRemainingLabel.text = JikanFormattedBatteryTemperature(batteryInfo, JikanResolvedTemperatureUnit(prefs)) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		NSDictionary *batteryInfo = _previewMode ? @{@"Temperature": @3700} : _presentationState.snapshot.batteryInfo;
+		_timeRemainingLabel.text = JikanFormattedBatteryTemperature(batteryInfo, JikanResolveTemperatureUnit(_presentationState.settings.temperatureUnit)) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.battery_temperature", @"battery temperature");
 		[self _contentSizeChanged];
 		return;
 	}
 	if ([item isEqualToString:JikanStackVoltage]) {
-		_timeRemainingLabel.text = JikanFormattedBatteryVoltage(_previewMode ? @{@"Voltage": @4000} : _latestBatteryInfo) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		_timeRemainingLabel.text = JikanFormattedBatteryVoltage(_previewMode ? @{@"Voltage": @4000} : _presentationState.snapshot.batteryInfo) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.battery_voltage", @"battery voltage");
 		[self _contentSizeChanged];
 		return;
 	}
-	if (_latestTargetReached && TTShowAfterFullChargeEnabled() && !_previewMode) {
-		_timeRemainingLabel.text = [NSString stringWithFormat:@"%ld%%", (long)_latestDisplayPercent];
+	if (_presentationState.snapshot.targetReached && _presentationState.settings.showAfterFullCharge && !_previewMode) {
+		_timeRemainingLabel.text = [NSString stringWithFormat:@"%ld%%", (long)_presentationState.snapshot.displayPercent];
 		_staticLabel.text = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
 	} else {
-		_timeRemainingLabel.text = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : _latestTimeString;
+		_timeRemainingLabel.text = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : (_presentationState.snapshot.timeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A"));
 		_staticLabel.text = [self _estimateSubtitle];
 	}
 	[self _contentSizeChanged];
@@ -817,28 +790,9 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	[self setNeedsLayout];
 }
 
-- (void)_chargingStateChanged:(NSNotification *)notification {
-#pragma unused(notification)
-	if (!self.window) return;
-	if (!isCharging) {
-		[self enterEditMode:NO];
-		_selectedStackItem = JikanStackEstimate;
-	}
-	[self _preferencesPossiblyChanged:nil];
-}
-
-- (void)_preferencesPossiblyChanged:(NSNotification *)notification {
-#pragma unused(notification)
-	[self _reloadStackPreferences];
-	[self _updatePillAppearance];
-	_latestTargetPercent = [TT100 targetPercent];
-	[self updateWithTimeString:_latestTimeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
-	[self _applyBackgroundOpacity];
-}
-
 - (void)_updateTapGestureState {
 	if (!_tapGesture) return;
-	_tapGesture.enabled = _activeStackItems.count > 1 && (isCharging || _previewMode) && !_editingMode;
+	_tapGesture.enabled = _activeStackItems.count > 1 && (_presentationState.snapshot.externalPowerConnected || _previewMode) && !_editingMode;
 	self.accessibilityTraits = _tapGesture.enabled ? UIAccessibilityTraitButton : UIAccessibilityTraitStaticText;
 	self.accessibilityHint = _tapGesture.enabled ? JikanLocalizedString(@"jikan.platter.accessibility.next_item", @"Shows the next Stack item") : nil;
 }
@@ -855,7 +809,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)_advanceStack {
-	if (_activeStackItems.count < 2 || (!isCharging && !_previewMode) || _editingMode) return;
+	if (_activeStackItems.count < 2 || (!_presentationState.snapshot.externalPowerConnected && !_previewMode) || _editingMode) return;
 	NSUInteger index = [_activeStackItems indexOfObject:_selectedStackItem];
 	_selectedStackItem = _activeStackItems[(index == NSNotFound ? 0 : index + 1) % _activeStackItems.count];
 	[self _renderCurrentItem];
@@ -863,7 +817,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)_updateWattageLabel {
-	NSDictionary *batteryInfo = _latestBatteryInfo;
+	NSDictionary *batteryInfo = _presentationState.snapshot.batteryInfo;
 
 	double watts = _previewMode ? 5.0 : [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
 

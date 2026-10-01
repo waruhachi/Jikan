@@ -4,9 +4,7 @@
 @property (nonatomic, weak) UIView *rootView;
 @property (nonatomic, strong) JikanQuickActionAdapter *quickActions;
 @property (nonatomic, strong) JikanPlatterView *platter;
-@property (nonatomic, copy) JikanCoverSheetConfiguration (^configurationProvider)(void);
-@property (nonatomic, copy) NSDictionary * (^snapshotProvider)(void);
-@property (nonatomic, copy) void (^positionChanged)(BOOL landscape, JikanPillPosition position);
+@property (nonatomic, strong) JikanPresentationStore *presentationStore;
 @property (nonatomic, strong) NSLayoutConstraint *widthConstraint;
 @property (nonatomic, strong) NSLayoutConstraint *heightConstraint;
 @property (nonatomic, strong) NSLayoutConstraint *centerXConstraint;
@@ -52,25 +50,14 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 	return nil;
 }
 
-static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configuration) {
-	if (!configuration.enabled || !configuration.hideQuickActionButtons) return NO;
-	if (!configuration.hideQuickActionButtonsOnlyWhenCharging) return YES;
-	return configuration.charging;
-}
-
 @implementation JikanCoverSheetCoordinator
 
-- (instancetype)initWithRootView:(UIView *)rootView
-		   configurationProvider:(JikanCoverSheetConfiguration (^)(void))configurationProvider
-				snapshotProvider:(NSDictionary * (^)(void))snapshotProvider
-				 positionChanged:(void (^)(BOOL landscape, JikanPillPosition position))positionChanged {
+- (instancetype)initWithRootView:(UIView *)rootView presentationStore:(JikanPresentationStore *)presentationStore {
 	self = [super init];
 	if (self) {
 		_rootView = rootView;
 		_quickActions = [[JikanQuickActionAdapter alloc] initWithRootView:rootView];
-		_configurationProvider = [configurationProvider copy];
-		_snapshotProvider = [snapshotProvider copy];
-		_positionChanged = [positionChanged copy];
+		_presentationStore = presentationStore;
 	}
 	return self;
 }
@@ -80,40 +67,40 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 }
 
 - (void)didMoveToWindow {
-	JikanCoverSheetConfiguration configuration = self.configurationProvider();
+	JikanPresentationState *state = self.presentationStore.state;
+	JikanPresentationSettings *settings = state.settings;
 
 	BOOL installed = self.observersInstalled;
 	if (self.rootView.window) {
 		[self.quickActions invalidateStyle];
 		if (!installed) {
-			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(chargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
-			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(chargingStateChanged:) name:TT100BatteryInfoUpdatedNotification object:nil];
+			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(presentationStateChanged:) name:JikanPresentationStateDidChangeNotification object:self.presentationStore];
 			self.observersInstalled = YES;
 		}
-		if (configuration.enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
+		if (settings.enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
 		[self refresh];
 	} else {
 		if (self.platter) {
 			[self.platter setPreviewMode:NO];
 		}
 		if (installed) {
-			[[NSNotificationCenter defaultCenter] removeObserver:self name:JikanChargingStateChangedNotification object:nil];
-			[[NSNotificationCenter defaultCenter] removeObserver:self name:TT100BatteryInfoUpdatedNotification object:nil];
+			[[NSNotificationCenter defaultCenter] removeObserver:self name:JikanPresentationStateDidChangeNotification object:self.presentationStore];
 			self.observersInstalled = NO;
 		}
 	}
 }
 
 - (void)layoutSubviews {
+	JikanPresentationState *state = self.presentationStore.state;
 	if (!self.platter) {
-		[self updatePlatter];
+		[self updatePlatterWithState:state];
 	}
-	[self configureConstraints];
+	[self configureConstraintsWithState:state];
 }
 
-- (void)chargingStateChanged:(NSNotification *)notification {
+- (void)presentationStateChanged:(NSNotification *)notification {
 #pragma unused(notification)
-	[self refresh];
+	if (self.rootView.window) [self refresh];
 }
 
 - (void)refresh {
@@ -123,17 +110,18 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 		});
 		return;
 	}
-	[self updatePlatter];
-	JikanCoverSheetConfiguration configuration = self.configurationProvider();
-	[self.quickActions setButtonsHidden:TTShouldHideQuickActionButtons(configuration)];
-	[self configureConstraints];
+	JikanPresentationState *state = self.presentationStore.state;
+	[self updatePlatterWithState:state];
+	[self.quickActions setButtonsHidden:state.shouldHideQuickActionButtons];
+	[self configureConstraintsWithState:state];
 	[self.rootView setNeedsLayout];
 	[self.rootView layoutIfNeeded];
 }
 
 - (void)handleLongPress:(UILongPressGestureRecognizer *)gesture {
-	JikanCoverSheetConfiguration configuration = self.configurationProvider();
-	if (!configuration.enabled || !self.platter || self.platter.hidden) return;
+	JikanPresentationState *state = self.presentationStore.state;
+	JikanPresentationSettings *settings = state.settings;
+	if (!settings.enabled || !self.platter || self.platter.hidden) return;
 	JikanPlatterView *pill = self.platter;
 	UIView *host = pill.superview;
 	CGPoint location = [gesture locationInView:host];
@@ -151,9 +139,9 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 
 	if (gesture.state == UIGestureRecognizerStateBegan) {
 		self.dragging = YES;
-		JikanPillPosition position = isLandscape ? configuration.landscapePosition : configuration.portraitPosition;
+		JikanPillPosition position = isLandscape ? settings.landscapePosition : settings.portraitPosition;
 		position.hasCustomPosition = YES;
-		self.positionChanged(isLandscape, position);
+		[self.presentationStore updatePosition:position landscape:isLandscape];
 		[pill enterEditMode:YES];
 		UIImpactFeedbackGenerator *gen = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
 		[gen impactOccurred];
@@ -172,8 +160,8 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 		CGPoint startCenter = centerValue.CGPointValue;
 		CGPoint startTouch = touchValue.CGPointValue;
 		CGPoint candidate = CGPointMake(startCenter.x + (location.x - startTouch.x), startCenter.y + (location.y - startTouch.y));
-		if (configuration.lockPreviewXAxis) candidate.x = startCenter.x;
-		if (configuration.lockPreviewYAxis) candidate.y = startCenter.y;
+		if (settings.lockPreviewXAxis) candidate.x = startCenter.x;
+		if (settings.lockPreviewYAxis) candidate.y = startCenter.y;
 		candidate.x = MAX(minX, MIN(maxX, candidate.x));
 		candidate.y = MAX(minY, MIN(maxY, candidate.y));
 
@@ -184,7 +172,7 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 			cy.constant = candidate.y - CGRectGetMidY(host.bounds);
 			CGFloat nx = MAX(0.05, MIN(0.95, (candidate.x - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport))));
 			CGFloat ny = MAX(0.05, MIN(0.95, (candidate.y - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport))));
-			self.positionChanged(isLandscape, (JikanPillPosition){nx, ny, YES});
+			[self.presentationStore updatePosition:(JikanPillPosition){nx, ny, YES} landscape:isLandscape];
 			[host layoutIfNeeded];
 		}
 		return;
@@ -198,7 +186,7 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 		CGPoint center = CGPointMake(CGRectGetMidX(pill.frame), CGRectGetMidY(pill.frame));
 		CGFloat nx = MAX(0.05, MIN(0.95, (center.x - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport))));
 		CGFloat ny = MAX(0.05, MIN(0.95, (center.y - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport))));
-		self.positionChanged(isLandscape, (JikanPillPosition){nx, ny, YES});
+		[self.presentationStore updatePosition:(JikanPillPosition){nx, ny, YES} landscape:isLandscape];
 
 		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 		JikanSavePillPosition(prefs, isLandscape, nx, ny);
@@ -211,13 +199,13 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 	}
 }
 
-- (void)updatePlatter {
-	JikanCoverSheetConfiguration configuration = self.configurationProvider();
-	NSDictionary *snapshot = self.snapshotProvider();
-	if (!configuration.enabled) {
+- (void)updatePlatterWithState:(JikanPresentationState *)state {
+	JikanPresentationSettings *settings = state.settings;
+	if (!settings.enabled) {
 		[self.platter enterEditMode:NO];
 		[self.platter setPreviewMode:NO];
-		[self setPlatterVisible:NO];
+		[self.platter applyPresentationState:state];
+		[self setPlatterVisible:NO state:state];
 		return;
 	}
 	if (!self.platter) {
@@ -236,22 +224,13 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 
 	[self.quickActions applyStyleToPlatter:self.platter];
 
-	BOOL hasEstimate = [snapshot[@"hasEstimate"] boolValue];
-	BOOL fullyCharged = [snapshot[@"targetReached"] boolValue];
-	[self.platter applyBatterySnapshot:snapshot];
-	BOOL previewEnabled = configuration.previewActive;
-
-	BOOL shouldShow = previewEnabled || (configuration.charging && (hasEstimate || (configuration.showAfterFullCharge && fullyCharged)));
-	[self.platter setPreviewMode:(previewEnabled && (!configuration.charging || (!hasEstimate && !(configuration.showAfterFullCharge && fullyCharged))))];
-
-	UILongPressGestureRecognizer *lp = self.longPress;
-	lp.enabled = shouldShow;
-
-	[self setPlatterVisible:shouldShow];
+	[self.platter applyPresentationState:state];
+	self.longPress.enabled = state.shouldShowPlatter;
+	[self setPlatterVisible:state.shouldShowPlatter state:state];
 }
 
-- (void)setPlatterVisible:(BOOL)visible {
-	JikanCoverSheetConfiguration configuration = self.configurationProvider();
+- (void)setPlatterVisible:(BOOL)visible state:(JikanPresentationState *)state {
+	JikanPresentationSettings *settings = state.settings;
 	if (!self.platter) return;
 
 	BOOL currentlyVisible = !self.platter.hidden && self.platter.alpha > 0.01;
@@ -263,7 +242,7 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 	}
 
 	[self.platter.layer removeAllAnimations];
-	if (UIAccessibilityIsReduceMotionEnabled() || !configuration.enabled) {
+	if (UIAccessibilityIsReduceMotionEnabled() || !settings.enabled) {
 		self.platter.hidden = !visible;
 		self.platter.alpha = visible ? 1.0 : 0.0;
 		self.platter.transform = CGAffineTransformIdentity;
@@ -302,8 +281,8 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 	}
 }
 
-- (void)configureConstraints {
-	JikanCoverSheetConfiguration configuration = self.configurationProvider();
+- (void)configureConstraintsWithState:(JikanPresentationState *)state {
+	JikanPresentationSettings *settings = state.settings;
 	if (!self.platter) return;
 	UIView *host = [self.quickActions platterHostView];
 	if (self.platter.superview != host) {
@@ -318,7 +297,7 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 	CGRect viewport = TTPlatterViewport(host);
 	if (CGRectIsEmpty(viewport)) return;
 	BOOL isLandscape = CGRectGetWidth(viewport) > CGRectGetHeight(viewport);
-	BOOL hasCustomForOrientation = isLandscape ? configuration.landscapePosition.hasCustomPosition : configuration.portraitPosition.hasCustomPosition;
+	BOOL hasCustomForOrientation = isLandscape ? settings.landscapePosition.hasCustomPosition : settings.portraitPosition.hasCustomPosition;
 	CGFloat maximumWidth = MAX(64.0, CGRectGetWidth(viewport) - host.safeAreaInsets.left - host.safeAreaInsets.right - 24.0);
 	CGFloat pillHeight = 60.0;
 	CGRect leadingRect = CGRectZero;
@@ -330,14 +309,14 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 		else
 			pillHeight = MAX(44.0, MIN(60.0, buttonHeight));
 		CGFloat innerGap = CGRectGetMinX(trailingRect) - CGRectGetMaxX(leadingRect) - 16.0;
-		if (!hasCustomForOrientation && !TTShouldHideQuickActionButtons(configuration) && innerGap >= 64.0) maximumWidth = MIN(maximumWidth, innerGap);
+		if (!hasCustomForOrientation && !state.shouldHideQuickActionButtons && innerGap >= 64.0) maximumWidth = MIN(maximumWidth, innerGap);
 	}
 	CGSize size = [self.platter preferredSizeForMaximumWidth:maximumWidth height:pillHeight];
 	CGFloat platterWidth = size.width;
 	CGFloat kPlatterHeight = size.height;
 	CGFloat defaultCenterX = hasButtons ? (CGRectGetMidX(leadingRect) + CGRectGetMidX(trailingRect)) * 0.5 : CGRectGetMidX(viewport);
 	CGFloat safeBottomY = CGRectGetMaxY(viewport) - host.safeAreaInsets.bottom;
-	CGFloat defaultCenterY = hasButtons ? (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5 : safeBottomY - (TTShouldHideQuickActionButtons(configuration) ? 28.0 : 76.0) - kPlatterHeight * 0.5;
+	CGFloat defaultCenterY = hasButtons ? (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5 : safeBottomY - (state.shouldHideQuickActionButtons ? 28.0 : 76.0) - kPlatterHeight * 0.5;
 
 	CGFloat safeMinX = CGRectGetMinX(viewport) + host.safeAreaInsets.left + (platterWidth * 0.5);
 	CGFloat safeMaxX = CGRectGetMaxX(viewport) - host.safeAreaInsets.right - (platterWidth * 0.5);
@@ -357,21 +336,23 @@ static BOOL TTShouldHideQuickActionButtons(JikanCoverSheetConfiguration configur
 	defaultCenterX = MAX(safeMinX, MIN(safeMaxX, defaultCenterX));
 	defaultCenterY = MAX(safeMinY, MIN(safeMaxY, defaultCenterY));
 
-	if (!isLandscape && !configuration.portraitPosition.hasCustomPosition && !self.defaultCenterComputedPortrait) {
-		configuration.portraitPosition.x = (defaultCenterX - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport));
-		configuration.portraitPosition.y = (defaultCenterY - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport));
-		self.positionChanged(NO, configuration.portraitPosition);
+	if (!isLandscape && !settings.portraitPosition.hasCustomPosition && !self.defaultCenterComputedPortrait) {
+		JikanPillPosition position = {
+			(defaultCenterX - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport)),
+			(defaultCenterY - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport)), NO};
+		[self.presentationStore updatePosition:position landscape:NO];
 		self.defaultCenterComputedPortrait = YES;
 	}
-	if (isLandscape && !configuration.landscapePosition.hasCustomPosition && !self.defaultCenterComputedLandscape) {
-		configuration.landscapePosition.x = (defaultCenterX - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport));
-		configuration.landscapePosition.y = (defaultCenterY - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport));
-		self.positionChanged(YES, configuration.landscapePosition);
+	if (isLandscape && !settings.landscapePosition.hasCustomPosition && !self.defaultCenterComputedLandscape) {
+		JikanPillPosition position = {
+			(defaultCenterX - CGRectGetMinX(viewport)) / MAX(1.0, CGRectGetWidth(viewport)),
+			(defaultCenterY - CGRectGetMinY(viewport)) / MAX(1.0, CGRectGetHeight(viewport)), NO};
+		[self.presentationStore updatePosition:position landscape:YES];
 		self.defaultCenterComputedLandscape = YES;
 	}
 
-	CGFloat savedX = isLandscape ? configuration.landscapePosition.x : configuration.portraitPosition.x;
-	CGFloat savedY = isLandscape ? configuration.landscapePosition.y : configuration.portraitPosition.y;
+	CGFloat savedX = isLandscape ? settings.landscapePosition.x : settings.portraitPosition.x;
+	CGFloat savedY = isLandscape ? settings.landscapePosition.y : settings.portraitPosition.y;
 	CGFloat centerX = hasCustomForOrientation ? (CGRectGetMinX(viewport) + savedX * CGRectGetWidth(viewport)) : defaultCenterX;
 	CGFloat centerY = hasCustomForOrientation ? (CGRectGetMinY(viewport) + savedY * CGRectGetHeight(viewport)) : defaultCenterY;
 	centerX = MAX(safeMinX, MIN(safeMaxX, centerX));

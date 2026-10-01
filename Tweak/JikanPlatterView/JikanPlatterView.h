@@ -6,6 +6,7 @@
 #import "../../Shared/JikanAppearanceSettings.h"
 #import "../../Shared/JikanPreferences.h"
 #import "../../Shared/JikanStackSettings.h"
+#import "../JikanPresentationStore/JikanPresentationState.h"
 #import "../TT100/TT100.h"
 
 @interface JikanPlatterView : UIView {
@@ -19,8 +20,7 @@
 	CAShapeLayer *_previewOutlineLayer;
 	UIImageView *_boltImageView;
 	UITapGestureRecognizer *_tapGesture;
-	NSDictionary *_latestBatteryInfo;
-	NSString *_latestTimeString;
+	JikanPresentationState *_presentationState;
 	NSArray<NSString *> *_activeStackItems;
 	NSString *_selectedStackItem;
 	BOOL _previewMode;
@@ -28,10 +28,6 @@
 	BOOL _usesLiquidGlass;
 	BOOL _usesLockScreenGlass;
 	float _glassLuminance;
-	BOOL _latestHasEstimate;
-	BOOL _latestTargetReached;
-	NSInteger _latestDisplayPercent;
-	NSInteger _latestTargetPercent;
 	CGFloat _backgroundBaseAlpha;
 	CGFloat _styleOverlayBaseAlpha;
 	CGFloat _contentTintBaseAlpha;
@@ -47,9 +43,8 @@
 }
 @property (nonatomic, copy) void (^contentSizeDidChange)(void);
 - (CGSize)preferredSizeForMaximumWidth:(CGFloat)width height:(CGFloat)height;
-- (void)applyBatterySnapshot:(NSDictionary *)snapshot;
+- (void)applyPresentationState:(JikanPresentationState *)state;
 - (void)setupConstraints;
-- (void)updateWithTimeString:(NSString *)timeString;
 - (BOOL)applyQuickActionGlassFromView:(UIView *)sourceView;
 - (void)applyQuickActionVisualEffect:(UIVisualEffect *)effect;
 - (void)applyQuickActionBackgroundStyleFromView:(UIView *)sourceView;

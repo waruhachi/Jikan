@@ -35,8 +35,11 @@ NSString *JikanTemperatureUnit(NSUserDefaults *preferences) {
 }
 
 NSString *JikanResolvedTemperatureUnit(NSUserDefaults *preferences) {
-	NSString *choice = JikanTemperatureUnit(preferences);
-	if (![choice isEqualToString:@"system"]) return choice;
+	return JikanResolveTemperatureUnit(JikanTemperatureUnit(preferences));
+}
+
+NSString *JikanResolveTemperatureUnit(NSString *choice) {
+	if ([choice isEqualToString:@"celsius"] || [choice isEqualToString:@"fahrenheit"]) return choice;
 
 	NSString *const *key = (NSString *const *)dlsym(RTLD_DEFAULT, "NSLocaleTemperatureUnit");
 	id systemValue = key && *key ? [[NSLocale autoupdatingCurrentLocale] objectForKey:*key] : nil;

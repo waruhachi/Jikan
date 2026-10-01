@@ -14,5 +14,6 @@ FOUNDATION_EXPORT NSArray<NSString *> *JikanStackItems(NSUserDefaults *preferenc
 FOUNDATION_EXPORT NSArray<NSString *> *JikanNormalizeStackItems(id value);
 FOUNDATION_EXPORT NSString *JikanTemperatureUnit(NSUserDefaults *preferences);
 FOUNDATION_EXPORT NSString *JikanResolvedTemperatureUnit(NSUserDefaults *preferences);
+FOUNDATION_EXPORT NSString *JikanResolveTemperatureUnit(NSString *choice);
 FOUNDATION_EXPORT NSString *JikanFormattedBatteryTemperature(NSDictionary *batteryInfo, NSString *unit);
 FOUNDATION_EXPORT NSString *JikanFormattedBatteryVoltage(NSDictionary *batteryInfo);

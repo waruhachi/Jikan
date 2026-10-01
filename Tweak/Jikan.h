@@ -10,11 +10,10 @@
 #import "../Shared/JikanPositionSettings.h"
 #import "../Shared/JikanPreferences.h"
 #import "JikanCoverSheetCoordinator/JikanCoverSheetCoordinator.h"
+#import "JikanPresentationStore/JikanPresentationStore.h"
 #import "JikanQuickActionAdapter/JikanQuickActionAdapter.h"
 #import "JikanSessionRecorder/JikanSessionRecorder.h"
 #import "TT100/TT100.h"
-
-extern BOOL isCharging;
 
 @interface JikanQuickActionControl : UIControl
 @end
