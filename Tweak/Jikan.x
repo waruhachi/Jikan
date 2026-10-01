@@ -6,7 +6,6 @@ static const void *kTTPlatterWidthConstraintKey = &kTTPlatterWidthConstraintKey;
 static const void *kTTPlatterHeightConstraintKey = &kTTPlatterHeightConstraintKey;
 static const void *kTTPlatterCenterXConstraintKey = &kTTPlatterCenterXConstraintKey;
 static const void *kTTPlatterConstraintsInstalledKey = &kTTPlatterConstraintsInstalledKey;
-static const void *kTTPlatterStyleCapturedKey = &kTTPlatterStyleCapturedKey;
 static const void *kTTCoverSheetObserverInstalledKey = &kTTCoverSheetObserverInstalledKey;
 static const void *kTTPlatterCenterYConstraintKey = &kTTPlatterCenterYConstraintKey;
 static const void *kTTPlatterLongPressKey = &kTTPlatterLongPressKey;
@@ -15,14 +14,21 @@ static const void *kTTPlatterDragStartTouchKey = &kTTPlatterDragStartTouchKey;
 static const void *kTTPlatterDefaultCenterComputedPortraitKey = &kTTPlatterDefaultCenterComputedPortraitKey;
 static const void *kTTPlatterDefaultCenterComputedLandscapeKey = &kTTPlatterDefaultCenterComputedLandscapeKey;
 static const void *kTTPlatterDraggingKey = &kTTPlatterDraggingKey;
-static const void *kTTQuickActionOriginalHiddenKey = &kTTQuickActionOriginalHiddenKey;
-static const void *kTTQuickActionHiddenByJikanKey = &kTTQuickActionHiddenByJikanKey;
 static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
 static BOOL _ttPreviewSessionActive = NO;
 static BOOL _ttMonitoringEnabled = NO;
 static NSDictionary *_ttLatestSnapshot;
-static const void *kTTQuickActionInternalHiddenWriteKey = &kTTQuickActionInternalHiddenWriteKey;
 static void TTApplyEnabledState(void);
+static const void *kTTQuickActionAdapterKey = &kTTQuickActionAdapterKey;
+
+static JikanQuickActionAdapter *TTQuickActionAdapter(UIView *view) {
+	JikanQuickActionAdapter *adapter = objc_getAssociatedObject(view, kTTQuickActionAdapterKey);
+	if (!adapter) {
+		adapter = [[JikanQuickActionAdapter alloc] initWithRootView:view];
+		objc_setAssociatedObject(view, kTTQuickActionAdapterKey, adapter, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	}
+	return adapter;
+}
 
 static BOOL TTShouldHideQuickActionButtonsNow(void) {
 	if (!enabled || !hideQuickActionButtons) return NO;
@@ -161,189 +167,6 @@ static void TTSetConstraintsInstalled(UIView *view, BOOL installed) {
 	objc_setAssociatedObject(view, kTTPlatterConstraintsInstalledKey, @(installed), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
-static BOOL TTPlatterStyleCaptured(UIView *view) {
-	return [objc_getAssociatedObject(view, kTTPlatterStyleCapturedKey) boolValue];
-}
-
-static void TTSetPlatterStyleCaptured(UIView *view, BOOL captured) {
-	objc_setAssociatedObject(view, kTTPlatterStyleCapturedKey, @(captured), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
-static CSQuickActionsView *TTFindQuickActionsView(UIView *root) {
-	if (!root) return nil;
-	Class quickActionsClass = NSClassFromString(@"CSQuickActionsView");
-	if (!quickActionsClass) return nil;
-
-	NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
-	while (stack.count) {
-		UIView *view = stack.lastObject;
-		[stack removeLastObject];
-		if ([view isKindOfClass:quickActionsClass]) {
-			return (CSQuickActionsView *)view;
-		}
-		for (UIView *sub in view.subviews) {
-			[stack addObject:sub];
-		}
-	}
-	return nil;
-}
-
-static id TTObjectForSelector(id target, NSString *selectorName) {
-	if (!target || selectorName.length == 0) return nil;
-	SEL selector = NSSelectorFromString(selectorName);
-	if (!selector || ![target respondsToSelector:selector]) return nil;
-
-	@try {
-		NSMethodSignature *signature = [target methodSignatureForSelector:selector];
-		if (signature.numberOfArguments != 2 || signature.methodReturnType[0] != '@') return nil;
-		return ((id (*)(id, SEL))objc_msgSend)(target, selector);
-	}
-	@catch (__unused NSException *exception) {
-		return nil;
-	}
-}
-
-static UIView *TTViewForSelector(id target, NSString *selectorName) {
-	id object = TTObjectForSelector(target, selectorName);
-	return [object isKindOfClass:[UIView class]] ? (UIView *)object : nil;
-}
-
-static BOOL TTResolveQuickActionButtons(CSQuickActionsView *quickActions, UIView **leadingOut, UIView **trailingOut) {
-	if (leadingOut) *leadingOut = nil;
-	if (trailingOut) *trailingOut = nil;
-	if (!quickActions) return NO;
-
-	UIView *leading = nil;
-	UIView *trailing = nil;
-	id container = TTObjectForSelector(quickActions, @"buttonContainerView");
-	if (container) {
-		leading = TTViewForSelector(container, @"leadingButton");
-		trailing = TTViewForSelector(container, @"trailingButton");
-	}
-
-	if (!leading) leading = TTViewForSelector(quickActions, @"flashlightButton");
-	if (!trailing) trailing = TTViewForSelector(quickActions, @"cameraButton");
-
-	if (!leading || !trailing) {
-		id buttonsObject = TTObjectForSelector(quickActions, @"buttons");
-		if ([buttonsObject isKindOfClass:[NSArray class]]) {
-			NSMutableArray<UIView *> *buttonViews = [NSMutableArray array];
-			for (id object in (NSArray *)buttonsObject) {
-				if (![object isKindOfClass:[UIView class]]) continue;
-				UIView *view = (UIView *)object;
-				if (![view isDescendantOfView:quickActions]) continue;
-				if (![buttonViews containsObject:view]) [buttonViews addObject:view];
-			}
-
-			[buttonViews sortUsingComparator:^NSComparisonResult(UIView *a, UIView *b) {
-				CGRect aRect = [a convertRect:a.bounds toView:quickActions];
-				CGRect bRect = [b convertRect:b.bounds toView:quickActions];
-				CGFloat aX = CGRectGetMidX(aRect);
-				CGFloat bX = CGRectGetMidX(bRect);
-				if (aX < bX) return NSOrderedAscending;
-				if (aX > bX) return NSOrderedDescending;
-				return NSOrderedSame;
-			}];
-
-			for (UIView *view in buttonViews) {
-				if (!leading && view != trailing) leading = view;
-			}
-			for (UIView *view in buttonViews.reverseObjectEnumerator) {
-				if (!trailing && view != leading) trailing = view;
-			}
-		}
-	}
-	if (leading == trailing) trailing = nil;
-
-	if (leadingOut) *leadingOut = leading;
-	if (trailingOut) *trailingOut = trailing;
-	return leading || trailing;
-}
-
-static void TTSetQuickActionControlHidden(UIView *control, BOOL shouldHide) {
-	if (!control) return;
-	BOOL hiddenByJikan = [objc_getAssociatedObject(control, kTTQuickActionHiddenByJikanKey) boolValue];
-
-	if (shouldHide) {
-		if (!hiddenByJikan) {
-			objc_setAssociatedObject(control, kTTQuickActionOriginalHiddenKey, @(control.hidden), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-			objc_setAssociatedObject(control, kTTQuickActionHiddenByJikanKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		}
-		objc_setAssociatedObject(control, kTTQuickActionInternalHiddenWriteKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		control.hidden = YES;
-		objc_setAssociatedObject(control, kTTQuickActionInternalHiddenWriteKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		return;
-	}
-
-	if (!hiddenByJikan) return;
-	NSNumber *originalHidden = (NSNumber *)objc_getAssociatedObject(control, kTTQuickActionOriginalHiddenKey);
-	objc_setAssociatedObject(control, kTTQuickActionOriginalHiddenKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	objc_setAssociatedObject(control, kTTQuickActionHiddenByJikanKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-	if (originalHidden) control.hidden = originalHidden.boolValue;
-}
-
-static void TTSetQuickActionButtonsHidden(CSQuickActionsView *quickActions, BOOL shouldHide) {
-	UIView *leading = nil;
-	UIView *trailing = nil;
-	if (!TTResolveQuickActionButtons(quickActions, &leading, &trailing)) return;
-
-	TTSetQuickActionControlHidden(leading, shouldHide);
-	if (trailing && trailing != leading) TTSetQuickActionControlHidden(trailing, shouldHide);
-}
-
-static UIView *TTPlatterHost(CSCoverSheetView *coverSheet) {
-	UIView *actions = TTFindQuickActionsView(coverSheet);
-	for (UIView *parent = actions.superview; parent && parent != coverSheet; parent = parent.superview) {
-		if ([NSStringFromClass(parent.class) isEqualToString:@"CSCoverSheetContentsContainerView"]) return parent;
-	}
-	// Older releases may not expose that container. Share the buttons' moving
-	// parent when present; keep the root only until the content is installed.
-	return actions.superview ?: coverSheet;
-}
-
-static UIView *TTQuickActionVisibleBackground(UIView *button) {
-	if (@available(iOS 26.0, *)) {
-		UIView *background = TTViewForSelector(button, @"backgroundView");
-		if (background && !CGRectIsEmpty(background.bounds)) return background;
-		for (UIView *child in button.subviews) {
-			id effect = TTObjectForSelector(child, @"_glassEffect");
-			if ([effect isKindOfClass:NSClassFromString(@"UIGlassEffect")] && !CGRectIsEmpty(child.bounds)) return child;
-		}
-	}
-
-	for (UIView *child in button.subviews) {
-		if ([child isKindOfClass:[UIVisualEffectView class]] && !CGRectIsEmpty(child.bounds)) return child;
-		for (UIView *grandchild in child.subviews) {
-			if ([grandchild isKindOfClass:[UIVisualEffectView class]] && !CGRectIsEmpty(grandchild.bounds)) return grandchild;
-		}
-	}
-	return button;
-}
-
-static BOOL TTQuickActionButtonFramesInView(CSCoverSheetView *coverSheet, UIView *host, CGRect *leadingRectOut, CGRect *trailingRectOut) {
-	CSQuickActionsView *quickActions = TTFindQuickActionsView(coverSheet);
-	UIView *leading = nil;
-	UIView *trailing = nil;
-	if (!TTResolveQuickActionButtons(quickActions, &leading, &trailing) || !leading || !trailing) return NO;
-	if (![leading isDescendantOfView:coverSheet] || ![trailing isDescendantOfView:coverSheet]) return NO;
-
-	leading = TTQuickActionVisibleBackground(leading);
-	trailing = TTQuickActionVisibleBackground(trailing);
-	CGRect leadingRect = [leading convertRect:leading.bounds toView:host];
-	CGRect trailingRect = [trailing convertRect:trailing.bounds toView:host];
-	if (CGRectIsEmpty(leadingRect) || CGRectIsEmpty(trailingRect)) return NO;
-	if (!isfinite(leadingRect.origin.x) || !isfinite(leadingRect.origin.y) || !isfinite(leadingRect.size.width) || !isfinite(leadingRect.size.height) ||
-		!isfinite(trailingRect.origin.x) || !isfinite(trailingRect.origin.y) || !isfinite(trailingRect.size.width) || !isfinite(trailingRect.size.height)) return NO;
-	if (CGRectGetMidX(leadingRect) > CGRectGetMidX(trailingRect)) {
-		CGRect swap = leadingRect;
-		leadingRect = trailingRect;
-		trailingRect = swap;
-	}
-	if (leadingRectOut) *leadingRectOut = leadingRect;
-	if (trailingRectOut) *trailingRectOut = trailingRect;
-	return YES;
-}
-
 static UIView *TTFindDateViewContainer(CSCoverSheetView *coverSheet) {
 	if (!coverSheet) return nil;
 	Class dateClass = NSClassFromString(@"CSProminentSubtitleDateView");
@@ -361,72 +184,6 @@ static UIView *TTFindDateViewContainer(CSCoverSheetView *coverSheet) {
 		}
 	}
 	return nil;
-}
-
-static UIView *TTFindNearestQuickActionMaterialView(UIView *root) {
-	if (!root) return nil;
-	CSQuickActionsView *quickActions = TTFindQuickActionsView(root);
-	if (!quickActions) return nil;
-	UIView *leading = nil;
-	UIView *trailing = nil;
-	TTResolveQuickActionButtons(quickActions, &leading, &trailing);
-	NSMutableArray<UIView *> *candidates = [NSMutableArray array];
-	if (leading) [candidates addObject:leading];
-	if (trailing && trailing != leading) [candidates addObject:trailing];
-	for (UIView *button in candidates) {
-		if (!button) continue;
-		UIView *backgroundEffectView = TTViewForSelector(button, @"backgroundEffectView");
-		UIView *backgroundView = TTViewForSelector(button, @"backgroundView");
-
-		NSMutableArray<UIView *> *buttonStack = [NSMutableArray arrayWithObject:button];
-		if (backgroundView) [buttonStack addObject:backgroundView];
-		if (backgroundEffectView) [buttonStack addObject:backgroundEffectView];
-		while (buttonStack.count) {
-			UIView *v = buttonStack.lastObject;
-			[buttonStack removeLastObject];
-			if ([v isKindOfClass:[UIVisualEffectView class]] && ((UIVisualEffectView *)v).effect) return v;
-			if ([NSStringFromClass(v.class) containsString:@"MTMaterial"]) return v;
-			for (UIView *sub in v.subviews) {
-				[buttonStack addObject:sub];
-			}
-		}
-	}
-	return nil;
-}
-
-static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
-	if (!coverSheet.remainingTimePlatter) return;
-	CSQuickActionsView *quickActions = TTFindQuickActionsView(coverSheet);
-	UIView *leading = nil;
-	UIView *trailing = nil;
-	TTResolveQuickActionButtons(quickActions, &leading, &trailing);
-	UIView *referenceButton = leading ?: trailing;
-	if (@available(iOS 26.0, *)) {
-		// Glass is attached to the controls' child views, rather than a
-		// UIVisualEffectView. Refresh the recipe as wallpaper traits change.
-		if ([coverSheet.remainingTimePlatter applyQuickActionGlassFromView:leading] ||
-			[coverSheet.remainingTimePlatter applyQuickActionGlassFromView:trailing]) return;
-	}
-	if (TTPlatterStyleCaptured(coverSheet)) return;
-
-	UIView *sourceMaterialView = TTFindNearestQuickActionMaterialView(coverSheet);
-	if (!sourceMaterialView) return;
-
-	if ([sourceMaterialView isKindOfClass:[UIVisualEffectView class]]) {
-		UIVisualEffectView *sourceEffect = (UIVisualEffectView *)sourceMaterialView;
-		[coverSheet.remainingTimePlatter applyQuickActionVisualEffect:sourceEffect.effect];
-		UIView *styleSource = sourceMaterialView.superview ?: (referenceButton ?: sourceMaterialView);
-		[coverSheet.remainingTimePlatter applyQuickActionBackgroundStyleFromView:styleSource];
-		if (!TTPlatterStyleCaptured(coverSheet)) {
-			TTSetPlatterStyleCaptured(coverSheet, YES);
-		}
-		return;
-	}
-
-	[coverSheet.remainingTimePlatter applyQuickActionBackgroundStyleFromView:sourceMaterialView];
-	if (!TTPlatterStyleCaptured(coverSheet)) {
-		TTSetPlatterStyleCaptured(coverSheet, YES);
-	}
 }
 
 static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
@@ -482,11 +239,7 @@ static void TTApplyEnabledState(void) {
 %group JikanQuickActionVisibility
 %hook JikanQuickActionControl
 - (void)setHidden:(BOOL)hidden {
-	if ([objc_getAssociatedObject(self, kTTQuickActionHiddenByJikanKey) boolValue] && ![objc_getAssociatedObject(self, kTTQuickActionInternalHiddenWriteKey) boolValue]) {
-		objc_setAssociatedObject(self, kTTQuickActionOriginalHiddenKey, @(hidden), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-		hidden = YES;
-	}
-	%orig(hidden);
+	%orig([JikanQuickActionAdapter hiddenValueForControl:self requestedHidden:hidden]);
 }
 %end
 %end
@@ -501,10 +254,10 @@ static void TTApplyEnabledState(void) {
 %hook CSQuickActionsView
 
 - (void)refreshSupportedButtons {
-	TTSetQuickActionButtonsHidden(self, NO);
+	[JikanQuickActionAdapter setButtonsInView:self hidden:NO];
 	%orig;
 	BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
-	TTSetQuickActionButtonsHidden(self, shouldHide);
+	[JikanQuickActionAdapter setButtonsInView:self hidden:shouldHide];
 }
 
 %end
@@ -517,7 +270,7 @@ static void TTApplyEnabledState(void) {
 
 	BOOL installed = [objc_getAssociatedObject(self, kTTCoverSheetObserverInstalledKey) boolValue];
 	if (self.window) {
-		TTSetPlatterStyleCaptured(self, NO);
+		[TTQuickActionAdapter(self) invalidateStyle];
 		if (!installed) {
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanChargingStateChanged:) name:JikanChargingStateChangedNotification object:nil];
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_jikanChargingStateChanged:) name:TT100BatteryInfoUpdatedNotification object:nil];
@@ -557,11 +310,7 @@ static void TTApplyEnabledState(void) {
 		return;
 	}
 	[self _addOrRemoveRemainingTimePlatterIfNecessary];
-	CSQuickActionsView *quickActions = TTFindQuickActionsView(self);
-	if (quickActions) {
-		BOOL shouldHide = TTShouldHideQuickActionButtonsNow();
-		TTSetQuickActionButtonsHidden(quickActions, shouldHide);
-	}
+	[TTQuickActionAdapter(self) setButtonsHidden:TTShouldHideQuickActionButtonsNow()];
 	[self _configureRemainingTimePlatterConstraints];
 	[self setNeedsLayout];
 	[self layoutIfNeeded];
@@ -677,7 +426,7 @@ static void TTApplyEnabledState(void) {
 		self.remainingTimePlatter = [[JikanPlatterView alloc] init];
 		self.remainingTimePlatter.hidden = YES;
 		self.remainingTimePlatter.translatesAutoresizingMaskIntoConstraints = NO;
-		[TTPlatterHost(self) addSubview:self.remainingTimePlatter];
+		[[TTQuickActionAdapter(self) platterHostView] addSubview:self.remainingTimePlatter];
 		__weak CSCoverSheetView *weakSelf = self;
 		self.remainingTimePlatter.contentSizeDidChange = ^{ [weakSelf setNeedsLayout]; };
 		[self.remainingTimePlatter setupConstraints];
@@ -687,7 +436,7 @@ static void TTApplyEnabledState(void) {
 		objc_setAssociatedObject(self, kTTPlatterLongPressKey, longPress, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 	}
 
-	TTApplyQuickActionStyleIfPossible(self);
+	[TTQuickActionAdapter(self) applyStyleToPlatter:self.remainingTimePlatter];
 
 	BOOL hasEstimate = [_ttLatestSnapshot[@"hasEstimate"] boolValue];
 	BOOL fullyCharged = [_ttLatestSnapshot[@"targetReached"] boolValue];
@@ -758,7 +507,7 @@ static void TTApplyEnabledState(void) {
 %new
 - (void)_configureRemainingTimePlatterConstraints {
 	if (!self.remainingTimePlatter) return;
-	UIView *host = TTPlatterHost(self);
+	UIView *host = [TTQuickActionAdapter(self) platterHostView];
 	if (self.remainingTimePlatter.superview != host) {
 		if (TTConstraintsInstalled(self)) {
 			[NSLayoutConstraint deactivateConstraints:@[TTGetConstraint(self, kTTPlatterWidthConstraintKey), TTGetConstraint(self, kTTPlatterHeightConstraintKey), TTGetConstraint(self, kTTPlatterCenterXConstraintKey), TTGetConstraint(self, kTTPlatterCenterYConstraintKey)]];
@@ -766,7 +515,7 @@ static void TTApplyEnabledState(void) {
 		}
 		[self.remainingTimePlatter removeFromSuperview];
 		[host addSubview:self.remainingTimePlatter];
-		TTSetPlatterStyleCaptured(self, NO);
+		[TTQuickActionAdapter(self) invalidateStyle];
 	}
 	CGRect viewport = TTPlatterViewport(host);
 	if (CGRectIsEmpty(viewport)) return;
@@ -776,7 +525,7 @@ static void TTApplyEnabledState(void) {
 	CGFloat pillHeight = 60.0;
 	CGRect leadingRect = CGRectZero;
 	CGRect trailingRect = CGRectZero;
-	BOOL hasButtons = TTQuickActionButtonFramesInView(self, host, &leadingRect, &trailingRect);
+	BOOL hasButtons = [TTQuickActionAdapter(self) getButtonFramesInView:host leadingRect:&leadingRect trailingRect:&trailingRect];
 	if (hasButtons) {
 		CGFloat buttonHeight = MIN(CGRectGetHeight(leadingRect), CGRectGetHeight(trailingRect));
 		if (@available(iOS 26.0, *)) pillHeight = MAX(60.0, buttonHeight);
@@ -882,9 +631,7 @@ static void TTApplyEnabledState(void) {
 %ctor {
 	_ttSessionRecorder = [JikanSessionRecorder new];
 	%init;
-	Class quickButtonClass = NSClassFromString(@"CSQuickActionsButton");
-	Class prominentClass = NSClassFromString(@"CSProminentButtonControl");
-	Class visibilityClass = prominentClass && [quickButtonClass isSubclassOfClass:prominentClass] ? prominentClass : quickButtonClass;
+	Class visibilityClass = [JikanQuickActionAdapter visibilityControlClass];
 	if (visibilityClass) {
 		%init(JikanQuickActionVisibility, JikanQuickActionControl = visibilityClass);
 	}

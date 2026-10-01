@@ -10,6 +10,7 @@
 #import "../Shared/JikanPositionSettings.h"
 #import "../Shared/JikanPreferences.h"
 #import "JikanPlatterView/JikanPlatterView.h"
+#import "JikanQuickActionAdapter/JikanQuickActionAdapter.h"
 #import "JikanSessionRecorder/JikanSessionRecorder.h"
 #import "TT100/TT100.h"
 
@@ -32,21 +33,7 @@ extern BOOL isCharging;
 @interface JikanQuickActionControl : UIControl
 @end
 
-@interface CSProminentButtonControl : UIControl
-@property (nonatomic, retain) UIVisualEffectView *backgroundEffectView;
-@property (nonatomic, readonly) UIView *backgroundView;
-@property (nonatomic) BOOL usesGlassMaterial;
-@end
-
-@interface CSProminentButtonsView : UIView
-@property (nonatomic, retain) CSProminentButtonControl *leadingButton;
-@property (nonatomic, retain) CSProminentButtonControl *trailingButton;
-@end
-
 @interface CSQuickActionsView : UIView
-@property (nonatomic, retain) CSProminentButtonsView *buttonContainerView;
-@property (nonatomic, retain) NSArray *buttons;
-
 - (void)refreshSupportedButtons;
 - (UIEdgeInsets)_buttonOutsets;
 - (BOOL)_prototypingAllowsButtons;
