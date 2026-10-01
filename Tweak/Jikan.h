@@ -9,24 +9,10 @@
 #import "../Shared/JikanEstimateSettings.h"
 #import "../Shared/JikanPositionSettings.h"
 #import "../Shared/JikanPreferences.h"
-#import "JikanPlatterView/JikanPlatterView.h"
+#import "JikanCoverSheetCoordinator/JikanCoverSheetCoordinator.h"
 #import "JikanQuickActionAdapter/JikanQuickActionAdapter.h"
 #import "JikanSessionRecorder/JikanSessionRecorder.h"
 #import "TT100/TT100.h"
-
-static BOOL enabled;
-static BOOL hideQuickActionButtons;
-static BOOL hideQuickActionButtonsOnlyWhenCharging;
-static BOOL showAfterFullCharge;
-static BOOL lockPreviewXAxis;
-static BOOL lockPreviewYAxis;
-static CGFloat pillBackgroundOpacity;
-static CGFloat platterPosXNorm;
-static CGFloat platterPosYNorm;
-static BOOL platterHasCustomPosition;
-static CGFloat platterPosXNormLandscape;
-static CGFloat platterPosYNormLandscape;
-static BOOL platterHasCustomPositionLandscape;
 
 extern BOOL isCharging;
 
@@ -40,16 +26,6 @@ extern BOOL isCharging;
 @end
 
 @interface CSCoverSheetView : UIView
-@end
-
-@interface CSCoverSheetView (JikanPlatterView)
-@property (nonatomic, strong) JikanPlatterView *remainingTimePlatter;
-
-- (void)_configureRemainingTimePlatterConstraints;
-- (void)_addOrRemoveRemainingTimePlatterIfNecessary;
-- (void)_setRemainingTimePlatterVisible:(BOOL)visible;
-- (void)_jikanChargingStateChanged:(NSNotification *)notification;
-- (void)_jikanHandlePlatterLongPress:(UILongPressGestureRecognizer *)gesture;
 @end
 
 @interface CSCoverSheetViewController : UIViewController
