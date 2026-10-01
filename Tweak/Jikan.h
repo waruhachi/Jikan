@@ -5,14 +5,13 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <spawn.h>
-#import <time.h>
 
 #import "../Shared/JikanEstimateSettings.h"
 #import "../Shared/JikanPositionSettings.h"
 #import "../Shared/JikanPreferences.h"
 #import "JikanPlatterView/JikanPlatterView.h"
+#import "JikanSessionRecorder/JikanSessionRecorder.h"
 #import "TT100/TT100.h"
-#import "TT100/TT100Database.h"
 
 static BOOL enabled;
 static BOOL hideQuickActionButtons;

@@ -1,13 +1,7 @@
 #import "Jikan.h"
 
 BOOL isCharging = NO;
-static NSInteger _tt100CurrentSessionId = -1;
-static NSInteger _tt100LastSOC = -1;
-static NSTimeInterval _tt100LastSOCMonotonicTime = NAN;
-static NSMutableDictionary<NSNumber *, NSMutableArray<NSNumber *> *> *_tt100Durations;
-static NSString *_tt100CurrentChargerClass = nil;
-static NSString *_tt100CurrentChargerIdentity = nil;
-static BOOL _tt100CurrentIsWireless = NO;
+static JikanSessionRecorder *_ttSessionRecorder;
 static const void *kTTPlatterWidthConstraintKey = &kTTPlatterWidthConstraintKey;
 static const void *kTTPlatterHeightConstraintKey = &kTTPlatterHeightConstraintKey;
 static const void *kTTPlatterCenterXConstraintKey = &kTTPlatterCenterXConstraintKey;
@@ -435,102 +429,6 @@ static void TTApplyQuickActionStyleIfPossible(CSCoverSheetView *coverSheet) {
 	}
 }
 
-static NSTimeInterval TT100MonotonicSeconds(void) {
-	struct timespec time;
-	if (clock_gettime(CLOCK_MONOTONIC_RAW, &time) != 0) return NAN;
-	return (double)time.tv_sec + (double)time.tv_nsec / 1e9;
-}
-
-static void TT100SessionMaybeStart(NSDictionary *batteryInfo) {
-	if (_tt100CurrentSessionId >= 0) return;
-	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
-	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
-	if (!pctMax || !pctCurr) return;
-	if (pctMax.intValue <= 0) return;
-	NSInteger soc = (NSInteger)lrint((pctCurr.doubleValue / pctMax.doubleValue) * 100.0);
-	_tt100CurrentSessionId = [[TT100Database shared] beginSessionWithStartSOC:soc];
-	if (_tt100CurrentSessionId >= 0) {
-		BOOL isWireless = NO;
-		NSString *chargerClass = [TT100 chargerClassWithBatteryInfo:batteryInfo outIsWireless:&isWireless];
-		if (!chargerClass.length) chargerClass = @"unknown";
-		_tt100CurrentChargerClass = [chargerClass copy];
-		_tt100CurrentChargerIdentity = [[TT100 chargerIdentityWithBatteryInfo:batteryInfo] copy];
-		_tt100CurrentIsWireless = isWireless;
-		[[TT100Database shared] updateSession:_tt100CurrentSessionId chargerClass:_tt100CurrentChargerClass isWireless:_tt100CurrentIsWireless];
-	}
-	_tt100LastSOC = soc;
-	_tt100LastSOCMonotonicTime = TT100MonotonicSeconds();
-	if (!_tt100Durations) _tt100Durations = [NSMutableDictionary new];
-}
-
-static void TT100SessionMaybeEnd(NSDictionary *batteryInfo) {
-	if (_tt100CurrentSessionId < 0) return;
-	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
-	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
-	NSInteger soc = _tt100LastSOC;
-	if (pctMax && pctCurr && pctMax.intValue > 0) soc = (NSInteger)lrint((pctCurr.doubleValue / pctMax.doubleValue) * 100.0);
-	[[TT100Database shared] endSessionId:_tt100CurrentSessionId endSOC:MAX(0, MIN(100, soc))];
-
-	if (_tt100Durations.count) {
-		NSString *cls = _tt100CurrentChargerClass.length ? _tt100CurrentChargerClass : @"unknown";
-		[[TT100Database shared] updatePercentStatsForChargerClass:cls withDurationsSec:_tt100Durations];
-	}
-	_tt100Durations = [NSMutableDictionary new];
-	_tt100CurrentSessionId = -1;
-	_tt100LastSOC = -1;
-	_tt100LastSOCMonotonicTime = NAN;
-	_tt100CurrentChargerClass = nil;
-	_tt100CurrentChargerIdentity = nil;
-	_tt100CurrentIsWireless = NO;
-}
-
-static void TT100RecordTicksIfNeeded(NSDictionary *batteryInfo) {
-	if (_tt100CurrentSessionId < 0) return;
-	NSNumber *pctMax = batteryInfo[@"MaxCapacity"];
-	NSNumber *pctCurr = batteryInfo[@"CurrentCapacity"];
-	if (!pctMax || !pctCurr || pctMax.intValue <= 0) return;
-	NSInteger soc = (NSInteger)lrint((pctCurr.doubleValue / pctMax.doubleValue) * 100.0);
-	NSTimeInterval now = TT100MonotonicSeconds();
-	NSTimeInterval delta = now - _tt100LastSOCMonotonicTime;
-	if (_tt100LastSOC < 0 || soc < _tt100LastSOC || !isfinite(now) ||
-		!isfinite(_tt100LastSOCMonotonicTime) || !isfinite(delta) || delta <= 0) {
-		_tt100LastSOC = soc;
-		_tt100LastSOCMonotonicTime = now;
-		return;
-	}
-	if (soc == _tt100LastSOC) return;
-	const NSTimeInterval nowEpoch = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
-	NSInteger steps = soc - _tt100LastSOC;
-	for (NSInteger step = 1; step <= steps; step++) {
-		NSInteger reached = _tt100LastSOC + step;
-		double slice = delta / (double)steps;
-		NSTimeInterval tickTs = nowEpoch - (delta - slice * step);
-		[[TT100Database shared] insertTickForSession:_tt100CurrentSessionId
-												 soc:reached
-												  ts:tickTs
-										batteryTempC:NAN
-							  instantaneousCurrentmA:[batteryInfo[@"Amperage"] integerValue]
-											screenOn:YES
-											 cpuLoad:NAN
-										thermalLevel:0];
-		NSInteger prior = reached - 1;
-		if (prior >= 0 && prior < 100) {
-			NSMutableArray *arr = _tt100Durations[@(prior)];
-			if (!arr) {
-				arr = [NSMutableArray new];
-				_tt100Durations[@(prior)] = arr;
-			}
-			[arr addObject:@(slice)];
-		}
-	}
-	if (_tt100Durations.count) {
-		[[TT100Database shared] updatePercentStatsForChargerClass:_tt100CurrentChargerClass ?: @"unknown" withDurationsSec:_tt100Durations];
-		[_tt100Durations removeAllObjects];
-	}
-	_tt100LastSOC = soc;
-	_tt100LastSOCMonotonicTime = now;
-}
-
 static BOOL TTInferChargingStateFromBatteryInfo(NSDictionary *batteryInfo) {
 	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NO;
 
@@ -573,7 +471,7 @@ static void TTApplyEnabledState(void) {
 	} else {
 		_ttMonitoringEnabled = NO;
 		[TT100 stopMonitoring];
-		TT100SessionMaybeEnd(_ttLatestSnapshot[@"batteryInfo"]);
+		[_ttSessionRecorder finishWithBatteryInfo:_ttLatestSnapshot[@"batteryInfo"]];
 		_ttLatestSnapshot = nil;
 		_ttPreviewSessionActive = NO;
 		isCharging = NO;
@@ -982,6 +880,7 @@ static void TTApplyEnabledState(void) {
 %end
 
 %ctor {
+	_ttSessionRecorder = [JikanSessionRecorder new];
 	%init;
 	Class quickButtonClass = NSClassFromString(@"CSQuickActionsButton");
 	Class prominentClass = NSClassFromString(@"CSProminentButtonControl");
@@ -999,19 +898,7 @@ static void TTApplyEnabledState(void) {
 		if (!batteryInfo.count) return;
 		BOOL wasCharging = isCharging;
 		isCharging = TTInferChargingStateFromBatteryInfo(batteryInfo);
-		if (isCharging) {
-			NSString *chargerIdentity = _ttLatestSnapshot[@"chargerIdentity"];
-			if (_tt100CurrentSessionId >= 0 && ![_tt100CurrentChargerIdentity isEqualToString:chargerIdentity]) TT100SessionMaybeEnd(batteryInfo);
-			TT100SessionMaybeStart(batteryInfo);
-			BOOL paused = [batteryInfo[@"IsCharging"] respondsToSelector:@selector(boolValue)] && ![batteryInfo[@"IsCharging"] boolValue];
-			if (paused) {
-				_tt100LastSOC = [_ttLatestSnapshot[@"displayPercent"] integerValue];
-				_tt100LastSOCMonotonicTime = TT100MonotonicSeconds();
-			} else
-				TT100RecordTicksIfNeeded(batteryInfo);
-		} else {
-			TT100SessionMaybeEnd(batteryInfo);
-		}
+		[_ttSessionRecorder consumeSnapshot:_ttLatestSnapshot charging:isCharging];
 		if (wasCharging != isCharging) [[NSNotificationCenter defaultCenter] postNotificationName:JikanChargingStateChangedNotification object:nil userInfo:@{@"isCharging": @(isCharging)}];
 	}];
 	dispatch_async(dispatch_get_main_queue(), ^{ TTApplyEnabledState(); });
