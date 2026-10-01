@@ -1,5 +1,3 @@
-#import <math.h>
-
 #import "TT100Database.h"
 
 static NSString *const kTT100DBDirectory = @"Library/TT100";
@@ -211,14 +209,17 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 }
 
 - (NSInteger)beginSessionWithStartSOC:(NSInteger)soc {
+	return [self beginSessionWithStartSOC:soc timestamp:CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970];
+}
+
+- (NSInteger)beginSessionWithStartSOC:(NSInteger)soc timestamp:(NSTimeInterval)ts {
 	__block NSInteger newId = -1;
 	dispatch_sync(_queue, ^{
 		if (![self _openOnQueue]) return;
 		const char *sql = "INSERT INTO sessions(start_ts,start_soc) VALUES(?,?)";
 		sqlite3_stmt *stmt = NULL;
 		if ([self _prepare:sql statement:&stmt]) {
-			double now = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
-			sqlite3_bind_double(stmt, 1, now);
+			sqlite3_bind_double(stmt, 1, ts);
 			sqlite3_bind_int(stmt, 2, (int)soc);
 			if ([self _stepDone:stmt]) {
 				newId = (NSInteger)sqlite3_last_insert_rowid(_db);
@@ -231,14 +232,17 @@ static NSString *const kTT100DBFilename = @"tt100.db";
 }
 
 - (void)endSessionId:(NSInteger)sessionId endSOC:(NSInteger)soc {
+	[self endSessionId:sessionId endSOC:soc timestamp:CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970];
+}
+
+- (void)endSessionId:(NSInteger)sessionId endSOC:(NSInteger)soc timestamp:(NSTimeInterval)ts {
 	if (sessionId < 0) return;
 	dispatch_async(_queue, ^{
 		if (![self _openOnQueue]) return;
 		const char *sql = "UPDATE sessions SET end_ts=?, end_soc=? WHERE id=?";
 		sqlite3_stmt *stmt = NULL;
 		if ([self _prepare:sql statement:&stmt]) {
-			double now = CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
-			sqlite3_bind_double(stmt, 1, now);
+			sqlite3_bind_double(stmt, 1, ts);
 			sqlite3_bind_int(stmt, 2, (int)soc);
 			sqlite3_bind_int(stmt, 3, (int)sessionId);
 			[self _stepDone:stmt];
