@@ -57,6 +57,8 @@
 			<string>PSStaticTextCell</string>
 			<key>cellClass</key>
 			<string>JikanAppearanceCell</string>
+			<key>id</key>
+			<string>pillStylePreviewRow</string>
 			<key>height</key>
 			<real>116</real>
 		</dict>

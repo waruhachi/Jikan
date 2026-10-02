@@ -257,9 +257,10 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	});
 }
 
-- (BOOL)_isEnableSectionInTableView:(UITableView *)tableView section:(NSInteger)section {
-#pragma unused(tableView)
-	return section == 0;
+- (BOOL)_isPillStyleSection:(NSInteger)section {
+	PSSpecifier *specifier = [self specifierForID:@"pillStylePreviewRow"];
+	NSIndexPath *indexPath = specifier ? [self indexPathForSpecifier:specifier] : nil;
+	return indexPath && indexPath.section == section;
 }
 
 - (BOOL)_isSpacerSectionInTableView:(UITableView *)tableView section:(NSInteger)section {
@@ -268,7 +269,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section {
-	if ([self _isEnableSectionInTableView:tableView section:section]) {
+	if ([self _isPillStyleSection:section]) {
 		return [JikanPreferencesPresentation legendFooterView];
 	}
 	return [super tableView:tableView viewForFooterInSection:section];
@@ -282,7 +283,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
-	if ([self _isEnableSectionInTableView:tableView section:section]) {
+	if ([self _isPillStyleSection:section]) {
 		return 42.0;
 	}
 	return [super tableView:tableView heightForFooterInSection:section];
