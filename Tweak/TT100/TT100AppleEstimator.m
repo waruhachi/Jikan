@@ -1,11 +1,3 @@
-#import <CommonCrypto/CommonDigest.h>
-#import <CoreML/CoreML.h>
-#import <math.h>
-#import <roothide.h>
-#import <time.h>
-
-#import "../../Shared/JikanAppleFeatures.h"
-#import "../../Shared/JikanEstimateSettings.h"
 #import "TT100AppleEstimator.h"
 
 static NSString *const JikanModelRevision = @"iOS260";

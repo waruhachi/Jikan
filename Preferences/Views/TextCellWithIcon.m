@@ -1,6 +1,3 @@
-#import <Preferences/PSSpecifier.h>
-#import <UIKit/UIKit.h>
-
 #import "TextCellWithIcon.h"
 
 @interface TextCellWithIcon ()

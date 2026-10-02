@@ -1,5 +1,3 @@
-#import <math.h>
-#import <CoreFoundation/CoreFoundation.h>
 #import "JikanEstimateSettings.h"
 
 NSString *const JikanEstimateSourceKey = @"batteryEstimateSource";

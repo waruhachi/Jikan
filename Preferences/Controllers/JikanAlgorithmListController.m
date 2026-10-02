@@ -1,7 +1,4 @@
-#import "JikanRootListController.h"
-
-@interface JikanAlgorithmListController : PSListItemsController
-@end
+#import "JikanAlgorithmListController.h"
 
 @implementation JikanAlgorithmListController
 

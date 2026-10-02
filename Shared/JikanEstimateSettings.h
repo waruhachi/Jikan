@@ -1,4 +1,6 @@
+#import <CoreFoundation/CoreFoundation.h>
 #import <Foundation/Foundation.h>
+#import <math.h>
 
 FOUNDATION_EXPORT NSString *const JikanEstimateSourceKey;
 FOUNDATION_EXPORT NSString *const JikanEstimateAppleTargetKey;

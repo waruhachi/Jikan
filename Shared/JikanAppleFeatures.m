@@ -1,8 +1,4 @@
-#import <math.h>
-#import <stdint.h>
-#import <CoreFoundation/CoreFoundation.h>
 #import "JikanAppleFeatures.h"
-#import "JikanEstimateSettings.h"
 
 static NSNumber *JikanFeatureNumber(NSDictionary *dictionary, NSString *key) {
 	id value = [dictionary isKindOfClass:NSDictionary.class] ? dictionary[key] : nil;
@@ -66,8 +62,7 @@ NSArray<NSNumber *> *JikanAppleFeatures(NSDictionary *properties, NSInteger targ
 	static const uint32_t codes[14] = {
 		0xe0004000, 0xe0004002, 0xe0004003, 0xe0004004, 0xe0004005,
 		0xe0004006, 0xe0004007, 0xe0004008, 0xe0004009, 0xe000400a,
-		0xe0024003, 0xe0024006, 0xe0024007, 0xe0024008
-	};
+		0xe0024003, 0xe0024006, 0xe0024007, 0xe0024008};
 	uint32_t currentFamily = (uint32_t)family.intValue;
 	for (NSUInteger i = 0; i < 14; i++) [features addObject:@(currentFamily == codes[i] ? 1 : 0)];
 	return features;

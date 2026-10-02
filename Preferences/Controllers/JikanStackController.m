@@ -1,6 +1,6 @@
-#import "JikanStackItemController.h"
+#import "JikanStackController.h"
 
-@interface JikanStackController : PSViewController <UITableViewDataSource, UITableViewDelegate>
+@interface JikanStackController ()
 @property (nonatomic, strong) UITableView *stackTable;
 @property (nonatomic, strong) NSMutableArray<NSString *> *activeItems;
 @end

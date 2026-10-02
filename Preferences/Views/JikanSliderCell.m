@@ -1,8 +1,3 @@
-#import <Preferences/PSSpecifier.h>
-#import <math.h>
-
-#import "../../Shared/JikanEstimateSettings.h"
-#import "../Controllers/JikanSliderSettings.h"
 #import "JikanSliderCell.h"
 
 @interface PSControlTableCell (JikanSliderValue)
