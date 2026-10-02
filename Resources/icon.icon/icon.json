@@ -1,0 +1,100 @@
+{
+  "features" : [
+    "refractivity"
+  ],
+  "fill" : "automatic",
+  "groups" : [
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "Charging-Bolt.png",
+          "name" : "Charging-Bolt"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Ring-Progress.png",
+          "name" : "Ring-Progress"
+        },
+        {
+          "glass" : false,
+          "image-name" : "Ring-Track.png",
+          "name" : "Ring-Track"
+        }
+      ],
+      "name" : "Charging symbol",
+      "refractivity" : {
+        "depth" : 0.12,
+        "enabled" : true,
+        "strength" : 0.35
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.12
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.08
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "Glass-Disc.png",
+          "name" : "Glass-Disc"
+        }
+      ],
+      "name" : "Liquid Glass circle",
+      "refractivity" : {
+        "depth" : 0.5,
+        "enabled" : true,
+        "strength" : 0.8
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.2
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.85
+      }
+    },
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "Background.png",
+          "name" : "Background"
+        }
+      ],
+      "name" : "Shared background",
+      "refractivity" : {
+        "depth" : 0,
+        "enabled" : false,
+        "strength" : 0
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "iOS"
+    ]
+  }
+}

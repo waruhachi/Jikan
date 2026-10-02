@@ -58,11 +58,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)viewDidAppear:(BOOL)animated {
 	[super viewDidAppear:animated];
 
-	if (!self.navigationItem.titleView) {
-		AnimatedTitleView *titleView = [JikanPreferencesPresentation navigationTitleView];
-		self.navigationItem.titleView = titleView;
-	}
-
 	[self _installSliderLongPressEditorsIfNeeded];
 }
 
@@ -72,19 +67,16 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 	self.navigationController.navigationBar.prefersLargeTitles = NO;
 	self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
+	self.navigationItem.titleView = nil;
 
-	UIView *header = [JikanPreferencesPresentation tableHeaderViewForWidth:CGRectGetWidth(self.view.bounds) bundle:[self bundle]];
 	UITableView *tableView = self.table ?: [self valueForKey:@"_table"];
 	if (tableView) {
-		tableView.tableHeaderView = header;
+		tableView.tableHeaderView = nil;
 		tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
 	}
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-	if ([self.navigationItem.titleView respondsToSelector:@selector(adjustLabelPositionToScrollOffset:)]) {
-		[(AnimatedTitleView *)self.navigationItem.titleView adjustLabelPositionToScrollOffset:scrollView.contentOffset.y];
-	}
 	[self _installSliderLongPressEditorsIfNeeded];
 }
 
@@ -110,10 +102,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[super setPreferenceValue:value specifier:specifier];
 	if ([key isEqualToString:JikanEstimateSourceKey]) [self _scheduleSpecifiersReload:YES];
 	if ([key isEqualToString:@"hideQuickActionButtons"]) [self _updateQuickActionChargingSpecifierAnimated];
-}
-
-- (void)viewDidLayoutSubviews {
-	[super viewDidLayoutSubviews];
 }
 
 - (void)reloadSpecifiers {

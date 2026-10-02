@@ -149,17 +149,6 @@
 	}
 }
 
-+ (UIView *)tableHeaderViewForWidth:(CGFloat)width bundle:(NSBundle *)bundle {
-	NSArray<NSString *> *subtitles = @[JikanLocalizedString(@"jikan.prefs.header.subtitle", @"Show time left to full charge on your lock screen")];
-	JikanHeaderView *header = [[JikanHeaderView alloc] initWithTitle:@"Jikan" subtitles:subtitles bundle:bundle];
-	header.frame = CGRectMake(0.0, 0.0, width, 180.0);
-	return header;
-}
-
-+ (AnimatedTitleView *)navigationTitleView {
-	return [[AnimatedTitleView alloc] initWithTitle:@"Jikan" minimumScrollOffsetRequired:100];
-}
-
 + (BOOL)isSpacerHeaderTitle:(NSString *)title {
 	if (![title isKindOfClass:[NSString class]]) return NO;
 	NSString *trimmed = [title stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];

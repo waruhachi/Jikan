@@ -12,7 +12,6 @@
 #import "../../Shared/JikanPositionSettings.h"
 #import "../../Shared/JikanPreferences.h"
 #import "../../Shared/JikanStackSettings.h"
-#import "../Views/AnimatedTitleView.h"
 #import "JikanChargeLimiterDetector.h"
 #import "JikanPreferencesPersistence.h"
 #import "JikanPreferencesPresentation.h"
