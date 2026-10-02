@@ -1,6 +1,4 @@
 #import <UIKit/UIKit.h>
-#import <objc/message.h>
-#import <objc/runtime.h>
 
 #import "../../Localization/JikanLocalization.h"
 #import "../../Shared/JikanAppearanceSettings.h"
@@ -9,6 +7,7 @@
 #import "../../Shared/JikanStackSettings.h"
 #import "../JikanPresentationStore/JikanPresentationState.h"
 #import "../TT100/TT100.h"
+#import "JikanPlatterMaterial.h"
 
 @interface JikanPlatterView : UIView
 @property (nonatomic, copy) void (^contentSizeDidChange)(void);
