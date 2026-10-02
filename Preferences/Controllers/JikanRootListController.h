@@ -14,6 +14,7 @@
 #import "../../Shared/JikanStackSettings.h"
 #import "../Views/AnimatedTitleView.h"
 #import "JikanChargeLimiterDetector.h"
+#import "JikanPreferencesPersistence.h"
 #import "JikanPreferencesPresentation.h"
 #import "JikanSliderEditor.h"
 #import "JikanSliderSettings.h"

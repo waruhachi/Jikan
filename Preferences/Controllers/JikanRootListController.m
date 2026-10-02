@@ -68,7 +68,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)viewDidLoad {
 	[super viewDidLoad];
-	[self _normalizeStoredSliderValues];
+	[JikanPreferencesPersistence normalizeStoredValuesInPreferences:[[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite]];
 
 	self.navigationController.navigationBar.prefersLargeTitles = NO;
 	self.navigationItem.largeTitleDisplayMode = UINavigationItemLargeTitleDisplayModeNever;
@@ -104,31 +104,9 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	NSString *key = [specifier propertyForKey:@"key"];
 	[self _cancelChargeLimiterDetection];
-	if ([key isEqualToString:JikanEstimateSourceKey]) {
-		[self.jikanSliderEditor dismiss];
-		value = [value isKindOfClass:NSString.class] && [value isEqualToString:@"jikan"] ? @"jikan" : @"apple";
-		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-		if ([value isEqualToString:@"apple"] && ![prefs objectForKey:JikanEstimateAppleTargetKey]) {
-			NSInteger jikanTarget = JikanEstimateTarget(prefs, @"jikan");
-			[prefs setInteger:JikanAppleTargetIsSupported(jikanTarget) ? jikanTarget : 100 forKey:JikanEstimateAppleTargetKey];
-			[prefs synchronize];
-		}
-	}
-	if ([key isEqualToString:JikanEstimateAppleTargetKey]) {
-		NSNumber *target = JikanAppleSliderTargetFromValue(value);
-		if (!target) return;
-		value = target;
-		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-		[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
-		[prefs synchronize];
-	}
-	NSNumber *normalized = JikanNormalizedSliderValue(value, key);
-	if (normalized) value = normalized;
-	if ([key isEqualToString:kBatteryEstimateTargetKey]) {
-		NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-		[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
-		[prefs synchronize];
-	}
+	if ([key isEqualToString:JikanEstimateSourceKey]) [self.jikanSliderEditor dismiss];
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
+	if (![JikanPreferencesPersistence prepareValue:&value forKey:key preferences:prefs]) return;
 	[super setPreferenceValue:value specifier:specifier];
 	if ([key isEqualToString:JikanEstimateSourceKey]) [self _scheduleSpecifiersReload:YES];
 	if ([key isEqualToString:@"hideQuickActionButtons"]) [self _updateQuickActionChargingSpecifierAnimated];
@@ -240,7 +218,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 - (void)viewWillAppear:(BOOL)animated {
 	[super viewWillAppear:animated];
 	self.jikanPageActive = YES;
-	[self _normalizeStoredSliderValues];
+	[JikanPreferencesPersistence normalizeStoredValuesInPreferences:[[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite]];
 	[self _scheduleSpecifiersReload:YES];
 }
 
@@ -366,36 +344,6 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	return cell;
 }
 
-- (void)_normalizeStoredSliderValues {
-	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	BOOL changed = NO;
-	id source = [prefs objectForKey:JikanEstimateSourceKey];
-	if (source && (![source isKindOfClass:NSString.class] || (![source isEqualToString:@"jikan"] && ![source isEqualToString:@"apple"]))) {
-		[prefs removeObjectForKey:JikanEstimateSourceKey];
-		changed = YES;
-	}
-	id appleTarget = [prefs objectForKey:JikanEstimateAppleTargetKey];
-	if (appleTarget && !JikanAppleTargetFromValue(appleTarget)) {
-		[prefs setInteger:100 forKey:JikanEstimateAppleTargetKey];
-		[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
-		changed = YES;
-	}
-	for (NSString *key in JikanSliderDefaults()) {
-		id stored = [prefs objectForKey:key];
-		if (!stored && ![key isEqualToString:kBatteryEstimateTargetKey]) continue;
-		NSNumber *normalized = JikanNormalizedSliderValue(stored, key);
-		if (![stored isEqual:normalized]) {
-			[prefs setObject:normalized forKey:key];
-			if ([key isEqualToString:kBatteryEstimateTargetKey]) [prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
-			changed = YES;
-		}
-	}
-	if (changed) {
-		[prefs synchronize];
-		CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
-	}
-}
-
 - (void)_cancelChargeLimiterDetection {
 	[self.jikanChargeLimiterDetector cancel];
 }
@@ -478,47 +426,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	if (!prefs) return;
 
-	NSArray<NSString *> *keys = @[
-		@"enabled",
-		@"platterYOffset",
-		@"pillBackgroundOpacityPercent",
-		@"hideQuickActionButtons",
-		@"hideQuickActionButtonsOnlyWhenCharging",
-		@"showRemainingBatteryTime",
-		@"autoResizeRemainingBatteryTime",
-		@"tapToShowWattage",
-		JikanStackItemsKey,
-		JikanTemperatureUnitKey,
-		JikanPillAppearanceKey,
-		kBatteryEstimateTargetKey,
-		kBatteryEstimateSyncedKey,
-		JikanEstimateSourceKey,
-		JikanEstimateAppleTargetKey,
-		JikanEstimateAppleSyncedKey,
-		@"showAfterFullCharge"
-	];
-
-	JikanResetPillPosition(prefs);
-	for (NSString *key in keys) {
-		[prefs removeObjectForKey:key];
-	}
-
-	NSDictionary *root = [NSDictionary dictionaryWithContentsOfFile:[[self bundle] pathForResource:@"Root" ofType:@"plist"]];
-	NSDictionary *automaticPositionDefaults = JikanPillPositionSliderDefaults();
-	for (NSDictionary *item in root[@"items"]) {
-		if (item[@"key"] && automaticPositionDefaults[item[@"key"]]) continue;
-		if ([item[@"defaults"] isEqual:JikanPreferencesSuite] && item[@"key"] && item[@"default"]) {
-			id value = JikanNormalizedSliderValue(item[@"default"], item[@"key"]) ?: item[@"default"];
-			[prefs setObject:value forKey:item[@"key"]];
-		}
-	}
-	[prefs setInteger:100 forKey:kBatteryEstimateTargetKey];
-	[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
-	[prefs setObject:@"apple" forKey:JikanEstimateSourceKey];
-	[prefs setInteger:100 forKey:JikanEstimateAppleTargetKey];
-	[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
-	[prefs synchronize];
-	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
+	[JikanPreferencesPersistence resetPreferences:prefs bundle:[self bundle]];
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[self _scheduleSpecifiersReload:YES];
@@ -531,10 +439,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
 	if (!prefs) return;
 
-	JikanResetPillPosition(prefs);
-
-	[prefs synchronize];
-	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
+	[JikanPreferencesPersistence resetPillPositionInPreferences:prefs];
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		[self _scheduleSpecifiersReload:YES];
