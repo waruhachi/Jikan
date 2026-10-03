@@ -42,6 +42,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[JikanPreferencesPresentation localizeSpecifiers:_specifiers];
+		[self _configureQuickActionAvailability:_specifiers];
 		[self _filterQuickActionChargingSpecifier:_specifiers];
 		[self _updateBatteryLimitInfoSpecifier];
 		[JikanPreferencesPresentation configureAxisSliderLeftImagesForController:self];
@@ -95,6 +96,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	NSString *key = [specifier propertyForKey:@"key"];
+	if (([key isEqualToString:@"hideQuickActionButtons"] || [key isEqualToString:@"hideQuickActionButtonsOnlyWhenCharging"]) && !JikanDeviceSupportsQuickActionButtons()) return;
 	[self _cancelChargeLimiterDetection];
 	if ([key isEqualToString:JikanEstimateSourceKey]) [self.jikanSliderEditor dismiss];
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
@@ -147,6 +149,18 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	BOOL apple = [JikanEstimateSource(prefs) isEqualToString:@"apple"];
 	return (apple && [identifier isEqualToString:@"batteryEstimateTargetSlider"]) ||
 		(!apple && [identifier isEqualToString:@"batteryEstimateAppleTargetSlider"]);
+}
+
+- (void)_configureQuickActionAvailability:(NSArray<PSSpecifier *> *)specifiers {
+	BOOL supported = JikanDeviceSupportsQuickActionButtons();
+	for (PSSpecifier *specifier in specifiers) {
+		NSString *identifier = [specifier propertyForKey:PSIDKey];
+		if ([identifier isEqualToString:@"hideQuickActionsToggleID"] || [identifier isEqualToString:kQuickActionsChargingOnlySpecifierID]) {
+			[specifier setProperty:@(supported) forKey:PSEnabledKey];
+		} else if ([identifier isEqualToString:@"quickActionsGroupID"] && !supported) {
+			[specifier setProperty:JikanLocalizedString(@"jikan.prefs.footer.quick_actions_unavailable", @"Quick Action buttons are unavailable on this device") forKey:@"footerText"];
+		}
+	}
 }
 
 - (void)_filterQuickActionChargingSpecifier:(NSMutableArray<PSSpecifier *> *)specifiers {

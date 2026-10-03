@@ -34,6 +34,7 @@
 "jikan.prefs.algorithm.jikan_description" = "Ước tính thời gian dựa trên lịch sử sạc và dữ liệu pin hiện tại. Chọn mức sạc mục tiêu từ 1% đến 100%.";
 "jikan.prefs.algorithm.recommended" = "Được đề xuất";
 
+"jikan.prefs.footer.quick_actions_unavailable" = "Các nút tác vụ nhanh không khả dụng trên thiết bị này";
 "jikan.prefs.footer.slider_hint" = "Ấn và giữ nút trượt để tuỳ chỉnh";
 
 "jikan.prefs.header.subtitle" = "Hiển thị thời gian sạc còn lại đến lúc đầy pin";

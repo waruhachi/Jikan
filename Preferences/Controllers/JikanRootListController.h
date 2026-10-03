@@ -13,6 +13,7 @@
 #import "../../Shared/JikanPreferences.h"
 #import "../../Shared/JikanStackSettings.h"
 #import "JikanChargeLimiterDetector.h"
+#import "JikanDeviceCapabilities.h"
 #import "JikanPreferencesPersistence.h"
 #import "JikanPreferencesPresentation.h"
 #import "JikanSliderEditor.h"

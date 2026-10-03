@@ -445,6 +445,8 @@
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Miscellaneous</string>
+			<key>id</key>
+			<string>quickActionsGroupID</string>
 		</dict>
 		<dict>
 			<key>cell</key>

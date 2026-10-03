@@ -34,6 +34,7 @@
 "jikan.prefs.algorithm.jikan_description" = "Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.";
 "jikan.prefs.algorithm.recommended" = "Recommended";
 
+"jikan.prefs.footer.quick_actions_unavailable" = "Quick Action buttons are unavailable on this device";
 "jikan.prefs.footer.slider_hint" = "Tap and Hold the Slider Knob to Edit";
 
 "jikan.prefs.header.subtitle" = "Show time left to full charge on your lock screen";

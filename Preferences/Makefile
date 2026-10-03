@@ -4,6 +4,7 @@ $(BUNDLE_NAME)_FILES = $(wildcard Controllers/*.m) $(wildcard Views/*.m) $(wildc
 $(BUNDLE_NAME)_CFLAGS = -fobjc-arc
 $(BUNDLE_NAME)_FRAMEWORKS = UIKit QuartzCore
 $(BUNDLE_NAME)_PRIVATE_FRAMEWORKS = Preferences
+$(BUNDLE_NAME)_LIBRARIES = MobileGestalt
 $(BUNDLE_NAME)_INSTALL_PATH = /Library/PreferenceBundles
 
 include $(THEOS)/makefiles/common.mk

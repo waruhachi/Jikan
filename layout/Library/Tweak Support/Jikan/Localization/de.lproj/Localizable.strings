@@ -34,6 +34,7 @@
 "jikan.prefs.algorithm.jikan_description" = "Schätzt die Dauer anhand deines Ladeverlaufs und der aktuellen Batteriewerte. Wähle ein Ziel von 1 % bis 100 %.";
 "jikan.prefs.algorithm.recommended" = "Empfohlen";
 
+"jikan.prefs.footer.quick_actions_unavailable" = "Schnellzugriffstasten sind auf diesem Gerät nicht verfügbar";
 "jikan.prefs.footer.slider_hint" = "Tippe zum Bearbeiten den Schieberegler an und halte diesen gedrückt.";
 
 "jikan.prefs.header.subtitle" = "Zeigt die verbleibende Zeit zur vollständigen Aufladung an.";

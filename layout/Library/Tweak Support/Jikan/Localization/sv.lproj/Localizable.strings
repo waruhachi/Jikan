@@ -34,6 +34,7 @@
 "jikan.prefs.algorithm.jikan_description" = "Beräknar tiden utifrån din laddningshistorik och aktuella batterivärden. Välj ett mål mellan 1 % och 100 %.";
 "jikan.prefs.algorithm.recommended" = "Rekommenderas";
 
+"jikan.prefs.footer.quick_actions_unavailable" = "Snabbåtgärdsknappar är inte tillgängliga på den här enheten";
 "jikan.prefs.footer.slider_hint" = "Tryck och håll ned för att redigera";
 
 "jikan.prefs.header.subtitle" = "Visa återstående tid till full laddning på låsskärmen";
