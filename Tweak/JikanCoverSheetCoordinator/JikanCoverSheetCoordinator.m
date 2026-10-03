@@ -316,7 +316,9 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 	CGFloat kPlatterHeight = size.height;
 	CGFloat defaultCenterX = hasButtons ? (CGRectGetMidX(leadingRect) + CGRectGetMidX(trailingRect)) * 0.5 : CGRectGetMidX(viewport);
 	CGFloat safeBottomY = CGRectGetMaxY(viewport) - host.safeAreaInsets.bottom;
-	CGFloat defaultCenterY = hasButtons ? (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5 : safeBottomY - (state.shouldHideQuickActionButtons ? 28.0 : 76.0) - kPlatterHeight * 0.5;
+	// Without quick actions, keep a modest bottom inset instead of reserving
+	// space for controls that aren't present.
+	CGFloat defaultCenterY = hasButtons ? (CGRectGetMidY(leadingRect) + CGRectGetMidY(trailingRect)) * 0.5 : safeBottomY - 24.0 - kPlatterHeight * 0.5;
 
 	CGFloat safeMinX = CGRectGetMinX(viewport) + host.safeAreaInsets.left + (platterWidth * 0.5);
 	CGFloat safeMaxX = CGRectGetMaxX(viewport) - host.safeAreaInsets.right - (platterWidth * 0.5);
