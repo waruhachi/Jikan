@@ -5,6 +5,7 @@
 
 #import "../../Localization/JikanLocalization.h"
 #import "../../Shared/JikanAppearanceSettings.h"
+#import "../../Shared/JikanGlassEffect.h"
 #import "../../Shared/JikanPillContentView/JikanPillContentView.h"
 #import "../../Shared/JikanPreferences.h"
 

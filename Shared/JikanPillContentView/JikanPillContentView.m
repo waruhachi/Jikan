@@ -57,12 +57,29 @@
 	_staticLabel.text = content.secondaryText;
 	_ringPrimaryLabel.text = content.primaryText;
 	_ringSecondaryLabel.text = content.secondaryText;
-	UIColor *color = [content.chargingSpeed isEqualToString:@"slow"] ? UIColor.systemYellowColor : UIColor.systemGreenColor;
-	_boltImageView.tintColor = color;
-	_ringBoltView.tintColor = color;
-	_ringProgress.strokeColor = color.CGColor;
+	[self _updateColors];
 	[self setNeedsLayout];
 	if (self.contentSizeDidChange) self.contentSizeDidChange();
+}
+
+- (void)setAdaptsToSystemAppearance:(BOOL)adaptsToSystemAppearance {
+	if (_adaptsToSystemAppearance == adaptsToSystemAppearance) return;
+	_adaptsToSystemAppearance = adaptsToSystemAppearance;
+	[self _updateColors];
+}
+
+- (void)_updateColors {
+	_timeRemainingLabel.textColor = _adaptsToSystemAppearance ? UIColor.labelColor : UIColor.whiteColor;
+	_staticLabel.textColor = _adaptsToSystemAppearance ? UIColor.secondaryLabelColor : UIColor.whiteColor;
+	_ringPrimaryLabel.textColor = _adaptsToSystemAppearance ? UIColor.labelColor : UIColor.whiteColor;
+	_ringSecondaryLabel.textColor = _adaptsToSystemAppearance ? UIColor.secondaryLabelColor : [UIColor colorWithWhite:1.0 alpha:0.83];
+	_divider.backgroundColor = _adaptsToSystemAppearance ? UIColor.separatorColor : [UIColor colorWithWhite:1.0 alpha:0.33];
+	UIColor *track = _adaptsToSystemAppearance ? UIColor.tertiaryLabelColor : [UIColor colorWithWhite:0.54 alpha:0.56];
+	_ringTrack.strokeColor = [track resolvedColorWithTraitCollection:self.traitCollection].CGColor;
+	UIColor *color = [_content.chargingSpeed isEqualToString:@"slow"] ? UIColor.systemYellowColor : UIColor.systemGreenColor;
+	_boltImageView.tintColor = color;
+	_ringBoltView.tintColor = color;
+	_ringProgress.strokeColor = [color resolvedColorWithTraitCollection:self.traitCollection].CGColor;
 }
 
 - (void)_textSettingsChanged:(NSNotification *)notification {
@@ -74,6 +91,9 @@
 
 - (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
 	[super traitCollectionDidChange:previousTraitCollection];
+	if ([self.traitCollection hasDifferentColorAppearanceComparedToTraitCollection:previousTraitCollection]) {
+		[self _updateColors];
+	}
 	if (![self.traitCollection.preferredContentSizeCategory isEqual:previousTraitCollection.preferredContentSizeCategory] ||
 		self.traitCollection.legibilityWeight != previousTraitCollection.legibilityWeight) {
 		[self _textSettingsChanged:nil];

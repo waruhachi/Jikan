@@ -2,7 +2,8 @@
 
 @interface JikanAppearanceOptionView : UIControl
 @property (nonatomic, assign) BOOL showsProgressRing;
-@property (nonatomic, strong) UIView *samplePill;
+@property (nonatomic, strong) UIVisualEffectView *samplePill;
+@property (nonatomic, assign) BOOL usesLiquidGlass;
 @property (nonatomic, strong) JikanPillContentView *content;
 @property (nonatomic, strong) UIView *selectionCircle;
 @property (nonatomic, strong) UIImageView *checkView;
@@ -19,18 +20,22 @@
 	self.accessibilityTraits = UIAccessibilityTraitButton;
 	self.accessibilityLabel = progressRing ? @"Progress Ring" : @"Classic";
 
-	_samplePill = [[UIView alloc] init];
-	_samplePill.backgroundColor = [UIColor colorWithWhite:0.12 alpha:0.94];
-	_samplePill.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.22].CGColor;
-	_samplePill.layer.borderWidth = 1.0;
-	_samplePill.clipsToBounds = YES;
+	_samplePill = [[UIVisualEffectView alloc] initWithEffect:nil];
+	_usesLiquidGlass = JikanConfigureLiquidGlass(_samplePill);
+	if (!_usesLiquidGlass) {
+		_samplePill.effect = [UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemChromeMaterial];
+		_samplePill.layer.borderWidth = 0.5;
+	}
+	_samplePill.clipsToBounds = !_usesLiquidGlass;
 	_samplePill.userInteractionEnabled = NO;
 	[self addSubview:_samplePill];
 
 	_content = [[JikanPillContentView alloc] init];
+	_content.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+	_content.adaptsToSystemAppearance = YES;
 	_content.appearance = progressRing ? JikanPillAppearanceProgressRing : JikanPillAppearanceClassic;
 	[_content applyContent:[JikanPillContent previewContentForTargetPercent:95]];
-	[_samplePill addSubview:_content];
+	[_samplePill.contentView addSubview:_content];
 
 	_selectionCircle = [[UIView alloc] init];
 	_selectionCircle.userInteractionEnabled = NO;
@@ -40,13 +45,28 @@
 	_checkView.contentMode = UIViewContentModeCenter;
 	[_selectionCircle addSubview:_checkView];
 	[self setSelected:NO];
+	[self _updateAppearance];
 	return self;
+}
+
+- (void)_updateAppearance {
+	if (!_usesLiquidGlass) {
+		_samplePill.layer.borderColor = [UIColor.separatorColor resolvedColorWithTraitCollection:self.traitCollection].CGColor;
+	}
+	_selectionCircle.layer.borderColor = self.selected ? UIColor.clearColor.CGColor : [UIColor.systemGray3Color resolvedColorWithTraitCollection:self.traitCollection].CGColor;
+}
+
+- (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection {
+	[super traitCollectionDidChange:previousTraitCollection];
+	if ([self.traitCollection hasDifferentColorAppearanceComparedToTraitCollection:previousTraitCollection]) {
+		[self _updateAppearance];
+	}
 }
 
 - (void)setSelected:(BOOL)selected {
 	[super setSelected:selected];
 	_selectionCircle.backgroundColor = selected ? UIColor.systemBlueColor : UIColor.clearColor;
-	_selectionCircle.layer.borderColor = selected ? UIColor.clearColor.CGColor : UIColor.systemGray3Color.CGColor;
+	[self _updateAppearance];
 	_selectionCircle.layer.borderWidth = selected ? 0.0 : 1.7;
 	_checkView.hidden = !selected;
 	self.accessibilityTraits = UIAccessibilityTraitButton | (selected ? UIAccessibilityTraitSelected : 0);
@@ -58,7 +78,7 @@
 	CGFloat pillWidth = MIN(174.0, MAX(100.0, width - 10.0));
 	CGFloat pillHeight = 54.0;
 	_samplePill.frame = CGRectMake((width - pillWidth) * 0.5, 12.0, pillWidth, pillHeight);
-	_samplePill.layer.cornerRadius = pillHeight * 0.5;
+	if (!_usesLiquidGlass) _samplePill.layer.cornerRadius = pillHeight * 0.5;
 	_content.frame = _samplePill.bounds;
 	[_content preferredSizeForMaximumWidth:pillWidth height:pillHeight];
 	_selectionCircle.frame = CGRectMake((width - 22.0) * 0.5, 80.0, 22.0, 22.0);

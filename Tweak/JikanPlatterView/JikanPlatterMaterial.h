@@ -3,6 +3,8 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 
+#import "../../Shared/JikanGlassEffect.h"
+
 @interface JikanPlatterMaterial : NSObject
 - (instancetype)initWithContainerView:(UIView *)container;
 - (void)setupConstraints;
