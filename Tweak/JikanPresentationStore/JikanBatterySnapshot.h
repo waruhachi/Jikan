@@ -8,6 +8,7 @@
 @property (nonatomic, copy, readonly) NSDictionary *dictionary;
 @property (nonatomic, copy, readonly) NSDictionary *batteryInfo;
 @property (nonatomic, copy, readonly) NSString *timeString;
+@property (nonatomic, readonly) double remainingSeconds;
 @property (nonatomic, copy, readonly) NSString *estimateSource;
 @property (nonatomic, copy, readonly) NSString *estimateStatus;
 @property (nonatomic, copy, readonly) NSString *chargingSpeed;

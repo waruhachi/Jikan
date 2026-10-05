@@ -18,13 +18,16 @@
 }
 
 + (NSString *)estimatedTimeWithBatteryInfo:(NSDictionary *)batteryInfo targetPercent:(NSInteger)targetPercent {
-	NSString *unavailable = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
-	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return unavailable;
+	return [self formattedTimeForSeconds:[self estimatedSecondsWithBatteryInfo:batteryInfo targetPercent:targetPercent]];
+}
+
++ (double)estimatedSecondsWithBatteryInfo:(NSDictionary *)batteryInfo targetPercent:(NSInteger)targetPercent {
+	if (![batteryInfo isKindOfClass:[NSDictionary class]]) return NAN;
 	BOOL hasCharging = NO;
 	BOOL charging = TT100Bool(batteryInfo, @"IsCharging", &hasCharging);
-	if (hasCharging && !charging) return unavailable;
+	if (hasCharging && !charging) return NAN;
 	double soc = [TT100BatteryProvider displaySOCWithBatteryInfo:batteryInfo];
-	if (!isfinite(soc) || soc >= targetPercent || TT100Bool(batteryInfo, @"FullyCharged", NULL)) return unavailable;
+	if (!isfinite(soc) || soc >= targetPercent || TT100Bool(batteryInfo, @"FullyCharged", NULL)) return NAN;
 	double rawMax = TT100Number(batteryInfo, @"AppleRawMaxCapacity").doubleValue;
 	double rawCurrent = TT100Number(batteryInfo, @"AppleRawCurrentCapacity").doubleValue;
 	if (!isfinite(rawMax) || rawMax <= 0 || !TT100Number(batteryInfo, @"AppleRawCurrentCapacity")) {
@@ -51,12 +54,12 @@
 		double fraction = MIN((double)percent + 1.0, (double)targetPercent) - MAX((double)percent, soc);
 		double seconds = haveDB ? estimate[percent] : [buckets[@(percent).stringValue] doubleValue];
 		if (!isfinite(seconds) || seconds <= 0 || (haveDB && counts[percent] <= 0)) seconds = liveSecondsPerPercent;
-		if (!isfinite(seconds) || seconds <= 0) return unavailable;
+		if (!isfinite(seconds) || seconds <= 0) return NAN;
 		remainingSeconds += seconds * fraction;
 	}
-	if (!isfinite(remainingSeconds) || remainingSeconds <= 0 || remainingSeconds > INT_MAX) return unavailable;
+	if (!isfinite(remainingSeconds) || remainingSeconds <= 0 || remainingSeconds > INT_MAX) return NAN;
 
-	return [self formattedTimeForSeconds:remainingSeconds];
+	return remainingSeconds;
 }
 
 @end

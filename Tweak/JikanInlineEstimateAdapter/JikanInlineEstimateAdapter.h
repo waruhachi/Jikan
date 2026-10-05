@@ -2,6 +2,7 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 
+#import "../../Shared/JikanEstimateFormatting.h"
 #import "../JikanPresentationStore/JikanPresentationState.h"
 #import "JikanInlineWidgetEstimate.h"
 

@@ -99,11 +99,11 @@ static BOOL JikanInlineDateShowsEstimate(UIView *view, NSString *text) {
 	NSString *text = nil;
 	if (requested) {
 		if (state.usesPreviewContent) {
-			text = JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min");
+			text = JikanCompactEstimateForSeconds(83 * 60, state.settings.targetPercent);
 		} else if (state.snapshot.targetReached && state.settings.showAfterFullCharge) {
 			text = [NSString stringWithFormat:@"%ld%% %@", (long)state.snapshot.displayPercent, JikanLocalizedString(@"jikan.platter.label.charged", @"charged")];
 		} else {
-			text = state.snapshot.timeString;
+			text = JikanCompactEstimateForSeconds(state.snapshot.remainingSeconds, state.settings.targetPercent);
 		}
 	}
 	UIView *dateView = text.length && self.rootView ? JikanFindInlineDateView(self.rootView) : nil;

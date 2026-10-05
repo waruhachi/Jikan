@@ -2,6 +2,12 @@
 "jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Spara";
 
+"jikan.inline.format.hr" = "%ld tim";
+"jikan.inline.format.hr_min" = "%ld tim %ld min";
+"jikan.inline.format.lt1min" = "<1 min";
+"jikan.inline.format.min" = "%ld min";
+"jikan.inline.format.to_target" = "%@ till %ld%%";
+
 "jikan.platter.accessibility.next_item" = "Visar nästa värde i stacken";
 
 "jikan.platter.label.battery_temperature" = "batteritemperatur";

@@ -8,5 +8,6 @@
 
 @interface TT100HistoryEstimator : NSObject
 + (NSString *)estimatedTimeWithBatteryInfo:(NSDictionary *)batteryInfo targetPercent:(NSInteger)targetPercent;
++ (double)estimatedSecondsWithBatteryInfo:(NSDictionary *)batteryInfo targetPercent:(NSInteger)targetPercent;
 + (NSString *)formattedTimeForSeconds:(double)seconds;
 @end

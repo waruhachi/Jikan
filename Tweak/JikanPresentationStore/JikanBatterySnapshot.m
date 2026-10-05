@@ -52,6 +52,11 @@ static double JikanTargetSOC(NSDictionary *batteryInfo, NSString *source) {
 		NSMutableDictionary *values = [([dictionary isKindOfClass:NSDictionary.class] ? JikanImmutableValue(dictionary) : @{}) mutableCopy];
 		_batteryInfo = [values[@"batteryInfo"] isKindOfClass:NSDictionary.class] ? values[@"batteryInfo"] : @{};
 		_timeString = [values[@"timeString"] isKindOfClass:NSString.class] ? values[@"timeString"] : JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+		id remaining = values[@"remainingSeconds"];
+		_remainingSeconds = [remaining isKindOfClass:NSNumber.class] && CFGetTypeID((__bridge CFTypeRef)remaining) != CFBooleanGetTypeID() &&
+				isfinite([remaining doubleValue]) && [remaining doubleValue] > 0
+			? [remaining doubleValue]
+			: -1;
 		_estimateSource = settings.estimateSource;
 		_targetPercent = settings.targetPercent;
 		_estimateStatus = [values[@"estimateStatus"] isKindOfClass:NSString.class] ? values[@"estimateStatus"] : @"unavailable";
@@ -66,6 +71,7 @@ static double JikanTargetSOC(NSDictionary *batteryInfo, NSString *source) {
 		_displayPercent = MAX(0, MIN(100, percent));
 		values[@"batteryInfo"] = _batteryInfo;
 		values[@"timeString"] = _timeString;
+		values[@"remainingSeconds"] = @(_remainingSeconds);
 		values[@"estimateSource"] = _estimateSource;
 		values[@"targetPercent"] = @(_targetPercent);
 		values[@"estimateStatus"] = _estimateStatus;
@@ -85,6 +91,7 @@ static double JikanTargetSOC(NSDictionary *batteryInfo, NSString *source) {
 	NSMutableDictionary *values = [_dictionary mutableCopy];
 	double soc = JikanTargetSOC(_batteryInfo, settings.estimateSource);
 	values[@"timeString"] = JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
+	values[@"remainingSeconds"] = @(-1);
 	values[@"hasEstimate"] = @NO;
 	values[@"targetReached"] = @(_fullyCharged || (isfinite(soc) && soc >= settings.targetPercent));
 	values[@"estimateStatus"] = @"unavailable";

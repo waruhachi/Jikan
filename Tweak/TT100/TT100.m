@@ -149,7 +149,8 @@ static void TT100PowerChanged(void *context) {
 				tt100LastAppleStatus = nil;
 			}
 			BOOL hasEstimate = appleResult ? [appleResult[@"status"] isEqualToString:@"available"] : NO;
-			NSString *timeString = appleResult ? [TT100HistoryEstimator formattedTimeForSeconds:[appleResult[@"seconds"] doubleValue]] : [TT100 _estimatedTT100WithBatteryInfo:batteryInfo targetPercent:target];
+			double remainingSeconds = appleResult ? [appleResult[@"seconds"] doubleValue] : [TT100HistoryEstimator estimatedSecondsWithBatteryInfo:batteryInfo targetPercent:target];
+			NSString *timeString = [TT100HistoryEstimator formattedTimeForSeconds:remainingSeconds];
 			if (!appleResult) hasEstimate = ![timeString isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 			NSInteger percent = 0;
 			BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
@@ -160,6 +161,7 @@ static void TT100PowerChanged(void *context) {
 			NSDictionary *snapshot = @{
 				@"batteryInfo": batteryInfo ?: @{},
 				@"timeString": timeString,
+				@"remainingSeconds": @(isfinite(remainingSeconds) && remainingSeconds > 0 ? remainingSeconds : -1),
 				@"hasEstimate": @(hasEstimate && !targetReached),
 				@"isFullyCharged": @(fullyCharged),
 				@"targetReached": @(targetReached),

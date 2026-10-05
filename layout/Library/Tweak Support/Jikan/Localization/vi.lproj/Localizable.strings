@@ -2,6 +2,12 @@
 "jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Lưu";
 
+"jikan.inline.format.hr" = "%ldg";
+"jikan.inline.format.hr_min" = "%ldg %ldph";
+"jikan.inline.format.lt1min" = "<1ph";
+"jikan.inline.format.min" = "%ldph";
+"jikan.inline.format.to_target" = "%@ đến %ld%%";
+
 "jikan.platter.accessibility.next_item" = "Hiển thị mục tiếp theo trong ngăn xếp";
 
 "jikan.platter.label.battery_temperature" = "nhiệt độ pin";

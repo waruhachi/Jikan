@@ -2,6 +2,12 @@
 "jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Übernehmen";
 
+"jikan.inline.format.hr" = "%ld Std.";
+"jikan.inline.format.hr_min" = "%ld Std. %ld Min.";
+"jikan.inline.format.lt1min" = "<1 Min.";
+"jikan.inline.format.min" = "%ld Min.";
+"jikan.inline.format.to_target" = "%@ bis %ld%%";
+
 "jikan.platter.accessibility.next_item" = "Zeigt den nächsten Wert im Stapel";
 
 "jikan.platter.label.battery_temperature" = "Batterietemperatur";

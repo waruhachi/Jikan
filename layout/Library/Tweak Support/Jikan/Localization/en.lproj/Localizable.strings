@@ -2,6 +2,12 @@
 "jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Save";
 
+"jikan.inline.format.hr" = "%ldh";
+"jikan.inline.format.hr_min" = "%ldh %ldm";
+"jikan.inline.format.lt1min" = "<1m";
+"jikan.inline.format.min" = "%ldm";
+"jikan.inline.format.to_target" = "%@ to %ld%%";
+
 "jikan.platter.accessibility.next_item" = "Shows the next Stack item";
 
 "jikan.platter.label.battery_temperature" = "battery temperature";
