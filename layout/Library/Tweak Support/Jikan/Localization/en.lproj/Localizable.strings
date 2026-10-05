@@ -52,7 +52,7 @@
 
 "jikan.prefs.row.algorithm" = "Algorithm";
 "jikan.prefs.row.enable" = "Enable";
-"jikan.prefs.row.estimate_beside_date" = "Replace Pill with Date Estimate";
+"jikan.prefs.row.estimate_beside_date" = "Use Date Row Instead";
 "jikan.prefs.row.estimate_source" = "Source";
 "jikan.prefs.row.estimate_target" = "Estimate Target";
 "jikan.prefs.row.estimate_target_percent" = "Estimate Target (%)";

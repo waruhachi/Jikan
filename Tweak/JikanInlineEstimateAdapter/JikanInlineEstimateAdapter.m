@@ -95,7 +95,7 @@ static BOOL JikanInlineDateShowsEstimate(UIView *view, NSString *text) {
 }
 
 - (BOOL)updateWithState:(JikanPresentationState *)state {
-	BOOL requested = (state.settings.showEstimateBesideDate || state.previewActive) && state.shouldShowPlatter;
+	BOOL requested = state.settings.showEstimateBesideDate && state.shouldShowPlatter;
 	NSString *text = nil;
 	if (requested) {
 		if (state.usesPreviewContent) {

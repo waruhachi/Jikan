@@ -52,7 +52,7 @@
 
 "jikan.prefs.row.algorithm" = "Thuật toán";
 "jikan.prefs.row.enable" = "Bật";
-"jikan.prefs.row.estimate_beside_date" = "Thay hình bo tròn bằng ước tính cạnh ngày";
+"jikan.prefs.row.estimate_beside_date" = "Dùng dòng ngày thay thế";
 "jikan.prefs.row.estimate_source" = "Nguồn";
 "jikan.prefs.row.estimate_target" = "Mục tiêu ước tính";
 "jikan.prefs.row.estimate_target_percent" = "Mục tiêu dự đoán (%)";

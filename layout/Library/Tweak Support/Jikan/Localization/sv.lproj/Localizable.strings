@@ -52,7 +52,7 @@
 
 "jikan.prefs.row.algorithm" = "Algoritm";
 "jikan.prefs.row.enable" = "Aktivera";
-"jikan.prefs.row.estimate_beside_date" = "Ersätt pillret med uppskattning vid datumet";
+"jikan.prefs.row.estimate_beside_date" = "Använd datumraden i stället";
 "jikan.prefs.row.estimate_source" = "Källa";
 "jikan.prefs.row.estimate_target" = "Beräkningsmål";
 "jikan.prefs.row.estimate_target_percent" = "Målnivå för uppskattning (%)";

@@ -52,7 +52,7 @@
 
 "jikan.prefs.row.algorithm" = "Algorithmus";
 "jikan.prefs.row.enable" = "Aktiviert";
-"jikan.prefs.row.estimate_beside_date" = "Pille durch Datumsschätzung ersetzen";
+"jikan.prefs.row.estimate_beside_date" = "Stattdessen Datumszeile nutzen";
 "jikan.prefs.row.estimate_source" = "Quelle";
 "jikan.prefs.row.estimate_target" = "Schätzziel";
 "jikan.prefs.row.estimate_target_percent" = "Geschätztes Maximum (in %)";

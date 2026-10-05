@@ -231,8 +231,7 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 	[self.quickActions applyStyleToPlatter:self.platter];
 
 	[self.platter applyPresentationState:state];
-	// Preview both placements together while keeping the pill available to drag.
-	BOOL showPill = state.shouldShowPlatter && (!showingInline || state.previewActive);
+	BOOL showPill = state.shouldShowPlatter && !showingInline;
 	self.longPress.enabled = showPill;
 	[self setPlatterVisible:showPill state:state];
 }
