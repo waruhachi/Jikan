@@ -95,6 +95,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSLinkCell</string>
+			<key>cellClass</key>
+			<string>JikanStackSummaryCell</string>
 			<key>detail</key>
 			<string>JikanStackController</string>
 			<key>label</key>
