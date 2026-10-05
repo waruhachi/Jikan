@@ -9,6 +9,7 @@
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS%2014.0%E2%80%9326.0.1-111111?style=for-the-badge" />
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-GPLv3-blue?style=for-the-badge" /></a>
   <img alt="Language" src="https://img.shields.io/badge/language-Objective--C%20%26%20Logos-2b2b2b?style=for-the-badge" />
+  <a href="https://havoc.app/package/jikan"><img src="https://img.shields.io/badge/available_on-Havoc-1757FF?style=for-the-badge" alt="Available on Havoc" /></a>
 </p>
 
 ## About
