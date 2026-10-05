@@ -14,6 +14,10 @@ static NSNumber *JikanFirstFeatureNumber(NSDictionary *dictionary, NSString *key
 }
 
 NSArray<NSNumber *> *JikanAppleFeatures(NSDictionary *properties, NSInteger target, NSInteger startSOC, NSInteger elapsed, NSString **failure) {
+	return JikanAppleFeaturesWithInputPower(properties, target, startSOC, elapsed, nil, failure);
+}
+
+NSArray<NSNumber *> *JikanAppleFeaturesWithInputPower(NSDictionary *properties, NSInteger target, NSInteger startSOC, NSInteger elapsed, NSNumber *inputPower, NSString **failure) {
 	if (!JikanAppleTargetIsSupported(target) || startSOC < 0 || startSOC > 100 || elapsed < 0) {
 		if (failure) *failure = @"invalid_session";
 		return nil;
@@ -21,7 +25,7 @@ NSArray<NSNumber *> *JikanAppleFeatures(NSDictionary *properties, NSInteger targ
 	NSDictionary *adapter = properties[@"AdapterDetails"];
 	NSDictionary *battery = properties[@"BatteryData"];
 	NSDictionary *telemetry = properties[@"PowerTelemetryData"];
-	if (![adapter isKindOfClass:NSDictionary.class] || ![battery isKindOfClass:NSDictionary.class] || ![telemetry isKindOfClass:NSDictionary.class]) {
+	if (![adapter isKindOfClass:NSDictionary.class] || ![battery isKindOfClass:NSDictionary.class]) {
 		if (failure) *failure = @"missing_feature_dictionary";
 		return nil;
 	}
@@ -40,21 +44,28 @@ NSArray<NSNumber *> *JikanAppleFeatures(NSDictionary *properties, NSInteger targ
 	NSNumber *dod = JikanFirstFeatureNumber(battery, @"PresentDOD");
 	NSNumber *design = JikanFeatureNumber(properties, @"DesignCapacity");
 	NSNumber *power = JikanFeatureNumber(telemetry, @"SystemPowerIn");
-	if (!watts || !family || !temperature || !cycles || !soc || !capacity || !qmax || !dod || !design || !power || !isfinite(watts.doubleValue) || watts.doubleValue <= 0 ||
+	// Invalid native values are errors, not permission to substitute a sensor.
+	BOOL nativePowerPresent = [telemetry isKindOfClass:NSDictionary.class] && telemetry[@"SystemPowerIn"] != nil;
+	if (!nativePowerPresent) power = JikanFeatureNumber(@{@"power": inputPower ?: NSNull.null}, @"power");
+	if (!watts || !family || !temperature || !cycles || !soc || !capacity || !qmax || !dod || !design || !isfinite(watts.doubleValue) || watts.doubleValue <= 0 ||
 		floor(family.doubleValue) != family.doubleValue || family.doubleValue < INT32_MIN || family.doubleValue > UINT32_MAX ||
-		!isfinite((float)(power.doubleValue * 0.001)) || soc.doubleValue < 0 || soc.doubleValue > 100) {
+		soc.doubleValue < 0 || soc.doubleValue > 100) {
 		if (failure) *failure = @"missing_required_feature";
 		return nil;
 	}
 	BOOL ttl = target != 80;
+	NSNumber *amperage = ttl ? JikanFeatureNumber(properties, @"InstantAmperage") : nil;
+	NSNumber *batteryVoltage = ttl ? JikanFeatureNumber(properties, @"Voltage") : nil;
+	if (ttl && (!amperage || !batteryVoltage)) {
+		if (failure) *failure = @"missing_amperage_or_voltage";
+		return nil;
+	}
+	if (!power || power.doubleValue <= 0 || !isfinite((float)(power.doubleValue * 0.001))) {
+		if (failure) *failure = nativePowerPresent ? @"invalid_input_power" : @"missing_input_power";
+		return nil;
+	}
 	NSMutableArray<NSNumber *> *features = [NSMutableArray arrayWithObjects:watts, temperature, cycles, soc, capacity, qmax, dod, design, @((float)(power.doubleValue * 0.001)), @(elapsed), nil];
 	if (ttl) {
-		NSNumber *amperage = JikanFeatureNumber(properties, @"InstantAmperage");
-		NSNumber *batteryVoltage = JikanFeatureNumber(properties, @"Voltage");
-		if (!amperage || !batteryVoltage) {
-			if (failure) *failure = @"missing_amperage_or_voltage";
-			return nil;
-		}
 		[features addObjectsFromArray:@[amperage, batteryVoltage, @(startSOC), @(target)]];
 	}
 	id wireless = adapter[@"IsWireless"];

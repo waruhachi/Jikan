@@ -29,6 +29,7 @@
 			@"Landscape Y": @"jikan.prefs.row.landscape_y",
 			@"Miscellaneous": @"jikan.prefs.section.miscellaneous",
 			@"Time Estimate": @"jikan.prefs.section.battery_estimate",
+			@"Replace Pill with Date Estimate": @"jikan.prefs.row.estimate_beside_date",
 			@"Algorithm": @"jikan.prefs.row.algorithm",
 			@"Estimate Target": @"jikan.prefs.row.estimate_target",
 			@"Estimate Target (%)": @"jikan.prefs.row.estimate_target_percent",

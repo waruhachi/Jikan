@@ -31,9 +31,12 @@
 "jikan.prefs.alert.slider_range.message" = "Gib einen Wert von %.0f bis %.0f ein.";
 
 "jikan.prefs.algorithm.apple_description" = "Verwendet eine feste lokale Kopie von Apples Lademodellen. Wähle 80 %, 85 %, 90 %, 95 % oder 100 %.";
+"jikan.prefs.algorithm.apple_telemetry" = "Verwendet verfügbare native Eingangsmesswerte oder gemessene Eingangsleistung bei unterstütztem kabelgebundenem Laden. Wenn erforderliche Messwerte fehlen, wähle Jikan.";
+"jikan.prefs.algorithm.apple_unavailable" = "Apple-Schätzungen sind derzeit nicht verfügbar, da erforderliche Batteriemesswerte fehlen. Wähle Jikan, um stattdessen Ladeverlauf und Batteriestrom zu verwenden.";
 "jikan.prefs.algorithm.jikan_description" = "Schätzt die Dauer anhand deines Ladeverlaufs und der aktuellen Batteriewerte. Wähle ein Ziel von 1 % bis 100 %.";
 "jikan.prefs.algorithm.recommended" = "Empfohlen";
 
+"jikan.prefs.footer.estimate_beside_date_unavailable" = "Nur unter iOS 16 oder neuer verfügbar.";
 "jikan.prefs.footer.quick_actions_unavailable" = "Schnellzugriffstasten sind auf diesem Gerät nicht verfügbar";
 "jikan.prefs.footer.slider_hint" = "Tippe zum Bearbeiten den Schieberegler an und halte diesen gedrückt.";
 
@@ -43,6 +46,7 @@
 
 "jikan.prefs.row.algorithm" = "Algorithmus";
 "jikan.prefs.row.enable" = "Aktiviert";
+"jikan.prefs.row.estimate_beside_date" = "Pille durch Datumsschätzung ersetzen";
 "jikan.prefs.row.estimate_source" = "Quelle";
 "jikan.prefs.row.estimate_target" = "Schätzziel";
 "jikan.prefs.row.estimate_target_percent" = "Geschätztes Maximum (in %)";

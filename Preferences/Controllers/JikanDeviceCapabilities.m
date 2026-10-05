@@ -5,3 +5,8 @@ BOOL JikanDeviceSupportsQuickActionButtons(void) {
 	// hardware support rather than the current visibility of its controls.
 	return UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone && MGGetBoolAnswer(CFSTR("PearlIDCapability"));
 }
+
+BOOL JikanDeviceSupportsInlineEstimate(void) {
+	if (@available(iOS 16.0, *)) return YES;
+	return NO;
+}

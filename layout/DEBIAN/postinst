@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+	for helper in "${DPKG_ROOT:-}/usr/libexec/jikan-powerd" /var/jb/usr/libexec/jikan-powerd; do
+		if [ -x "$helper" ]; then
+			plist=$("$helper" --configure)
+			launchctl bootout system/moe.waru.jikan.input-power >/dev/null 2>&1 || true
+			launchctl bootstrap system "$plist"
+			exit 0
+		fi
+	done
+	echo "Jikan input-power helper was not installed." >&2
+	exit 1
+fi

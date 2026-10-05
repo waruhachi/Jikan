@@ -34,6 +34,8 @@ flowchart TD
 
 The resulting snapshot includes the estimate string, availability/status, selected algorithm, target, battery properties, and whether the target has been reached. [`Jikan.x`](../Tweak/Jikan.x) uses that snapshot to update the Lock Screen. Normally, the pill requires external power and a usable estimate. The optional after-charge display can show a reached target. Show Preview can display sample text without creating a real estimate.
 
+On iOS 16 or later, **Replace Pill with Date Estimate** uses the date row instead of the pill when the inline estimate can be displayed. With an inline widget, Jikan measures the visible content in the native widget snapshot and centers it together with the estimate, keeping a fixed gap. The widget's full native canvas and date formatting stay intact. The combined row can scale down to 80% when necessary; unavailable content bounds or insufficient space fall back to the pill. Native content and appearance changes refresh the measurement asynchronously. Show Preview displays both placements.
+
 ## How the Jikan algorithm works
 
 ### Learning charging durations
@@ -124,7 +126,7 @@ The crucial work was recovering the same feature order, units, and session value
 | 5 | Qmax | First element of `BatteryData.Qmax` |
 | 6 | Depth of discharge | First element of `BatteryData.PresentDOD` |
 | 7 | Design capacity | `DesignCapacity` |
-| 8 | System input power | `PowerTelemetryData.SystemPowerIn × 0.001`, converted to Float32 |
+| 8 | System input power | Native `PowerTelemetryData.SystemPowerIn × 0.001`, or validated measured input power when absent; converted to Float32 |
 | 9 | Time since plug-in | Integer elapsed seconds from the session's monotonic clock |
 
 TT80 then appends `is_wireless` at index 10. TTL first appends `InstantAmperage`, `Voltage`, starting charge percentage, and target percentage at indices 10–13, then `is_wireless` at index 14.
@@ -201,9 +203,17 @@ Subsequent Jikan integration testing verified actual Lock Screen estimates. The 
 
 Jikan follows the recovered feature order and seconds conversion. It waits until at least four seconds after its recorded connection time, caches a prediction for up to 300 seconds, and subtracts elapsed time between predictions. The 15-second refresh loop checks whether another inference is due; this is not an exact reproduction of every daemon scheduling event.
 
-Disconnecting resets the model session. A target change invalidates the cached prediction, and an explicit charging pause clears it. If SpringBoard starts while already plugged in, Jikan uses the first valid sample's percentage and time as an approximate start instead of staying unavailable indefinitely. That recovery is marked in the result as `sessionStartEstimated`; it can differ from Apple's original session baseline.
+Disconnecting resets the model session. A target or adapter change invalidates the cached prediction, and an explicit charging pause clears it. A change between native and measured input-power availability also invalidates the cache. If SpringBoard starts while already plugged in, Jikan uses the first valid sample's percentage and time as an approximate start instead of staying unavailable indefinitely. That recovery is marked in the result as `sessionStartEstimated`; it can differ from Apple's original session baseline.
 
-Jikan requires valid adapter, battery, and power-telemetry dictionaries. The inspected daemon had device-specific missing-telemetry constants for a hardware target called `D79`; Jikan does not copy that special case. Missing required inputs, invalid predictions, or model-loading failures produce an unavailable status. Preview text does not override that status or cause a fallback to the Jikan algorithm.
+Jikan requires valid adapter and battery features. Native `PowerTelemetryData.SystemPowerIn` is preferred. When only that input is absent, [`TT100InputPowerProvider`](../Tweak/TT100/TT100InputPowerProvider.m) requests a fresh measured input from the packaged `jikan-powerd` helper. Invalid or zero native readings do not trigger substitution. The inspected daemon had device-specific missing-telemetry constants for a hardware target called `D79`; Jikan does not copy that special case. Missing required inputs, invalid predictions, or model-loading failures produce an unavailable status. Preview text does not override that status or cause a fallback to the Jikan algorithm.
+
+### Measured input-power fallback
+
+The mobile-user helper starts on demand through a local Mach service and exits after ten idle seconds. Its entitlement set permits the AppleSMC client and sensor reads without modifying SpringBoard's entitlements. Its IPC interface accepts no sensor keys and supports no writes. The estimator requests a sample only when a new prediction is due and the remaining model features are valid, with a three-second IPC timeout on its worker queue.
+
+The verified wired path uses `IQ0u` (input amperes), `VQ0u` (input volts), and `CHPS = 1`. Three samples spaced 250 ms apart are averaged after validating their `ioft` encoding and physical ranges. The helper checks the charging state and adapter before and after sampling; the caller checks them again and rejects samples older than three seconds. Wireless charging, other unverified power paths, inaccessible sensors, and missing non-power features remain unavailable. This implementation does not substitute the charger's rating or net battery power.
+
+Snapshots retain `inputPowerSource` as `native`, `smc`, or `unavailable`; measured readings are not injected into the battery registry dictionary. Preferences explains the fallback and recommends explicitly selecting Jikan if required inputs cannot be obtained. A separate diagnostic defaults domain stores recent availability for that explanation and never changes the user's algorithm selection. See the [iPhone 8 investigation](iphone8-power-telemetry.md) for the measured comparison and device-validation boundaries.
 
 ### Stack readings are separate measurements
 

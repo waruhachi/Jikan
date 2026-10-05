@@ -113,6 +113,46 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 %end
 %end
 
+%group JikanInlineEstimate
+%hook CSProminentSubtitleDateView
+- (NSString *)_dateString {
+	NSString *dateString = %orig;
+	return [JikanInlineEstimateAdapter dateString:dateString forView:self];
+}
+%end
+%end
+
+// LiquidAss compatibility: keep this post-refresh hook separate from the
+// normal date-string hook so the workaround can be revised independently.
+%group JikanLiquidAssCompatibility
+%hook CSProminentSubtitleDateView
+- (void)_updateLabel {
+	%orig;
+	[JikanInlineEstimateAdapter applyLiquidAssCompatibilityToDateView:self];
+}
+%end
+%end
+
+%group JikanInlineWidgetEstimateHooks
+%hook CSComplicationWrapperViewController
+- (void)viewDidLayoutSubviews {
+	%orig;
+	[JikanInlineWidgetEstimate layoutInController:self];
+}
+%end
+
+%hook CHUISWidgetHostViewController
+- (void)setInlineTextParameters:(id)parameters {
+	%orig;
+	[JikanInlineWidgetEstimate nativeContentDidChangeForHost:self];
+}
+- (void)sceneContentStateDidChange:(id)state {
+	%orig;
+	[JikanInlineWidgetEstimate nativeContentDidChangeForHost:self];
+}
+%end
+%end
+
 %hook _UIBatteryView
 - (void)setChargingState:(NSInteger)state {
 	%orig;
@@ -170,6 +210,19 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 %end
 
 %ctor {
+	if (@available(iOS 16.0, *)) {
+		Class dateClass = NSClassFromString(@"CSProminentSubtitleDateView");
+		if ([dateClass instancesRespondToSelector:@selector(_dateString)] &&
+			[dateClass instancesRespondToSelector:@selector(_updateLabel)]) {
+			%init(JikanInlineEstimate);
+			%init(JikanLiquidAssCompatibility);
+		}
+		Class wrapperClass = NSClassFromString(@"CSComplicationWrapperViewController");
+		Class hostClass = NSClassFromString(@"CHUISWidgetHostViewController");
+		if (wrapperClass && [hostClass instancesRespondToSelector:@selector(setInlineTextParameters:)]) {
+			%init(JikanInlineWidgetEstimateHooks);
+		}
+	}
 	_ttPresentationStore = [JikanPresentationStore sharedInstance];
 	_ttSessionRecorder = [JikanSessionRecorder new];
 	%init;

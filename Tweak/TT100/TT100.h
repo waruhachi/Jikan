@@ -8,6 +8,7 @@
 #import <roothide.h>
 
 #import "../../Localization/JikanLocalization.h"
+#import "../../Shared/JikanAppleEstimateAvailability.h"
 #import "../../Shared/JikanEstimateSettings.h"
 #import "../../Shared/JikanPreferences.h"
 #import "../JikanPresentationStore/JikanPresentationStore.h"

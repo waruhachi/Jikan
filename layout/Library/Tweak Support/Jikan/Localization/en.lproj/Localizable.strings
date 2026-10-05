@@ -31,9 +31,12 @@
 "jikan.prefs.alert.slider_range.message" = "Enter a value from %.0f to %.0f";
 
 "jikan.prefs.algorithm.apple_description" = "Uses a fixed local copy of Apple's charging models. Choose 80%, 85%, 90%, 95%, or 100%.";
+"jikan.prefs.algorithm.apple_telemetry" = "Uses native input-power readings when available, or measured input power on supported wired charging paths. If required readings are unavailable, select Jikan.";
+"jikan.prefs.algorithm.apple_unavailable" = "Apple estimates are currently unavailable because required battery readings could not be obtained. Select Jikan to use charging history and battery current instead.";
 "jikan.prefs.algorithm.jikan_description" = "Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.";
 "jikan.prefs.algorithm.recommended" = "Recommended";
 
+"jikan.prefs.footer.estimate_beside_date_unavailable" = "Only available on iOS 16 or later.";
 "jikan.prefs.footer.quick_actions_unavailable" = "Quick Action buttons are unavailable on this device";
 "jikan.prefs.footer.slider_hint" = "Tap and Hold the Slider Knob to Edit";
 
@@ -43,6 +46,7 @@
 
 "jikan.prefs.row.algorithm" = "Algorithm";
 "jikan.prefs.row.enable" = "Enable";
+"jikan.prefs.row.estimate_beside_date" = "Replace Pill with Date Estimate";
 "jikan.prefs.row.estimate_source" = "Source";
 "jikan.prefs.row.estimate_target" = "Estimate Target";
 "jikan.prefs.row.estimate_target_percent" = "Estimate Target (%)";

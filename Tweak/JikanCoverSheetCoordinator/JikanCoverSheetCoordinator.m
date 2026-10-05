@@ -3,6 +3,7 @@
 @interface JikanCoverSheetCoordinator ()
 @property (nonatomic, weak) UIView *rootView;
 @property (nonatomic, strong) JikanQuickActionAdapter *quickActions;
+@property (nonatomic, strong) JikanInlineEstimateAdapter *inlineEstimate;
 @property (nonatomic, strong) JikanPlatterView *platter;
 @property (nonatomic, strong) JikanPresentationStore *presentationStore;
 @property (nonatomic, strong) NSLayoutConstraint *widthConstraint;
@@ -17,6 +18,7 @@
 @property (nonatomic) BOOL defaultCenterComputedPortrait;
 @property (nonatomic) BOOL defaultCenterComputedLandscape;
 @property (nonatomic) BOOL dragging;
+@property (nonatomic) BOOL showingInlineEstimate;
 @end
 
 static CGRect TTPlatterViewport(UIView *host) {
@@ -57,12 +59,14 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 	if (self) {
 		_rootView = rootView;
 		_quickActions = [[JikanQuickActionAdapter alloc] initWithRootView:rootView];
+		_inlineEstimate = [[JikanInlineEstimateAdapter alloc] initWithRootView:rootView];
 		_presentationStore = presentationStore;
 	}
 	return self;
 }
 
 - (void)dealloc {
+	[self.inlineEstimate invalidate];
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -80,6 +84,7 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 		if (settings.enabled) [[TT100 sharedInstance] _refreshBatteryInfo];
 		[self refresh];
 	} else {
+		[self.inlineEstimate invalidate];
 		if (self.platter) {
 			[self.platter setPreviewMode:NO];
 		}
@@ -92,9 +97,8 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 
 - (void)layoutSubviews {
 	JikanPresentationState *state = self.presentationStore.state;
-	if (!self.platter) {
-		[self updatePlatterWithState:state];
-	}
+	BOOL showingInline = [self.inlineEstimate updateWithState:state];
+	if (!self.platter || showingInline != self.showingInlineEstimate) [self updatePlatterWithState:state];
 	[self configureConstraintsWithState:state];
 }
 
@@ -201,6 +205,8 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 
 - (void)updatePlatterWithState:(JikanPresentationState *)state {
 	JikanPresentationSettings *settings = state.settings;
+	BOOL showingInline = [self.inlineEstimate updateWithState:state];
+	self.showingInlineEstimate = showingInline;
 	if (!settings.enabled) {
 		[self.platter enterEditMode:NO];
 		[self.platter setPreviewMode:NO];
@@ -225,8 +231,10 @@ static UIView *TTFindDateViewContainer(UIView *coverSheet) {
 	[self.quickActions applyStyleToPlatter:self.platter];
 
 	[self.platter applyPresentationState:state];
-	self.longPress.enabled = state.shouldShowPlatter;
-	[self setPlatterVisible:state.shouldShowPlatter state:state];
+	// Preview both placements together while keeping the pill available to drag.
+	BOOL showPill = state.shouldShowPlatter && (!showingInline || state.previewActive);
+	self.longPress.enabled = showPill;
+	[self setPlatterVisible:showPill state:state];
 }
 
 - (void)setPlatterVisible:(BOOL)visible state:(JikanPresentationState *)state {

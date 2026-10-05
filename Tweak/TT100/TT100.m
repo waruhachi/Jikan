@@ -167,6 +167,7 @@ static void TT100PowerChanged(void *context) {
 				@"targetPercent": @(target),
 				@"estimateSource": source,
 				@"estimateStatus": appleResult[@"status"] ?: (hasEstimate ? @"available" : @"unavailable"),
+				@"inputPowerSource": appleResult[@"inputPowerSource"] ?: @"unavailable",
 				@"sessionStartEstimated": @([appleResult[@"sessionStartEstimated"] boolValue]),
 				@"modelRevision": appleResult[@"revision"] ?: @"",
 				@"chargingSpeed": TT100ChargingSpeed(batteryInfo, wireless),
@@ -177,6 +178,7 @@ static void TT100PowerChanged(void *context) {
 				if (tt100Monitoring && generation == tt100Generation) {
 					BOOL published = [presentationStore publishBatteryDictionary:snapshot generation:presentation.estimateGeneration publisher:self];
 					if (published && tt100Monitoring && generation == tt100Generation) {
+						JikanRecordAppleEstimateStatus(snapshot);
 						if ([snapshot[@"estimateStatus"] isEqualToString:@"waiting_for_first_prediction"]) {
 							dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 								if (tt100Monitoring && generation == tt100Generation) [self _refreshBatteryInfo];

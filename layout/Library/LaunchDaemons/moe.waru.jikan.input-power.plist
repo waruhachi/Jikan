@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>moe.waru.jikan.input-power</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/libexec/jikan-powerd</string>
+	</array>
+	<key>MachServices</key>
+	<dict>
+		<key>moe.waru.jikan.input-power</key>
+		<true/>
+	</dict>
+	<key>UserName</key>
+	<string>mobile</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+</dict>
+</plist>

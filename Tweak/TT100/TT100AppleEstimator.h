@@ -7,6 +7,8 @@
 
 #import "../../Shared/JikanAppleFeatures.h"
 #import "../../Shared/JikanEstimateSettings.h"
+#import "TT100BatteryProvider.h"
+#import "TT100InputPowerProvider.h"
 
 @interface TT100AppleEstimator : NSObject
 - (void)observeBatteryInfo:(NSDictionary *)batteryInfo;

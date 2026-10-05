@@ -31,9 +31,12 @@
 "jikan.prefs.alert.slider_range.message" = "Ange ett värde mellan %.0f och %.0f";
 
 "jikan.prefs.algorithm.apple_description" = "Använder en fast lokal kopia av Apples laddningsmodeller. Välj 80 %, 85 %, 90 %, 95 % eller 100 %.";
+"jikan.prefs.algorithm.apple_telemetry" = "Använder systemets mätning av ingående effekt när den finns, annars uppmätt ingående effekt vid kabelansluten laddning som stöds. Välj Jikan om nödvändiga mätvärden saknas.";
+"jikan.prefs.algorithm.apple_unavailable" = "Apples uppskattningar är för närvarande inte tillgängliga eftersom nödvändiga batterimätvärden saknas. Välj Jikan för att använda laddningshistorik och batteriström i stället.";
 "jikan.prefs.algorithm.jikan_description" = "Beräknar tiden utifrån din laddningshistorik och aktuella batterivärden. Välj ett mål mellan 1 % och 100 %.";
 "jikan.prefs.algorithm.recommended" = "Rekommenderas";
 
+"jikan.prefs.footer.estimate_beside_date_unavailable" = "Endast tillgängligt på iOS 16 eller senare.";
 "jikan.prefs.footer.quick_actions_unavailable" = "Snabbåtgärdsknappar är inte tillgängliga på den här enheten";
 "jikan.prefs.footer.slider_hint" = "Tryck och håll ned för att redigera";
 
@@ -43,6 +46,7 @@
 
 "jikan.prefs.row.algorithm" = "Algoritm";
 "jikan.prefs.row.enable" = "Aktivera";
+"jikan.prefs.row.estimate_beside_date" = "Ersätt pillret med uppskattning vid datumet";
 "jikan.prefs.row.estimate_source" = "Källa";
 "jikan.prefs.row.estimate_target" = "Beräkningsmål";
 "jikan.prefs.row.estimate_target_percent" = "Målnivå för uppskattning (%)";

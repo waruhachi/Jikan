@@ -9,6 +9,7 @@
 		_hideQuickActionButtons = [preferences boolForKey:@"hideQuickActionButtons"];
 		_hideQuickActionButtonsOnlyWhenCharging = [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"];
 		_showAfterFullCharge = [preferences boolForKey:@"showAfterFullCharge"];
+		_showEstimateBesideDate = [preferences boolForKey:JikanEstimateBesideDateKey];
 		_lockPreviewXAxis = [preferences boolForKey:JikanPreviewXAxisLockKey];
 		_lockPreviewYAxis = [preferences boolForKey:JikanPreviewYAxisLockKey];
 		id opacity = [preferences objectForKey:@"pillBackgroundOpacityPercent"];
@@ -31,6 +32,7 @@
 	settings->_hideQuickActionButtons = _hideQuickActionButtons;
 	settings->_hideQuickActionButtonsOnlyWhenCharging = _hideQuickActionButtonsOnlyWhenCharging;
 	settings->_showAfterFullCharge = _showAfterFullCharge;
+	settings->_showEstimateBesideDate = _showEstimateBesideDate;
 	settings->_lockPreviewXAxis = _lockPreviewXAxis;
 	settings->_lockPreviewYAxis = _lockPreviewYAxis;
 	settings->_backgroundOpacity = _backgroundOpacity;

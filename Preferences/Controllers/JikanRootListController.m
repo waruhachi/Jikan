@@ -42,7 +42,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (!_specifiers) {
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[JikanPreferencesPresentation localizeSpecifiers:_specifiers];
-		[self _configureQuickActionAvailability:_specifiers];
+		[self _configureDeviceAvailability:_specifiers];
 		[self _filterQuickActionChargingSpecifier:_specifiers];
 		[self _updateBatteryLimitInfoSpecifier];
 		[JikanPreferencesPresentation configureAxisSliderLeftImagesForController:self];
@@ -96,6 +96,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {
 	NSString *key = [specifier propertyForKey:@"key"];
+	if ([key isEqualToString:JikanEstimateBesideDateKey] && !JikanDeviceSupportsInlineEstimate()) return;
 	if (([key isEqualToString:@"hideQuickActionButtons"] || [key isEqualToString:@"hideQuickActionButtonsOnlyWhenCharging"]) && !JikanDeviceSupportsQuickActionButtons()) return;
 	[self _cancelChargeLimiterDetection];
 	if ([key isEqualToString:JikanEstimateSourceKey]) [self.jikanSliderEditor dismiss];
@@ -116,6 +117,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	self.jikanReloadQueued = NO;
 	[super reloadSpecifiers];
 	[JikanPreferencesPresentation localizeSpecifiers:self.specifiers];
+	[self _configureDeviceAvailability:self.specifiers];
 	[self _updateBatteryLimitInfoSpecifier];
 	[JikanPreferencesPresentation configureAxisSliderLeftImagesForController:self];
 	[self _installSliderLongPressEditorsIfNeeded];
@@ -151,12 +153,21 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		(!apple && [identifier isEqualToString:@"batteryEstimateAppleTargetSlider"]);
 }
 
-- (void)_configureQuickActionAvailability:(NSArray<PSSpecifier *> *)specifiers {
+- (void)_configureDeviceAvailability:(NSArray<PSSpecifier *> *)specifiers {
 	BOOL supported = JikanDeviceSupportsQuickActionButtons();
+	BOOL supportsInlineEstimate = JikanDeviceSupportsInlineEstimate();
 	for (PSSpecifier *specifier in specifiers) {
 		NSString *identifier = [specifier propertyForKey:PSIDKey];
 		if ([identifier isEqualToString:@"hideQuickActionsToggleID"] || [identifier isEqualToString:kQuickActionsChargingOnlySpecifierID]) {
 			[specifier setProperty:@(supported) forKey:PSEnabledKey];
+		} else if ([identifier isEqualToString:@"estimateBesideDateToggleID"]) {
+			[specifier setProperty:@(supportsInlineEstimate) forKey:PSEnabledKey];
+		} else if ([identifier isEqualToString:@"estimateBesideDateGroupID"]) {
+			if (supportsInlineEstimate) {
+				[specifier removePropertyForKey:PSFooterTextGroupKey];
+			} else {
+				[specifier setProperty:JikanLocalizedString(@"jikan.prefs.footer.estimate_beside_date_unavailable", @"Only available on iOS 16 or later.") forKey:PSFooterTextGroupKey];
+			}
 		} else if ([identifier isEqualToString:@"quickActionsGroupID"] && !supported) {
 			[specifier setProperty:JikanLocalizedString(@"jikan.prefs.footer.quick_actions_unavailable", @"Quick Action buttons are unavailable on this device") forKey:@"footerText"];
 		}

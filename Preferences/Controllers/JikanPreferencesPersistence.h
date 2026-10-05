@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 
 #import "../../Shared/JikanAppearanceSettings.h"
+#import "../../Shared/JikanDisplaySettings.h"
 #import "../../Shared/JikanEstimateSettings.h"
 #import "../../Shared/JikanPositionSettings.h"
 #import "../../Shared/JikanPreferences.h"

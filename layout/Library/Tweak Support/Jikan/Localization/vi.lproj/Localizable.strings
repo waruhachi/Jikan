@@ -31,9 +31,12 @@
 "jikan.prefs.alert.slider_range.message" = "Nhập một giá trị từ %.0f đến %.0f";
 
 "jikan.prefs.algorithm.apple_description" = "Dùng bản sao cố định của mô hình sạc Apple trên thiết bị. Chọn 80%, 85%, 90%, 95% hoặc 100%.";
+"jikan.prefs.algorithm.apple_telemetry" = "Dùng số đo công suất đầu vào của hệ thống nếu có, hoặc công suất đo được trên các đường sạc có dây được hỗ trợ. Nếu thiếu số đo cần thiết, hãy chọn Jikan.";
+"jikan.prefs.algorithm.apple_unavailable" = "Hiện không có ước tính Apple vì không lấy được các số đo pin cần thiết. Chọn Jikan để dùng lịch sử sạc và dòng điện pin thay thế.";
 "jikan.prefs.algorithm.jikan_description" = "Ước tính thời gian dựa trên lịch sử sạc và dữ liệu pin hiện tại. Chọn mức sạc mục tiêu từ 1% đến 100%.";
 "jikan.prefs.algorithm.recommended" = "Được đề xuất";
 
+"jikan.prefs.footer.estimate_beside_date_unavailable" = "Chỉ khả dụng trên iOS 16 trở lên.";
 "jikan.prefs.footer.quick_actions_unavailable" = "Các nút tác vụ nhanh không khả dụng trên thiết bị này";
 "jikan.prefs.footer.slider_hint" = "Ấn và giữ nút trượt để tuỳ chỉnh";
 
@@ -43,6 +46,7 @@
 
 "jikan.prefs.row.algorithm" = "Thuật toán";
 "jikan.prefs.row.enable" = "Bật";
+"jikan.prefs.row.estimate_beside_date" = "Thay hình bo tròn bằng ước tính cạnh ngày";
 "jikan.prefs.row.estimate_source" = "Nguồn";
 "jikan.prefs.row.estimate_target" = "Mục tiêu ước tính";
 "jikan.prefs.row.estimate_target_percent" = "Mục tiêu dự đoán (%)";

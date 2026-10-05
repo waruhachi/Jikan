@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+	remove|upgrade|deconfigure)
+		launchctl bootout system/moe.waru.jikan.input-power >/dev/null 2>&1 || true
+		;;
+esac

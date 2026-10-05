@@ -10,6 +10,7 @@
 #import "../Shared/JikanPositionSettings.h"
 #import "../Shared/JikanPreferences.h"
 #import "JikanCoverSheetCoordinator/JikanCoverSheetCoordinator.h"
+#import "JikanInlineEstimateAdapter/JikanInlineEstimateAdapter.h"
 #import "JikanPresentationStore/JikanPresentationStore.h"
 #import "JikanQuickActionAdapter/JikanQuickActionAdapter.h"
 #import "JikanSessionRecorder/JikanSessionRecorder.h"
@@ -28,4 +29,18 @@
 @end
 
 @interface CSCoverSheetViewController : UIViewController
+@end
+
+@interface CSProminentSubtitleDateView : UIView
+- (NSString *)_dateString;
+// Refresh entry point used by the LiquidAss compatibility hook.
+- (void)_updateLabel;
+@end
+
+@interface CSComplicationWrapperViewController : UIViewController
+@end
+
+@interface CHUISWidgetHostViewController : UIViewController
+- (void)setInlineTextParameters:(id)parameters;
+- (void)sceneContentStateDidChange:(id)state;
 @end

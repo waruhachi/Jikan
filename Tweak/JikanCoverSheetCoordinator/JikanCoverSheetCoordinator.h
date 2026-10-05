@@ -2,6 +2,7 @@
 
 #import "../../Shared/JikanPositionSettings.h"
 #import "../../Shared/JikanPreferences.h"
+#import "../JikanInlineEstimateAdapter/JikanInlineEstimateAdapter.h"
 #import "../JikanPlatterView/JikanPlatterView.h"
 #import "../JikanPresentationStore/JikanPresentationStore.h"
 #import "../JikanQuickActionAdapter/JikanQuickActionAdapter.h"

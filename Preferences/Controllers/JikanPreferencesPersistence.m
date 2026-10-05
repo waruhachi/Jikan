@@ -79,7 +79,8 @@ static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithCh
 		JikanEstimateSourceKey,
 		JikanEstimateAppleTargetKey,
 		JikanEstimateAppleSyncedKey,
-		@"showAfterFullCharge"
+		@"showAfterFullCharge",
+		JikanEstimateBesideDateKey
 	];
 
 	JikanResetPillPosition(prefs);
