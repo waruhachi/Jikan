@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Resources/icon.png" alt="Jikan" width="96" height="96" />
+  <img src="Resources/Banner.png" alt="Jikan charging estimates in Classic and Progress Ring styles" width="100%" />
 </p>
 
 <h1 align="center">Jikan</h1>
@@ -67,6 +67,11 @@ If you'd like to support me and Jikan's development, you can buy it on [Havoc](h
 ## Screenshots
 
 <p align="center">
-  <img src="Resources/Tweak.png" alt="Jikan lock screen banner" width="100%" />
-  <img src="Resources/Preferences.png" alt="Jikan preferences banner" width="100%" />
+  <img src="Resources/LockScreen.png" alt="Charging estimates on the Lock Screen, in a pill or beside the date" width="49%" />
+  <img src="Resources/Pill.png" alt="Jikan pill styles and the Pill Style preferences" width="49%" />
+</p>
+
+<p align="center">
+  <img src="Resources/Battery.png" alt="Live battery wattage, temperature, and voltage" width="49%" />
+  <img src="Resources/Position.png" alt="Portrait and landscape pill placement and position preferences" width="49%" />
 </p>
