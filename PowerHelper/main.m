@@ -5,14 +5,7 @@ int main(int argc, char **argv) {
 		if (argc == 2 && strcmp(argv[1], "--configure") == 0) {
 			if (getuid() != 0) return EXIT_FAILURE;
 			NSString *path = jbroot(@"/Library/LaunchDaemons/moe.waru.jikan.input-power.plist");
-			NSString *program = jbroot(@"/usr/libexec/jikan-powerd");
-			NSString *bootstrapPath = path;
-#ifdef THEOS_PACKAGE_SCHEME_ROOTHIDE
-			// RootHide's launchd plists and bootstrap tools use jbroot-based paths.
-			// Do not persist its randomized physical root across re-jailbreaks.
-			program = @"/usr/libexec/jikan-powerd";
-			bootstrapPath = @"/Library/LaunchDaemons/moe.waru.jikan.input-power.plist";
-#endif
+			NSString *program = jbroot(@"/usr/libexec/JikanPowerd");
 			NSDictionary *job = @{
 				@"Label": JikanInputPowerServiceName,
 				@"ProgramArguments": @[program],
@@ -21,7 +14,7 @@ int main(int argc, char **argv) {
 				@"ProcessType": @"Background"
 			};
 			if (![job writeToFile:path atomically:YES] || chmod(path.fileSystemRepresentation, 0644) != 0) return EXIT_FAILURE;
-			puts(bootstrapPath.fileSystemRepresentation);
+			puts(path.fileSystemRepresentation);
 			return EXIT_SUCCESS;
 		}
 		if (argc != 1) return EXIT_FAILURE;

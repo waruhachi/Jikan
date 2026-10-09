@@ -2,8 +2,18 @@
 set -e
 
 if [ "$1" = "configure" ]; then
-	for helper in "${DPKG_ROOT:-}/usr/libexec/jikan-powerd" /var/jb/usr/libexec/jikan-powerd; do
+	for helper in "${DPKG_ROOT:-}/usr/libexec/JikanPowerd" /var/jb/usr/libexec/JikanPowerd; do
 		if [ -x "$helper" ]; then
+			# RootHide's libroothide.dylib uses @loader_path/.jbroot. Make sure
+			# the standalone helper's directory has that link before launching it.
+			# Create it at install time to avoid dpkg ownership conflicts with
+			# other packages that use the same .jbroot directory link.
+			if [ "${DPKG_MAINTSCRIPT_ARCH:-$(dpkg --print-architecture)}" = "iphoneos-arm64e" ]; then
+				libexec=${helper%/*}
+				if [ ! -e "$libexec/.jbroot" ] && [ ! -L "$libexec/.jbroot" ]; then
+					ln -s ../.. "$libexec/.jbroot"
+				fi
+			fi
 			plist=$("$helper" --configure)
 			launchctl bootout system/moe.waru.jikan.input-power >/dev/null 2>&1 || true
 			launchctl bootstrap system "$plist"

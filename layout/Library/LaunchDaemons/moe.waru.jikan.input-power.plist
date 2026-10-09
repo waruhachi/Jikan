@@ -6,7 +6,7 @@
 	<string>moe.waru.jikan.input-power</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/usr/libexec/jikan-powerd</string>
+		<string>/usr/libexec/JikanPowerd</string>
 	</array>
 	<key>MachServices</key>
 	<dict>

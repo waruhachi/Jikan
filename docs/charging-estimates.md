@@ -211,7 +211,7 @@ Disconnecting resets the model session. Changes to the target, adapter, or avail
 
 If SpringBoard starts while the phone is already plugged in, Jikan uses the first valid sample's percentage and time as an approximate session start. This lets it resume predictions instead of remaining unavailable indefinitely. The result marks this recovery as `sessionStartEstimated`, since it can differ from Apple's original session baseline.
 
-Jikan requires valid adapter and battery features and prefers native `PowerTelemetryData.SystemPowerIn`. When only that input is absent, [`TT100InputPowerProvider`](../Tweak/TT100/TT100InputPowerProvider.m) requests a fresh measurement from the packaged `jikan-powerd` helper. Invalid or zero native readings do not trigger substitution. The inspected daemon used device-specific constants for missing telemetry on a hardware target called `D79`. Jikan does not copy that special case.
+Jikan requires valid adapter and battery features and prefers native `PowerTelemetryData.SystemPowerIn`. When only that input is absent, [`TT100InputPowerProvider`](../Tweak/TT100/TT100InputPowerProvider.m) requests a fresh measurement from the packaged `JikanPowerd` helper. Invalid or zero native readings do not trigger substitution. The inspected daemon used device-specific constants for missing telemetry on a hardware target called `D79`. Jikan does not copy that special case.
 
 Missing required inputs, invalid predictions, or model-loading failures make the estimate unavailable. Preview text does not override that status or switch to the Jikan algorithm.
 

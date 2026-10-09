@@ -1,4 +1,4 @@
-TOOL_NAME = jikan-powerd
+TOOL_NAME = JikanPowerd
 
 $(TOOL_NAME)_FILES = $(wildcard *.m)
 $(TOOL_NAME)_CFLAGS = -fobjc-arc
