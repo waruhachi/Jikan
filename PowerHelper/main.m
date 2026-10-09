@@ -5,7 +5,7 @@ int main(int argc, char **argv) {
 		if (argc == 2 && strcmp(argv[1], "--configure") == 0) {
 			if (getuid() != 0) return EXIT_FAILURE;
 			NSString *path = jbroot(@"/Library/LaunchDaemons/moe.waru.jikan.input-power.plist");
-			NSString *program = jbroot(@"/usr/libexec/JikanPowerd");
+			NSString *program = rootfs(@"/usr/libexec/JikanPowerd");
 			NSDictionary *job = @{
 				@"Label": JikanInputPowerServiceName,
 				@"ProgramArguments": @[program],
