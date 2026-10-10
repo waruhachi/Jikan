@@ -6,7 +6,7 @@
 "jikan.inline.format.hr_min" = "%ld sa %ld dk";
 "jikan.inline.format.lt1min" = "<1 dk";
 "jikan.inline.format.min" = "%ld dk";
-"jikan.inline.format.to_target" = "%@ -> %ld%%";
+"jikan.inline.format.to_target" = "%@ -> %%%ld";
 
 "jikan.platter.accessibility.next_item" = "Sonraki Yığın öğesini gösterir";
 
@@ -15,19 +15,19 @@
 "jikan.platter.label.charged" = "şarj edildi";
 "jikan.platter.label.current_wattage" = "anlık güç";
 "jikan.platter.label.until_fully_charged" = "tam dolana kadar";
-"jikan.platter.label.until_target" = "%ld%% şarj olana kadar";
+"jikan.platter.label.until_target" = "%%%ld şarj olana kadar";
 
 "jikan.platter.preview.eta" = "1 sa 23 dk";
 "jikan.platter.preview.time" = "0 dakika";
 
-"jikan.prefs.alert.detect_limit.none.message" = "ChargeLimiter sınırı algılanmadı. %100 kullanılıyor.";
+"jikan.prefs.alert.detect_limit.none.message" = "ChargeLimiter sınırı algılanmadı. %%100 kullanılıyor.";
 "jikan.prefs.alert.detect_limit.none.title" = "Pil sınırı bulunamadı";
-"jikan.prefs.alert.detect_limit.single.message" = "Uygulanan pil sınırı: %ld%%";
+"jikan.prefs.alert.detect_limit.single.message" = "Uygulanan pil sınırı: %%%ld";
 "jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter algılandı";
 "jikan.prefs.alert.detect_limit.unchanged.message" = "ChargeLimiter sınırı algılanmadı. Tahmin hedefiniz değiştirilmedi.";
-"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter %@%% bildiriyor. Apple hedefleri 80, 85, 90, 95 ve 100%%'dür. Hedefiniz değiştirilmedi.";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter %%%@ bildiriyor. Apple hedefleri 80, 85, 90, 95 ve %%100'dür. Hedefiniz değiştirilmedi.";
 "jikan.prefs.alert.detect_limit.unsupported.title" = "Desteklenmeyen Apple hedefi";
-"jikan.prefs.alert.limit_sources.applied.message" = "ChargeLimiter'dan son uygulanan: %ld%%";
+"jikan.prefs.alert.limit_sources.applied.message" = "ChargeLimiter'dan son uygulanan: %%%ld";
 "jikan.prefs.alert.limit_sources.title" = "ChargeLimiter ile senkronize edildi";
 "jikan.prefs.alert.reset_pill_position.prompt" = "Dikey/yatay hap konumunu ve eksen kilitlerini sıfırlamak istiyor musunuz?";
 "jikan.prefs.alert.reset_pill_position.title" = "Hap Konumunu Sıfırla";
@@ -36,10 +36,10 @@
 "jikan.prefs.alert.slider_invalid.message" = "%.0f ile %.0f arasında geçerli bir sayı girin.";
 "jikan.prefs.alert.slider_range.message" = "%.0f ile %.0f arasında bir değer girin";
 
-"jikan.prefs.algorithm.apple_description" = "Apple'ın şarj modellerinin yerel bir kopyasını kullanır. %80, %85, %90, %95 veya %100 seçin.";
+"jikan.prefs.algorithm.apple_description" = "Apple'ın şarj modellerinin yerel bir kopyasını kullanır. %%80, %%85, %%90, %%95 veya %%100 seçin.";
 "jikan.prefs.algorithm.apple_telemetry" = "Mevcut olduğunda yerel giriş gücü okumalarını veya desteklenen kablolu şarj yollarında ölçülen giriş gücünü kullanır. Gerekli okumalar mevcut değilse Jikan'ı seçin.";
 "jikan.prefs.algorithm.apple_unavailable" = "Gerekli pil okumaları alınamadığından Apple tahminleri şu anda kullanılamıyor. Bunun yerine şarj geçmişini ve pil akımını kullanmak için Jikan'ı seçin.";
-"jikan.prefs.algorithm.jikan_description" = "Şarj geçmişinizden ve anlık pil okumalarınızdan süreyi tahmin eder. %1 ile %100 arasında herhangi bir hedef seçin.";
+"jikan.prefs.algorithm.jikan_description" = "Şarj geçmişinizden ve anlık pil okumalarınızdan süreyi tahmin eder. %%1 ile %%100 arasında herhangi bir hedef seçin.";
 "jikan.prefs.algorithm.recommended" = "Önerilen";
 
 "jikan.prefs.footer.estimate_beside_date_unavailable" = "Yalnızca iOS 16 veya sonraki sürümlerde kullanılabilir.";
@@ -55,7 +55,7 @@
 "jikan.prefs.row.estimate_beside_date" = "Bunun yerine Tarih Satırını Kullan";
 "jikan.prefs.row.estimate_source" = "Kaynak";
 "jikan.prefs.row.estimate_target" = "Tahmin Hedefi";
-"jikan.prefs.row.estimate_target_percent" = "Tahmin Hedefi (%)";
+"jikan.prefs.row.estimate_target_percent" = "Tahmin Hedefi (%%)";
 "jikan.prefs.row.hide_quick_action_buttons" = "Hızlı İşlem Düğmelerini Gizle";
 "jikan.prefs.row.landscape" = "Yatay";
 "jikan.prefs.row.landscape_x" = "Yatay X";
@@ -64,7 +64,7 @@
 "jikan.prefs.row.lock_y_axis" = "Y Eksenini Kilitle";
 "jikan.prefs.row.only_while_charging" = "Yalnızca Şarj Olurken";
 "jikan.prefs.row.opacity" = "Opaklık";
-"jikan.prefs.row.pill_background_opacity" = "Hap Arka Plan Opaklığı (%)";
+"jikan.prefs.row.pill_background_opacity" = "Hap Arka Plan Opaklığı (%%)";
 "jikan.prefs.row.portrait" = "Dikey";
 "jikan.prefs.row.portrait_x" = "Dikey X";
 "jikan.prefs.row.portrait_y" = "Dikey Y";
