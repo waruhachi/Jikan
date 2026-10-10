@@ -1,0 +1,110 @@
+"jikan.common.action.cancel" = "İptal";
+"jikan.common.action.ok" = "Tamam";
+"jikan.common.action.save" = "Kaydet";
+
+"jikan.inline.format.hr" = "%ld sa";
+"jikan.inline.format.hr_min" = "%ld sa %ld dk";
+"jikan.inline.format.lt1min" = "<1 dk";
+"jikan.inline.format.min" = "%ld dk";
+"jikan.inline.format.to_target" = "%@ -> %ld%%";
+
+"jikan.platter.accessibility.next_item" = "Sonraki Yığın öğesini gösterir";
+
+"jikan.platter.label.battery_temperature" = "pil sıcaklığı";
+"jikan.platter.label.battery_voltage" = "pil voltajı";
+"jikan.platter.label.charged" = "şarj edildi";
+"jikan.platter.label.current_wattage" = "anlık güç";
+"jikan.platter.label.until_fully_charged" = "tam dolana kadar";
+"jikan.platter.label.until_target" = "%ld%% şarj olana kadar";
+
+"jikan.platter.preview.eta" = "1 sa 23 dk";
+"jikan.platter.preview.time" = "0 dakika";
+
+"jikan.prefs.alert.detect_limit.none.message" = "ChargeLimiter sınırı algılanmadı. %100 kullanılıyor.";
+"jikan.prefs.alert.detect_limit.none.title" = "Pil sınırı bulunamadı";
+"jikan.prefs.alert.detect_limit.single.message" = "Uygulanan pil sınırı: %ld%%";
+"jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter algılandı";
+"jikan.prefs.alert.detect_limit.unchanged.message" = "ChargeLimiter sınırı algılanmadı. Tahmin hedefiniz değiştirilmedi.";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter %@%% bildiriyor. Apple hedefleri 80, 85, 90, 95 ve 100%%'dür. Hedefiniz değiştirilmedi.";
+"jikan.prefs.alert.detect_limit.unsupported.title" = "Desteklenmeyen Apple hedefi";
+"jikan.prefs.alert.limit_sources.applied.message" = "ChargeLimiter'dan son uygulanan: %ld%%";
+"jikan.prefs.alert.limit_sources.title" = "ChargeLimiter ile senkronize edildi";
+"jikan.prefs.alert.reset_pill_position.prompt" = "Dikey/yatay hap konumunu ve eksen kilitlerini sıfırlamak istiyor musunuz?";
+"jikan.prefs.alert.reset_pill_position.title" = "Hap Konumunu Sıfırla";
+"jikan.prefs.alert.reset_preferences.prompt" = "Tüm Jikan ayarları varsayılana sıfırlansın mı?";
+"jikan.prefs.alert.reset_preferences.title" = "Ayarları Sıfırla";
+"jikan.prefs.alert.slider_invalid.message" = "%.0f ile %.0f arasında geçerli bir sayı girin.";
+"jikan.prefs.alert.slider_range.message" = "%.0f ile %.0f arasında bir değer girin";
+
+"jikan.prefs.algorithm.apple_description" = "Apple'ın şarj modellerinin yerel bir kopyasını kullanır. %80, %85, %90, %95 veya %100 seçin.";
+"jikan.prefs.algorithm.apple_telemetry" = "Mevcut olduğunda yerel giriş gücü okumalarını veya desteklenen kablolu şarj yollarında ölçülen giriş gücünü kullanır. Gerekli okumalar mevcut değilse Jikan'ı seçin.";
+"jikan.prefs.algorithm.apple_unavailable" = "Gerekli pil okumaları alınamadığından Apple tahminleri şu anda kullanılamıyor. Bunun yerine şarj geçmişini ve pil akımını kullanmak için Jikan'ı seçin.";
+"jikan.prefs.algorithm.jikan_description" = "Şarj geçmişinizden ve anlık pil okumalarınızdan süreyi tahmin eder. %1 ile %100 arasında herhangi bir hedef seçin.";
+"jikan.prefs.algorithm.recommended" = "Önerilen";
+
+"jikan.prefs.footer.estimate_beside_date_unavailable" = "Yalnızca iOS 16 veya sonraki sürümlerde kullanılabilir.";
+"jikan.prefs.footer.quick_actions_unavailable" = "Hızlı İşlem düğmeleri bu cihazda kullanılamıyor";
+"jikan.prefs.footer.slider_hint" = "Düzenlemek için Kaydırıcı Düğmesine Basılı Tutun";
+
+"jikan.prefs.header.subtitle" = "Kilit ekranınızda tam şarza kalan süreyi gösterin";
+
+"jikan.prefs.legend.slow_charging" = "Yavaş şarj";
+
+"jikan.prefs.row.algorithm" = "Algoritma";
+"jikan.prefs.row.enable" = "Etkinleştir";
+"jikan.prefs.row.estimate_beside_date" = "Bunun yerine Tarih Satırını Kullan";
+"jikan.prefs.row.estimate_source" = "Kaynak";
+"jikan.prefs.row.estimate_target" = "Tahmin Hedefi";
+"jikan.prefs.row.estimate_target_percent" = "Tahmin Hedefi (%)";
+"jikan.prefs.row.hide_quick_action_buttons" = "Hızlı İşlem Düğmelerini Gizle";
+"jikan.prefs.row.landscape" = "Yatay";
+"jikan.prefs.row.landscape_x" = "Yatay X";
+"jikan.prefs.row.landscape_y" = "Yatay Y";
+"jikan.prefs.row.lock_x_axis" = "X Eksenini Kilitle";
+"jikan.prefs.row.lock_y_axis" = "Y Eksenini Kilitle";
+"jikan.prefs.row.only_while_charging" = "Yalnızca Şarj Olurken";
+"jikan.prefs.row.opacity" = "Opaklık";
+"jikan.prefs.row.pill_background_opacity" = "Hap Arka Plan Opaklığı (%)";
+"jikan.prefs.row.portrait" = "Dikey";
+"jikan.prefs.row.portrait_x" = "Dikey X";
+"jikan.prefs.row.portrait_y" = "Dikey Y";
+"jikan.prefs.row.reset_pill_position" = "Hap Konumunu Sıfırla";
+"jikan.prefs.row.reset_to_defaults" = "Varsayılanlara Sıfırla";
+"jikan.prefs.row.show_after_full_charge" = "Hedefe ulaşıldıktan sonra göster";
+"jikan.prefs.row.show_preview" = "Önizlemeyi Göster";
+"jikan.prefs.row.stack" = "Yığın";
+"jikan.prefs.row.sync_with_chargelimiter" = "ChargeLimiter ile Senkronize Et";
+
+"jikan.prefs.section.battery_estimate" = "Zaman Tahmini";
+"jikan.prefs.section.miscellaneous" = "Çeşitli";
+"jikan.prefs.section.pill_display" = "Hap Görünümü";
+"jikan.prefs.section.pill_position" = "Hap Konumu";
+"jikan.prefs.section.pill_preview" = "Hap Önizlemesi";
+"jikan.prefs.section.pill_style" = "Hap Stili";
+"jikan.prefs.section.reset" = "Sıfırla";
+
+"jikan.prefs.slider.estimate_target.title" = "Tahmin Hedefi";
+"jikan.prefs.slider.landscape_x.title" = "Yatay X";
+"jikan.prefs.slider.landscape_y.title" = "Yatay Y";
+"jikan.prefs.slider.opacity.title" = "Hap Arka Plan Opaklığı";
+"jikan.prefs.slider.portrait_x.title" = "Dikey X";
+"jikan.prefs.slider.portrait_y.title" = "Dikey Y";
+
+"jikan.stack.item.estimate" = "Tahmini Süre";
+"jikan.stack.item.temperature" = "Sıcaklık";
+"jikan.stack.item.voltage" = "Voltaj";
+"jikan.stack.item.wattage" = "Güç";
+
+"jikan.stack.section.active" = "Aktif";
+"jikan.stack.section.available" = "Kullanılabilir";
+"jikan.stack.section.unit" = "Sıcaklık Birimi";
+
+"jikan.stack.unit.celsius" = "Celsius";
+"jikan.stack.unit.fahrenheit" = "Fahrenheit";
+
+"jikan.tt100.format.hr" = "%d sa";
+"jikan.tt100.format.hr_min" = "%d sa %d dk";
+"jikan.tt100.format.lt1min" = "<1 dk";
+"jikan.tt100.format.min" = "%d dk";
+
+"jikan.tt100.value.na" = "Yok";
