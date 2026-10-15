@@ -8,6 +8,8 @@ FOUNDATION_EXPORT NSString *const JikanPresentationStateDidChangeNotification;
 + (instancetype)sharedInstance;
 - (instancetype)initWithPreferences:(NSUserDefaults *)preferences;
 - (void)reloadPreferences;
+// Update an automatic model default when native readings appear/disappear.
+- (void)refreshAutomaticEstimateSelection;
 - (BOOL)publishBatteryDictionary:(NSDictionary *)dictionary generation:(NSUInteger)generation publisher:(id)publisher;
 - (void)clearBatterySnapshot;
 - (void)setPreviewActive:(BOOL)active;

@@ -131,6 +131,7 @@ static void TT100PowerChanged(void *context) {
 	tt100RefreshPending = NO;
 	NSUInteger generation = tt100Generation;
 	JikanPresentationStore *presentationStore = [JikanPresentationStore sharedInstance];
+	[presentationStore refreshAutomaticEstimateSelection];
 	JikanPresentationState *presentation = presentationStore.state;
 	dispatch_async(tt100RefreshQueue, ^{
 		@autoreleasepool {
@@ -139,7 +140,7 @@ static void TT100PowerChanged(void *context) {
 			NSInteger target = presentation.settings.targetPercent;
 			if (!tt100AppleEstimator) tt100AppleEstimator = [TT100AppleEstimator new];
 			[tt100AppleEstimator observeBatteryInfo:batteryInfo];
-			NSDictionary *appleResult = [source isEqualToString:@"apple"] ? [tt100AppleEstimator resultForBatteryInfo:batteryInfo target:target] : nil;
+			NSDictionary *appleResult = [source isEqualToString:@"apple"] ? [tt100AppleEstimator resultForBatteryInfo:batteryInfo target:target allowEstimatedInputPower:presentation.settings.allowEstimatedAppleInputPower] : nil;
 			if (appleResult && (![appleResult[@"status"] isEqualToString:tt100LastAppleStatus] || tt100LastAppleTarget != target || tt100LastAppleSession != [appleResult[@"session"] integerValue])) {
 				tt100LastAppleStatus = appleResult[@"status"];
 				tt100LastAppleTarget = target;
@@ -151,6 +152,7 @@ static void TT100PowerChanged(void *context) {
 			BOOL hasEstimate = appleResult ? [appleResult[@"status"] isEqualToString:@"available"] : NO;
 			double remainingSeconds = appleResult ? [appleResult[@"seconds"] doubleValue] : [TT100HistoryEstimator estimatedSecondsWithBatteryInfo:batteryInfo targetPercent:target];
 			NSString *timeString = [TT100HistoryEstimator formattedTimeForSeconds:remainingSeconds];
+			if (hasEstimate && [appleResult[@"inputPowerSource"] isEqualToString:@"adapter_estimate"]) timeString = [@"≈ " stringByAppendingString:timeString];
 			if (!appleResult) hasEstimate = ![timeString isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 			NSInteger percent = 0;
 			BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
@@ -169,6 +171,7 @@ static void TT100PowerChanged(void *context) {
 				@"targetPercent": @(target),
 				@"estimateSource": source,
 				@"estimateStatus": appleResult[@"status"] ?: (hasEstimate ? @"available" : @"unavailable"),
+				@"missingFeatures": appleResult[@"missingFeatures"] ?: @[],
 				@"inputPowerSource": appleResult[@"inputPowerSource"] ?: @"unavailable",
 				@"sessionStartEstimated": @([appleResult[@"sessionStartEstimated"] boolValue]),
 				@"modelRevision": appleResult[@"revision"] ?: @"",

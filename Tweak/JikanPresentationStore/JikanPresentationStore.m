@@ -46,13 +46,21 @@ NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChan
 - (void)reloadPreferences {
 	NSAssert([NSThread isMainThread], @"Presentation settings must change on the main thread");
 	JikanPresentationSettings *settings = [[JikanPresentationSettings alloc] initWithPreferences:_preferences];
-	BOOL estimateChanged = ![settings.estimateSource isEqualToString:_state.settings.estimateSource] || settings.targetPercent != _state.settings.targetPercent;
+	BOOL estimateChanged = ![settings.estimateSource isEqualToString:_state.settings.estimateSource] || settings.targetPercent != _state.settings.targetPercent || settings.allowEstimatedAppleInputPower != _state.settings.allowEstimatedAppleInputPower;
 	NSUInteger generation = _state.estimateGeneration + (estimateChanged || settings.enabled != _state.settings.enabled);
 	JikanBatterySnapshot *snapshot = settings.enabled ? _state.snapshot : nil;
 	if (estimateChanged) snapshot = [snapshot snapshotWithoutEstimateForSettings:settings];
 	_state = [[JikanPresentationState alloc] initWithSnapshot:snapshot settings:settings previewActive:_state.previewActive estimateGeneration:generation];
 	[self notifyChargingStateChanged];
 	[self notifyStateChanged];
+}
+
+- (void)refreshAutomaticEstimateSelection {
+	NSAssert([NSThread isMainThread], @"Automatic selection must update presentation state on the main thread");
+	NSString *effectiveSource = JikanEstimateSource(_preferences);
+	if (![effectiveSource isEqualToString:_state.settings.estimateSource]) {
+		[self reloadPreferences];
+	}
 }
 
 - (BOOL)publishBatteryDictionary:(NSDictionary *)dictionary generation:(NSUInteger)generation publisher:(id)publisher {

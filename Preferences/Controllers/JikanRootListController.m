@@ -107,6 +107,13 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if ([key isEqualToString:@"hideQuickActionButtons"]) [self _updateQuickActionChargingSpecifierAnimated];
 }
 
+- (id)readPreferenceValue:(PSSpecifier *)specifier {
+	if ([[specifier propertyForKey:@"key"] isEqualToString:JikanEstimateSourceKey]) {
+		return JikanEstimateSource([[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite]);
+	}
+	return [super readPreferenceValue:specifier];
+}
+
 - (void)reloadSpecifiers {
 	if ([self _isAnyPreferenceSliderTracking] || self.jikanAnimatingQuickActionRow) {
 		[self _scheduleSpecifiersReload:NO];

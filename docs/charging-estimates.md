@@ -1,6 +1,6 @@
 # How Jikan estimates charging time
 
-Jikan has two charging-time algorithms: Apple, the default, and Jikan, its original estimator based on charging history and battery current. Both run locally and predict how long it will take to reach a selected percentage. Neither controls charging or changes the phone's charge limit. The ChargeLimiter integration copies a target into Jikan's preferences.
+Jikan has two charging-time algorithms: Apple, the default when all required native inputs are available, and Jikan, its original estimator based on charging history and battery current. Devices without currently usable native Apple-model inputs automatically use Jikan. Both run locally and predict how long it will take to reach a selected percentage. Neither controls charging or changes the phone's charge limit. The ChargeLimiter integration copies a target into Jikan's preferences.
 
 This guide covers the current implementation, the iOS 26.0 investigation on September 23 and 24, 2026, and the integration work that followed. The descriptions of Apple's internals apply to the inspected binaries and captured sessions; they do not establish how every iOS release or device behaves.
 
@@ -15,6 +15,14 @@ This guide covers the current implementation, the iOS 26.0 investigation on Sept
 | Updates | Manually replaced model assets and matching integration code | Statistics accumulate as Jikan observes charging |
 
 In Apple mode, Jikan collects the inputs and runs the packaged models itself, without calling Apple's Battery Intelligence service. The models ran on the tested iOS 16.3.1 device as well as iOS 26.0. If an Apple prediction is unavailable, Jikan keeps the selected algorithm.
+
+### Optional estimated adapter input power
+
+The default is **Apple** only while the device exposes a complete, currently usable native feature vector for the 100% Apple model, including positive `PowerTelemetryData.SystemPowerIn`. Otherwise the effective default is **Jikan**, including on devices without those inputs. This is an availability check rather than a permanent hardware classification: an unplugged or paused device can temporarily lack the readings, and the automatic default can change when they appear. Explicitly selecting Jikan keeps Jikan selected. A previous Apple preference without estimated-input consent is treated as the automatic default, so older installations also benefit from the fallback. The effective choice is shared between Settings and the estimator.
+
+Selecting **Apple** without the required native features presents the warning: “This device cannot provide an accurate measured input source. Switching models now will use estimated sources which may produce inaccurate estimates.” The explicit **Use Estimated Power** choice enables approximate inputs and keeps Apple selected even when native readings are missing. Choosing **Jikan** or resetting preferences revokes the consent. Availability is determined from live IORegistry readings and the Apple feature validator, rather than an assumed iOS version cutoff.
+
+When enabled, Jikan still prefers native or validated measured input power. Only when these are missing, and the charger is identified as a wired connection, does it use the adapter's advertised `Watts` (or `AdapterVoltage × Current`) as a **guessed** SystemPowerIn value. The adapter rating is a power *capability*, not instantaneous USB power. Actual draw, especially during charging taper or near full charge, may be dramatically lower. Such Apple time estimates are labeled **≈** in the Lock Screen and diagnostics report the `adapter_estimate` source. The opt-in never bypasses missing battery features, invalid native values, disconnected/paused states, or incompatible model files. Device testing and real charging-session accuracy remain unverified for this fallback.
 
 ## From battery readings to the Lock Screen
 
@@ -32,7 +40,7 @@ flowchart TD
 
 [`TT100.m`](../Tweak/TT100/TT100.m) reads the battery service using `IOServiceMatching("IOPMPowerSource")` and `IORegistryEntryCreateCFProperties`. It listens for power-source notifications and polls every 15 seconds, with a one-second timer tolerance. Changes to the relevant UI or preferences also trigger refreshes. Expensive work runs on a serial queue. Generation checks discard results if Jikan was disabled or its preferences changed while the work was running.
 
-The snapshot contains the estimate string, availability and status, selected algorithm, target, battery properties, and whether the target has been reached. [`Jikan.x`](../Tweak/Jikan.x) uses it to update the Lock Screen. Normally, the pill requires external power and a usable estimate. The optional after-charge display can show that the target has been reached. Show Preview displays sample text without creating a real estimate.
+The snapshot contains the estimate string, availability and status, selected algorithm, target, battery properties, and whether the target has been reached. [`Jikan.x`](../Tweak/Jikan.x) uses it to update the Lock Screen. The pill requires external power and normally a usable estimate. In Apple mode, if a prediction remains unavailable after the initial wait, the pill can still appear with an honest N/A; this does not substitute the Jikan algorithm. The optional after-charge display can show that the target has been reached. Show Preview displays sample text without creating a real estimate. When Apple feature validation returns `missing_required_feature`, `moe.waru.jikan.estimate-status.plist` includes `latest.missingFeatures`, containing only missing/invalid input key names (not the raw battery readings).
 
 On iOS 16 or later, Use Date Row Instead puts the estimate in the date row when it fits. The localized text includes the selected target, such as 27m to 80% or 1h 23m to 100%, using the numeric remaining duration from either algorithm. Preview uses the same format and selected target. The pill keeps its two-line wording.
 
@@ -126,11 +134,11 @@ Running a `.mlmodelc` with the correct inputs required recovering the daemon's f
 | 1 | Temperature | Raw `Temperature` value, without converting it to degrees Celsius |
 | 2 | Cycle count | `CycleCount` |
 | 3 | Current charge percentage | `CurrentCapacity` |
-| 4 | Nominal charge capacity | `NominalChargeCapacity` |
+| 4 | Nominal charge capacity | `NominalChargeCapacity`; on older power sources without this key, a capacity-scale `AppleRawMaxCapacity` reading can be used when it is plausible relative to `DesignCapacity` and any available `AppleRawCurrentCapacity` |
 | 5 | Qmax | First element of `BatteryData.Qmax` |
 | 6 | Depth of discharge | First element of `BatteryData.PresentDOD` |
 | 7 | Design capacity | `DesignCapacity` |
-| 8 | System input power | Native `PowerTelemetryData.SystemPowerIn × 0.001`, or validated measured input power when absent; converted to Float32 |
+| 8 | System input power | Native `PowerTelemetryData.SystemPowerIn × 0.001`, validated measured input power when absent, or explicitly opted-in approximate adapter power if no measurement is available; converted to Float32 |
 | 9 | Time since plug-in | Integer elapsed seconds from the session's monotonic clock |
 
 TT80 then appends `is_wireless` at index 10. TTL first appends `InstantAmperage`, `Voltage`, starting charge percentage, and target percentage at indices 10 through 13, then `is_wireless` at index 14.

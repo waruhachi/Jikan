@@ -1,4 +1,5 @@
 #import "TT100InputPowerProvider.h"
+#import "../../Shared/JikanInputPowerEligibility.h"
 
 @implementation TT100InputPowerProvider
 
@@ -37,10 +38,7 @@
 	if (![power isKindOfClass:NSNumber.class] || ![timestamp isKindOfClass:NSNumber.class]) return nil;
 	double age = [NSDate date].timeIntervalSince1970 - timestamp.doubleValue;
 	if (!isfinite(age) || age < 0 || age > 3 || !isfinite(power.doubleValue) || power.doubleValue <= 0 || power.doubleValue > 240000) return nil;
-	if (![batteryInfo[@"ExternalConnected"] boolValue] || ![batteryInfo[@"IsCharging"] boolValue] ||
-		![sample[@"adapter"] isEqual:batteryInfo[@"AdapterDetails"]]) return nil;
-	NSDictionary *adapter = batteryInfo[@"AdapterDetails"];
-	if (![adapter[@"IsWireless"] isKindOfClass:NSNumber.class] || [adapter[@"IsWireless"] boolValue] || [batteryInfo[@"IsWirelessCharging"] boolValue]) return nil;
+	if (!JikanCanMeasureWiredInputPower(batteryInfo) || ![sample[@"adapter"] isEqual:batteryInfo[@"AdapterDetails"]]) return nil;
 	return power;
 }
 

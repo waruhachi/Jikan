@@ -5,6 +5,7 @@
 FOUNDATION_EXPORT NSString *const JikanEstimateSourceKey;
 FOUNDATION_EXPORT NSString *const JikanEstimateAppleTargetKey;
 FOUNDATION_EXPORT NSString *const JikanEstimateAppleSyncedKey;
+FOUNDATION_EXPORT NSString *const JikanEstimateAppleEstimatedPowerKey;
 
 FOUNDATION_EXPORT NSString *JikanEstimateSource(NSUserDefaults *preferences);
 FOUNDATION_EXPORT NSInteger JikanEstimateTarget(NSUserDefaults *preferences, NSString *source);

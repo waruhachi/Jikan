@@ -1,12 +1,18 @@
 #import "JikanEstimateSettings.h"
+#import "JikanAppleEstimateAvailability.h"
 
 NSString *const JikanEstimateSourceKey = @"batteryEstimateSource";
 NSString *const JikanEstimateAppleTargetKey = @"batteryEstimateAppleTargetPercent";
 NSString *const JikanEstimateAppleSyncedKey = @"batteryEstimateAppleSyncedWithChargeLimiter";
+NSString *const JikanEstimateAppleEstimatedPowerKey = @"batteryEstimateAppleAllowEstimatedInputPower";
 
 NSString *JikanEstimateSource(NSUserDefaults *preferences) {
 	id value = [preferences objectForKey:JikanEstimateSourceKey];
-	return [value isKindOfClass:NSString.class] && [value isEqualToString:@"jikan"] ? @"jikan" : @"apple";
+	if ([value isKindOfClass:NSString.class] && [value isEqualToString:@"jikan"]) return @"jikan";
+	// Selecting Apple after an estimated-input warning is an explicit opt-in.
+	// Older saved "apple" values may just be the previous unconditional default.
+	if ([preferences boolForKey:JikanEstimateAppleEstimatedPowerKey]) return @"apple";
+	return JikanAppleHasRequiredNativeInputs() ? @"apple" : @"jikan";
 }
 
 BOOL JikanAppleTargetIsSupported(NSInteger target) {

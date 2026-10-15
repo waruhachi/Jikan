@@ -12,6 +12,6 @@
 
 @interface TT100AppleEstimator : NSObject
 - (void)observeBatteryInfo:(NSDictionary *)batteryInfo;
-- (NSDictionary *)resultForBatteryInfo:(NSDictionary *)batteryInfo target:(NSInteger)target;
+- (NSDictionary *)resultForBatteryInfo:(NSDictionary *)batteryInfo target:(NSInteger)target allowEstimatedInputPower:(BOOL)allowEstimatedInputPower;
 - (void)reset;
 @end

@@ -1,4 +1,5 @@
 #import "JikanSMCReader.h"
+#import "../Shared/JikanInputPowerEligibility.h"
 
 typedef struct {
 	uint8_t major, minor, build;
@@ -59,12 +60,9 @@ static NSDictionary *JikanPowerState(void) {
 }
 
 static NSDictionary *JikanWiredIdentity(NSDictionary *state) {
-	NSDictionary *adapter = state[@"AdapterDetails"];
-	if (![adapter isKindOfClass:NSDictionary.class] || ![state[@"ExternalConnected"] boolValue] || ![state[@"IsCharging"] boolValue]) return nil;
-	NSNumber *wireless = adapter[@"IsWireless"];
-	if (![wireless isKindOfClass:NSNumber.class] || wireless.boolValue || [state[@"IsWirelessCharging"] boolValue]) return nil;
+	if (!JikanCanMeasureWiredInputPower(state)) return nil;
 	// Compare the complete adapter description across the sampling window.
-	return adapter;
+	return state[@"AdapterDetails"];
 }
 
 @implementation JikanSMCReader
@@ -73,9 +71,10 @@ static NSDictionary *JikanWiredIdentity(NSDictionary *state) {
 	NSDictionary *identity = JikanWiredIdentity(JikanPowerState());
 	if (!identity) return @{@"status": @"input_power_unavailable"};
 	io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("AppleSMC"));
+	if (!service) return @{@"status": @"input_power_smc_unavailable"};
 	io_connect_t connection = IO_OBJECT_NULL;
-	kern_return_t result = service ? IOServiceOpen(service, mach_task_self(), 0, &connection) : kIOReturnNotFound;
-	if (service) IOObjectRelease(service);
+	kern_return_t result = IOServiceOpen(service, mach_task_self(), 0, &connection);
+	IOObjectRelease(service);
 	if (result) return @{@"status": @"input_power_access_denied"};
 	double total = 0;
 	BOOL valid = YES;

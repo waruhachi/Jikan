@@ -19,6 +19,7 @@
 		_stackItems = [[NSArray alloc] initWithArray:JikanStackItems(preferences) copyItems:YES];
 		_temperatureUnit = [JikanTemperatureUnit(preferences) copy];
 		_estimateSource = [JikanEstimateSource(preferences) copy];
+		_allowEstimatedAppleInputPower = [preferences boolForKey:JikanEstimateAppleEstimatedPowerKey];
 		_targetPercent = JikanEstimateTarget(preferences, _estimateSource);
 		_portraitPosition = JikanReadPillPosition(preferences, NO);
 		_landscapePosition = JikanReadPillPosition(preferences, YES);
@@ -40,6 +41,7 @@
 	settings->_stackItems = _stackItems;
 	settings->_temperatureUnit = _temperatureUnit;
 	settings->_estimateSource = _estimateSource;
+	settings->_allowEstimatedAppleInputPower = _allowEstimatedAppleInputPower;
 	settings->_targetPercent = _targetPercent;
 	settings->_portraitPosition = landscape ? _portraitPosition : position;
 	settings->_landscapePosition = landscape ? position : _landscapePosition;

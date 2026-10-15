@@ -20,6 +20,7 @@
 @property (nonatomic, copy, readonly) NSArray<NSString *> *stackItems;
 @property (nonatomic, copy, readonly) NSString *temperatureUnit;
 @property (nonatomic, copy, readonly) NSString *estimateSource;
+@property (nonatomic, readonly) BOOL allowEstimatedAppleInputPower;
 @property (nonatomic, readonly) NSInteger targetPercent;
 @property (nonatomic, readonly) JikanPillPosition portraitPosition;
 @property (nonatomic, readonly) JikanPillPosition landscapePosition;

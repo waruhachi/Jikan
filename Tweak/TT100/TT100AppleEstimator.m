@@ -1,6 +1,27 @@
 #import "TT100AppleEstimator.h"
+#import "../../Shared/JikanInputPowerEligibility.h"
 
 static NSString *const JikanModelRevision = @"iOS260";
+
+#if JIKAN_APPLE_INPUT_POWER_TEST
+// Developer-only: a freshly written USB-meter wattage, never a device sensor.
+// This code is absent from ordinary Jikan builds.
+static NSDictionary *JikanManualPowerSample(NSDictionary *batteryInfo) {
+	if (!JikanCanMeasureWiredInputPower(batteryInfo)) return nil;
+	NSString *path = jbroot(@"/var/mobile/Library/Preferences/moe.waru.jikan.apple-input-power-test.txt");
+	NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil];
+	NSDate *modified = attributes[NSFileModificationDate];
+	if (![modified isKindOfClass:NSDate.class]) return nil;
+	NSTimeInterval age = -modified.timeIntervalSinceNow;
+	if (!isfinite(age) || age < -5 || age > 180) return nil;
+	NSString *contents = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+	if (!contents) return nil;
+	NSScanner *scanner = [NSScanner scannerWithString:contents];
+	double watts = 0;
+	if (![scanner scanDouble:&watts] || !scanner.isAtEnd || !isfinite(watts) || watts < 0.1 || watts > 240.0) return nil;
+	return @{@"milliwatts": @(watts * 1000.0), @"modifiedAt": @(modified.timeIntervalSince1970)};
+}
+#endif
 
 static double JikanMonotonicSeconds(void) {
 	struct timespec time;
@@ -54,6 +75,9 @@ static NSString *JikanSHA256(NSString *path) {
 @property (nonatomic, copy) NSString *lastFailure;
 @property (nonatomic, copy) NSString *inputPowerSource;
 @property (nonatomic, copy) NSDictionary *predictionAdapter;
+#if JIKAN_APPLE_INPUT_POWER_TEST
+@property (nonatomic, copy) NSDictionary *predictionManualPowerSample;
+#endif
 @end
 
 @implementation TT100AppleEstimator
@@ -69,6 +93,9 @@ static NSString *JikanSHA256(NSString *path) {
 	self.predictedTarget = 0;
 	self.inputPowerSource = nil;
 	self.predictionAdapter = nil;
+#if JIKAN_APPLE_INPUT_POWER_TEST
+	self.predictionManualPowerSample = nil;
+#endif
 	self.sessionNumber++;
 }
 
@@ -147,7 +174,7 @@ static NSString *JikanSHA256(NSString *path) {
 	return loaded;
 }
 
-- (NSDictionary *)resultForBatteryInfo:(NSDictionary *)batteryInfo target:(NSInteger)target {
+- (NSDictionary *)resultForBatteryInfo:(NSDictionary *)batteryInfo target:(NSInteger)target allowEstimatedInputPower:(BOOL)allowEstimatedInputPower {
 	NSNumber *connected = JikanFeatureNumber(batteryInfo, @"ExternalConnected");
 	NSNumber *soc = JikanFeatureNumber(batteryInfo, @"CurrentCapacity");
 	double now = JikanMonotonicSeconds();
@@ -169,18 +196,33 @@ static NSString *JikanSHA256(NSString *path) {
 	if (self.predictedTarget != target) self.predictedAt = 0;
 	NSDictionary *telemetry = batteryInfo[@"PowerTelemetryData"];
 	BOOL nativePowerPresent = [telemetry isKindOfClass:NSDictionary.class] && telemetry[@"SystemPowerIn"] != nil;
-	if (self.predictedAt > 0 && (![self.predictionAdapter isEqual:batteryInfo[@"AdapterDetails"]] || ([self.inputPowerSource isEqual:@"smc"] && nativePowerPresent) || ([self.inputPowerSource isEqual:@"native"] && !nativePowerPresent))) self.predictedAt = 0;
+	if (self.predictedAt > 0 && (![self.predictionAdapter isEqual:batteryInfo[@"AdapterDetails"]] || ([self.inputPowerSource isEqual:@"smc"] && nativePowerPresent) || ([self.inputPowerSource isEqual:@"native"] && !nativePowerPresent) || ([self.inputPowerSource isEqual:@"adapter_estimate"] && (!allowEstimatedInputPower || nativePowerPresent)))) self.predictedAt = 0;
+#if JIKAN_APPLE_INPUT_POWER_TEST
+	NSDictionary *manualSample = !nativePowerPresent ? JikanManualPowerSample(batteryInfo) : nil;
+	// A changed, removed, or expired meter reading must invalidate the countdown.
+	if (self.predictedAt > 0 && [self.inputPowerSource isEqual:@"manual_debug"] && ![self.predictionManualPowerSample isEqual:manualSample]) self.predictedAt = 0;
+#endif
 	if (self.predictedAt > 0 && now - self.predictedAt < 300.0) {
 		double remaining = self.predictedSeconds - (now - self.predictedAt);
 		if (isfinite(remaining) && remaining > 0) return @{@"status": @"available", @"seconds": @(remaining), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": self.inputPowerSource ?: @"native"};
 		self.predictedAt = 0;
 	}
 	NSString *failure = nil;
-	NSArray<NSNumber *> *features = JikanAppleFeatures(batteryInfo, target, self.startSOC, (NSInteger)floor(now) - (NSInteger)self.connectionTime, &failure);
+	NSArray<NSString *> *missingFeatures = nil;
+	NSArray<NSNumber *> *features = JikanAppleFeaturesWithDiagnostics(batteryInfo, target, self.startSOC, (NSInteger)floor(now) - (NSInteger)self.connectionTime, nil, &failure, &missingFeatures);
 	NSString *inputPowerSource = @"native";
 	if (!features && [failure isEqualToString:@"missing_input_power"]) {
-		NSDictionary *adapter = batteryInfo[@"AdapterDetails"];
-		if (![adapter[@"IsWireless"] isKindOfClass:NSNumber.class] || [adapter[@"IsWireless"] boolValue] || [batteryInfo[@"IsWirelessCharging"] boolValue]) return [self _unavailable:@"input_power_unsupported_path"];
+		#if JIKAN_APPLE_INPUT_POWER_TEST
+		if (manualSample) {
+			features = JikanAppleFeaturesWithDiagnostics(batteryInfo, target, self.startSOC, (NSInteger)floor(now) - (NSInteger)self.connectionTime, manualSample[@"milliwatts"], &failure, &missingFeatures);
+			inputPowerSource = @"manual_debug";
+		}
+		#endif
+	}
+	if (!features && [failure isEqualToString:@"missing_input_power"]) {
+		if (!JikanCanMeasureWiredInputPower(batteryInfo) && !allowEstimatedInputPower) return [self _unavailable:@"input_power_unsupported_path"];
+	}
+	if (!features && [failure isEqualToString:@"missing_input_power"] && JikanCanMeasureWiredInputPower(batteryInfo)) {
 		NSDictionary *sample = [TT100InputPowerProvider readSample];
 		batteryInfo = [TT100BatteryProvider fetchBatteryInfo];
 		[self observeBatteryInfo:batteryInfo];
@@ -192,15 +234,31 @@ static NSString *JikanSHA256(NSString *path) {
 		if (!self.sessionValid || !isfinite(now)) return [self _unavailable:@"unknown_connection_time"];
 		NSInteger elapsed = (NSInteger)floor(now) - (NSInteger)self.connectionTime;
 		// Native telemetry may have appeared while IPC was in flight.
-		features = JikanAppleFeatures(batteryInfo, target, self.startSOC, elapsed, &failure);
+		features = JikanAppleFeaturesWithDiagnostics(batteryInfo, target, self.startSOC, elapsed, nil, &failure, &missingFeatures);
 		if (!features && [failure isEqualToString:@"missing_input_power"]) {
 			NSNumber *inputPower = [TT100InputPowerProvider milliwattsFromSample:sample batteryInfo:batteryInfo];
-			if (!inputPower) return [self _unavailable:[sample[@"status"] isEqual:@"available"] ? @"input_power_state_changed" : sample[@"status"]];
-			features = JikanAppleFeaturesWithInputPower(batteryInfo, target, self.startSOC, elapsed, inputPower, &failure);
-			inputPowerSource = @"smc";
+			if (!inputPower) {
+				if (!allowEstimatedInputPower) return [self _unavailable:[sample[@"status"] isEqual:@"available"] ? @"input_power_state_changed" : sample[@"status"]];
+			} else {
+				features = JikanAppleFeaturesWithDiagnostics(batteryInfo, target, self.startSOC, elapsed, inputPower, &failure, &missingFeatures);
+				inputPowerSource = @"smc";
+			}
 		}
 	}
-	if (!features) return [self _unavailable:failure];
+	if (!features && [failure isEqualToString:@"missing_input_power"] && allowEstimatedInputPower) {
+		// AdapterDetails describes the charger's capability, never actual USB draw.
+		// Only an explicit user opt-in permits this unmeasured model input.
+		NSNumber *estimatedInputPower = JikanEstimatedAdapterInputMilliwatts(batteryInfo);
+		if (estimatedInputPower) {
+			features = JikanAppleFeaturesWithDiagnostics(batteryInfo, target, self.startSOC, (NSInteger)floor(now) - (NSInteger)self.connectionTime, estimatedInputPower, &failure, &missingFeatures);
+			if (features) inputPowerSource = @"adapter_estimate";
+		}
+	}
+	if (!features) {
+		NSMutableDictionary *unavailable = [[self _unavailable:failure] mutableCopy];
+		if (missingFeatures.count) unavailable[@"missingFeatures"] = missingFeatures;
+		return unavailable;
+	}
 	MLModel *model = [self _modelForTarget:target failure:&failure];
 	if (!model) return [self _unavailable:failure];
 	NSError *error = nil;
@@ -221,6 +279,9 @@ static NSString *JikanSHA256(NSString *path) {
 	self.predictedTarget = target;
 	self.inputPowerSource = inputPowerSource;
 	self.predictionAdapter = batteryInfo[@"AdapterDetails"];
+#if JIKAN_APPLE_INPUT_POWER_TEST
+	self.predictionManualPowerSample = [inputPowerSource isEqual:@"manual_debug"] ? manualSample : nil;
+#endif
 	return @{@"status": @"available", @"seconds": @(seconds), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": inputPowerSource};
 }
 

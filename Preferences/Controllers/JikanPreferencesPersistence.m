@@ -9,6 +9,7 @@ static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithCh
 	id value = *preparedValue;
 	if ([key isEqualToString:JikanEstimateSourceKey]) {
 		value = [value isKindOfClass:NSString.class] && [value isEqualToString:@"jikan"] ? @"jikan" : @"apple";
+		if ([value isEqualToString:@"jikan"]) [prefs setBool:NO forKey:JikanEstimateAppleEstimatedPowerKey];
 		if ([value isEqualToString:@"apple"] && ![prefs objectForKey:JikanEstimateAppleTargetKey]) {
 			NSInteger jikanTarget = JikanEstimateTarget(prefs, @"jikan");
 			[prefs setInteger:JikanAppleTargetIsSupported(jikanTarget) ? jikanTarget : 100 forKey:JikanEstimateAppleTargetKey];
@@ -79,6 +80,7 @@ static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithCh
 		JikanEstimateSourceKey,
 		JikanEstimateAppleTargetKey,
 		JikanEstimateAppleSyncedKey,
+		JikanEstimateAppleEstimatedPowerKey,
 		@"showAfterFullCharge",
 		JikanEstimateBesideDateKey
 	];
@@ -99,9 +101,12 @@ static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithCh
 	}
 	[prefs setInteger:100 forKey:kBatteryEstimateTargetKey];
 	[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
-	[prefs setObject:@"apple" forKey:JikanEstimateSourceKey];
+	// Let the shared default pick Apple only when its complete native feature
+	// vector is available; resetting also revokes any previous opt-in.
+	[prefs removeObjectForKey:JikanEstimateSourceKey];
 	[prefs setInteger:100 forKey:JikanEstimateAppleTargetKey];
 	[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];
+	[prefs setBool:NO forKey:JikanEstimateAppleEstimatedPowerKey];
 	[prefs synchronize];
 	CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, NULL, YES);
 }

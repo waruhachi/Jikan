@@ -1,6 +1,26 @@
 #import "JikanAppleEstimateAvailability.h"
+#import "JikanAppleFeatures.h"
+#import <IOKit/IOKitLib.h>
 
 static NSString *const JikanEstimateStatusSuite = @"moe.waru.jikan.estimate-status";
+
+static NSDictionary *JikanApplePowerSourceProperties(void) {
+	io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPMPowerSource"));
+	if (!service) return nil;
+	CFMutableDictionaryRef raw = NULL;
+	kern_return_t kr = IORegistryEntryCreateCFProperties(service, &raw, kCFAllocatorDefault, 0);
+	IOObjectRelease(service);
+	if (kr != KERN_SUCCESS || !raw) return nil;
+	return CFBridgingRelease(raw);
+}
+
+BOOL JikanAppleHasRequiredNativeInputs(void) {
+	NSDictionary *properties = JikanApplePowerSourceProperties();
+	if (!properties) return NO;
+	// TTL (100%) needs two additional battery fields beyond TT80. Validate the
+	// complete existing feature mapping so the default matches usable inference.
+	return JikanAppleFeatures(properties, 100, 0, 0, NULL) != nil;
+}
 
 void JikanRecordAppleEstimateStatus(NSDictionary *snapshot) {
 	static dispatch_queue_t queue;
@@ -11,12 +31,14 @@ void JikanRecordAppleEstimateStatus(NSDictionary *snapshot) {
 		NSString *algorithm = snapshot[@"estimateSource"] ?: @"";
 		NSString *failure = snapshot[@"estimateStatus"] ?: @"";
 		NSString *powerSource = snapshot[@"inputPowerSource"] ?: @"";
+		NSArray *missingFeatures = [snapshot[@"missingFeatures"] isKindOfClass:NSArray.class] ? snapshot[@"missingFeatures"] : @[];
 		NSDictionary *previous = [status dictionaryForKey:@"latest"];
 		NSTimeInterval now = [NSDate date].timeIntervalSince1970;
 		if ([previous[@"algorithm"] isEqual:algorithm] && [previous[@"status"] isEqual:failure] &&
-			[previous[@"powerSource"] isEqual:powerSource] && now - [previous[@"timestamp"] doubleValue] < 300) return;
+			[previous[@"powerSource"] isEqual:powerSource] && [previous[@"missingFeatures"] isEqual:missingFeatures] && now - [previous[@"timestamp"] doubleValue] < 300) return;
 		[status setObject:@{@"algorithm": algorithm,
 			@"status": failure,
+			@"missingFeatures": missingFeatures,
 			@"powerSource": powerSource,
 			@"timestamp": @(now)}
 				   forKey:@"latest"];
