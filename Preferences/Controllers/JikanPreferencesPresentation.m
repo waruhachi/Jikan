@@ -68,7 +68,7 @@
 		NSDictionary *confirmation = [specifier propertyForKey:@"confirmation"];
 		if ([confirmation isKindOfClass:[NSDictionary class]]) {
 			NSMutableDictionary *localizedConfirmation = [confirmation mutableCopy];
-			for (NSString *key in @[@"title", @"prompt", @"cancelTitle"]) {
+			for (NSString *key in @[@"title", @"prompt", @"okTitle", @"cancelTitle"]) {
 				NSString *value = confirmation[key];
 				if ([value isKindOfClass:[NSString class]] && value.length > 0) {
 					localizedConfirmation[key] = [self _localizedPreferenceText:value];

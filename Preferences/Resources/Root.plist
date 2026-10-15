@@ -527,6 +527,8 @@
 				<string>Reset Pill Position</string>
 				<key>prompt</key>
 				<string>Reset portrait/landscape pill position and axis locks?</string>
+				<key>okTitle</key>
+				<string>Reset Pill Position</string>
 				<key>cancelTitle</key>
 				<string>Cancel</string>
 			</dict>
@@ -544,6 +546,8 @@
 				<string>Reset Preferences</string>
 				<key>prompt</key>
 				<string>Reset all Jikan settings to defaults?</string>
+				<key>okTitle</key>
+				<string>Reset To Defaults</string>
 				<key>cancelTitle</key>
 				<string>Cancel</string>
 			</dict>
