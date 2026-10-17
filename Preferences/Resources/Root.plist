@@ -388,7 +388,7 @@
 			<key>label</key>
 			<string>Estimate Target</string>
 			<key>sfIcon</key>
-			<string>battery.75percent</string>
+			<string>battery.100</string>
 			<key>infoAction</key>
 			<string>showBatteryLimitSourceInfo</string>
 		</dict>

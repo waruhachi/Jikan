@@ -28,9 +28,6 @@
 	if ([symbolName isKindOfClass:[NSString class]] && symbolName.length > 0) {
 		UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:22.0 weight:UIImageSymbolWeightRegular];
 		symbol = [UIImage systemImageNamed:symbolName withConfiguration:config];
-		if (!symbol && [symbolName isEqualToString:@"battery.75percent"]) {
-			symbol = [UIImage systemImageNamed:@"battery.75" withConfiguration:config];
-		}
 	}
 	_iconView.image = symbol;
 
