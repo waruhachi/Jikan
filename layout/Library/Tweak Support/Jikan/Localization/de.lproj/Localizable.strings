@@ -37,12 +37,11 @@
 "jikan.prefs.alert.slider_range.message" = "Gib einen Wert von %.0f bis %.0f ein.";
 
 "jikan.prefs.algorithm.apple_description" = "Verwendet eine feste lokale Kopie von Apples Lademodellen. Wähle 80 %, 85 %, 90 %, 95 % oder 100 %.";
-"jikan.prefs.algorithm.apple_telemetry" = "Apple ist die Standardeinstellung, wenn alle benötigten Eingabewerte verfügbar sind. Andernfalls wird Jikan automatisch ausgewählt. Du kannst Apple trotzdem mit geschätzten Werten verwenden.";
 "jikan.prefs.algorithm.apple_unavailable" = "Einige Batteriewerte waren kürzlich nicht verfügbar. Apple-Prognosen können auch mit geschätzter Eingangsleistung ausfallen.";
 "jikan.prefs.algorithm.apple_estimation_enabled" = "Die Adapterschätzung ist aktiviert. Entsprechende Prognosen sind mit ≈ markiert. Wähle Jikan zum Deaktivieren.";
 "jikan.prefs.algorithm.warning.title" = "Geschätzte Ladeleistung";
 "jikan.prefs.algorithm.warning.message" = "Dieses Gerät kann keine genaue Messung der Eingangsleistung bereitstellen. Wenn du jetzt das Modell wechselst, werden geschätzte Werte verwendet. Dadurch können die Prognosen ungenau sein.";
-"jikan.prefs.algorithm.warning.allow" = "Schätzung erlauben";
+"jikan.prefs.algorithm.warning.allow" = "Fortfahren";
 "jikan.prefs.algorithm.jikan_description" = "Schätzt die Dauer anhand deines Ladeverlaufs und der aktuellen Batteriewerte. Wähle ein Ziel von 1 % bis 100 %.";
 "jikan.prefs.algorithm.recommended" = "Empfohlen";
 

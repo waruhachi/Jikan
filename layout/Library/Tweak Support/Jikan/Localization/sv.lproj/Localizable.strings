@@ -37,12 +37,11 @@
 "jikan.prefs.alert.slider_range.message" = "Ange ett värde mellan %.0f och %.0f";
 
 "jikan.prefs.algorithm.apple_description" = "Använder en fast lokal kopia av Apples laddningsmodeller. Välj 80 %, 85 %, 90 %, 95 % eller 100 %.";
-"jikan.prefs.algorithm.apple_telemetry" = "Apple är standard när de nödvändiga indata finns tillgängliga. Annars väljs Jikan automatiskt. Du kan ändå välja Apple med uppskattade indata.";
 "jikan.prefs.algorithm.apple_unavailable" = "Vissa batterivärden saknades nyligen. Apples prognoser kan fortfarande vara otillgängliga med uppskattad ineffekt.";
 "jikan.prefs.algorithm.apple_estimation_enabled" = "Uppskattad adaptereffekt är aktiverad. Sådana prognoser markeras ≈. Välj Jikan för att inaktivera.";
 "jikan.prefs.algorithm.warning.title" = "Uppskattad laddeffekt";
 "jikan.prefs.algorithm.warning.message" = "Den här enheten kan inte tillhandahålla en exakt uppmätt källa för ineffekt. Om du byter modell nu används uppskattade värden som kan ge felaktiga prognoser.";
-"jikan.prefs.algorithm.warning.allow" = "Tillåt uppskattad effekt";
+"jikan.prefs.algorithm.warning.allow" = "Fortsätt";
 "jikan.prefs.algorithm.jikan_description" = "Beräknar tiden utifrån din laddningshistorik och aktuella batterivärden. Välj ett mål mellan 1 % och 100 %.";
 "jikan.prefs.algorithm.recommended" = "Rekommenderas";
 

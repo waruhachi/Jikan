@@ -8,11 +8,10 @@
 	NSString *recommended = JikanLocalizedString(@"jikan.prefs.algorithm.recommended", @"Recommended");
 	NSString *jikan = JikanLocalizedString(@"jikan.prefs.algorithm.jikan_description", @"Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.");
 	NSString *apple = JikanLocalizedString(@"jikan.prefs.algorithm.apple_description", @"Uses a fixed local copy of Apple's charging models. Choose 80%, 85%, 90%, 95%, or 100%.");
-	NSString *note = JikanLocalizedString(@"jikan.prefs.algorithm.apple_telemetry", @"Apple is the default when its required inputs are available. Otherwise Jikan is selected automatically. You can still choose Apple with estimated inputs.");
 	BOOL appleAvailable = JikanAppleHasRequiredNativeInputs();
 	NSString *appleLabel = appleAvailable ? [NSString stringWithFormat:@"Apple (%@)", recommended] : @"Apple";
 	NSString *jikanLabel = appleAvailable ? @"Jikan" : [NSString stringWithFormat:@"Jikan (%@)", recommended];
-	NSString *description = [NSString stringWithFormat:@"%@: %@\n\n%@: %@\n\n%@", appleLabel, apple, jikanLabel, jikan, note];
+	NSString *description = [NSString stringWithFormat:@"%@: %@\n\n%@: %@", appleLabel, apple, jikanLabel, jikan];
 	if (JikanRecentAppleEstimateFailure()) {
 		NSString *unavailable = JikanLocalizedString(@"jikan.prefs.algorithm.apple_unavailable", @"Some battery readings were unavailable recently. Apple predictions may remain unavailable even with estimated input power.");
 		description = [description stringByAppendingFormat:@"\n\n%@", unavailable];
@@ -38,7 +37,7 @@
 		preferredStyle:UIAlertControllerStyleAlert];
 	[warning addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.common.action.cancel", @"Cancel") style:UIAlertActionStyleCancel handler:nil]];
 	__weak typeof(self) weakSelf = self;
-	[warning addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.prefs.algorithm.warning.allow", @"Use Estimated Power") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+	[warning addAction:[UIAlertAction actionWithTitle:JikanLocalizedString(@"jikan.prefs.algorithm.warning.allow", @"Proceed") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
 		__strong typeof(weakSelf) self = weakSelf;
 		if (!self) return;
 		[prefs setBool:YES forKey:JikanEstimateAppleEstimatedPowerKey];
