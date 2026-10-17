@@ -173,7 +173,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 			if (supportsInlineEstimate) {
 				[specifier removePropertyForKey:PSFooterTextGroupKey];
 			} else {
-				[specifier setProperty:JikanLocalizedString(@"jikan.prefs.footer.estimate_beside_date_unavailable", @"Only available on iOS 16 or later.") forKey:PSFooterTextGroupKey];
+				[specifier setProperty:JikanLocalizedString(@"jikan.prefs.footer.estimate_beside_date_unavailable", @"Only available on iOS 14 or later.") forKey:PSFooterTextGroupKey];
 			}
 		} else if ([identifier isEqualToString:@"quickActionsGroupID"] && !supported) {
 			[specifier setProperty:JikanLocalizedString(@"jikan.prefs.footer.quick_actions_unavailable", @"Quick Action buttons are unavailable on this device") forKey:@"footerText"];

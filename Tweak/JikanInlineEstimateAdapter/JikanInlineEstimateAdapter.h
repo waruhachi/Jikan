@@ -13,6 +13,9 @@
 - (BOOL)updateWithState:(JikanPresentationState *)state;
 - (void)invalidate;
 + (NSString *)dateString:(NSString *)dateString forView:(UIView *)dateView;
+// On iOS 14/15 the native date text lives in SBFLockScreenDateSubtitleDateView.
+// Preserve its original string and restore it when the option is disabled.
++ (void)legacySubtitleDidLayout:(UIView *)dateView;
 // LiquidAss compatibility: repairs an estimate discarded by its date-label hooks.
 + (void)applyLiquidAssCompatibilityToDateView:(UIView *)dateView;
 @end

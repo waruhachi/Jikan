@@ -7,6 +7,8 @@ BOOL JikanDeviceSupportsQuickActionButtons(void) {
 }
 
 BOOL JikanDeviceSupportsInlineEstimate(void) {
-	if (@available(iOS 16.0, *)) return YES;
+	// iOS 14/15 use SBFLockScreenDateSubtitleView; later releases use
+	// CSProminentSubtitleDateView or the native inline widget container.
+	if (@available(iOS 14.0, *)) return YES;
 	return NO;
 }

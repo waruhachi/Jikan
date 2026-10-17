@@ -122,6 +122,20 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 %end
 %end
 
+%group JikanLegacyInlineEstimate
+%hook SBFLockScreenDateSubtitleDateView
+- (void)layoutSubviews {
+	%orig;
+	[JikanInlineEstimateAdapter legacySubtitleDidLayout:self];
+}
+
+- (void)_updateDateLabelForCompact {
+	%orig;
+	[JikanInlineEstimateAdapter legacySubtitleDidLayout:self];
+}
+%end
+%end
+
 // LiquidAss compatibility: keep this post-refresh hook separate from the
 // normal date-string hook so the workaround can be revised independently.
 %group JikanLiquidAssCompatibility
@@ -221,6 +235,12 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 		Class hostClass = NSClassFromString(@"CHUISWidgetHostViewController");
 		if (wrapperClass && [hostClass instancesRespondToSelector:@selector(setInlineTextParameters:)]) {
 			%init(JikanInlineWidgetEstimateHooks);
+		}
+	} else {
+		Class dateClass = NSClassFromString(@"SBFLockScreenDateSubtitleDateView");
+		if ([dateClass instancesRespondToSelector:@selector(layoutSubviews)] &&
+			[dateClass instancesRespondToSelector:@selector(_updateDateLabelForCompact)]) {
+			%init(JikanLegacyInlineEstimate);
 		}
 	}
 	_ttPresentationStore = [JikanPresentationStore sharedInstance];

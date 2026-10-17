@@ -37,6 +37,16 @@
 - (void)_updateLabel;
 @end
 
+@interface SBFLockScreenDateSubtitleView : UIView
+@end
+
+@interface SBFLockScreenDateSubtitleDateView : SBFLockScreenDateSubtitleView
+- (void)_updateDateLabelForCompact;
+@end
+
+@interface SBFLockScreenDateView : UIView
+@end
+
 @interface CSComplicationWrapperViewController : UIViewController
 @end
 

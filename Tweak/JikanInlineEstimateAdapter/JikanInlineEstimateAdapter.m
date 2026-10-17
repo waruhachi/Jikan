@@ -1,6 +1,17 @@
 #import "JikanInlineEstimateAdapter.h"
 
 static const void *kJikanInlineEstimateAdapterKey = &kJikanInlineEstimateAdapterKey;
+static const void *kJikanLegacySubtitleStateKey = &kJikanLegacySubtitleStateKey;
+
+@interface JikanLegacySubtitleState : NSObject
+@property (nonatomic, weak) id label;
+@property (nonatomic, copy) NSString *original;
+@property (nonatomic, copy) NSString *applied;
+@property (nonatomic) BOOL updating;
+@end
+
+@implementation JikanLegacySubtitleState
+@end
 
 @interface JikanInlineEstimateAdapter ()
 @property (nonatomic, weak) UIView *rootView;
@@ -21,6 +32,32 @@ static BOOL JikanInlineViewBelongsToRoot(UIView *view, UIView *root) {
 	return NO;
 }
 
+static id JikanLegacySubtitleLabel(UIView *view) {
+	// iOS 14/15's SBFLockScreenDateSubtitleView keeps the native
+	// SBUILegibilityLabel in _label. Its string selector is not UILabel's text.
+	Ivar ivar = class_getInstanceVariable(object_getClass(view), "_label");
+	const char *type = ivar ? ivar_getTypeEncoding(ivar) : NULL;
+	if (!type || type[0] != '@') return nil;
+	id label = object_getIvar(view, ivar);
+	BOOL usesString = [label respondsToSelector:@selector(string)] && [label respondsToSelector:@selector(setString:)];
+	BOOL usesText = [label respondsToSelector:@selector(text)] && [label respondsToSelector:@selector(setText:)];
+	return usesString || usesText ? label : nil;
+}
+
+static NSString *JikanLegacySubtitleString(id label) {
+	if (!label) return nil;
+	SEL getter = [label respondsToSelector:@selector(string)] && [label respondsToSelector:@selector(setString:)] ?
+		@selector(string) : @selector(text);
+	id value = ((id (*)(id, SEL))objc_msgSend)(label, getter);
+	return [value isKindOfClass:NSString.class] ? value : nil;
+}
+
+static void JikanLegacySetSubtitleString(id label, NSString *value) {
+	SEL setter = [label respondsToSelector:@selector(string)] && [label respondsToSelector:@selector(setString:)] ?
+		@selector(setString:) : @selector(setText:);
+	((void (*)(id, SEL, id))objc_msgSend)(label, setter, value);
+}
+
 static UIView *JikanFindInlineDateView(UIView *root) {
 	if (@available(iOS 16.0, *)) {
 		Class dateClass = NSClassFromString(@"CSProminentSubtitleDateView");
@@ -33,6 +70,31 @@ static UIView *JikanFindInlineDateView(UIView *root) {
 			if ([view isKindOfClass:dateClass] && JikanInlineViewBelongsToRoot(view, root)) return view;
 			[pending addObjectsFromArray:view.subviews];
 		}
+	} else {
+		Class containerClass = NSClassFromString(@"SBFLockScreenDateView");
+		Class nativeDateClass = NSClassFromString(@"SBFLockScreenDateSubtitleDateView");
+		if (!nativeDateClass) return nil;
+		// The date container owns the visible date subtitle. Other subtitle
+		// views (charging text, timers, custom subtitles) share the base class.
+		UIView *fallback = nil;
+		NSMutableArray<UIView *> *pending = [NSMutableArray arrayWithObject:root];
+		while (pending.count) {
+			UIView *view = pending.lastObject;
+			[pending removeLastObject];
+			if (containerClass && [view isKindOfClass:containerClass]) {
+				Ivar ivar = class_getInstanceVariable(object_getClass(view), "_dateSubtitleView");
+				const char *type = ivar ? ivar_getTypeEncoding(ivar) : NULL;
+				UIView *date = type && type[0] == '@' ? object_getIvar(view, ivar) : nil;
+				if ([date isKindOfClass:nativeDateClass] && JikanInlineViewBelongsToRoot(date, root) &&
+					JikanLegacySubtitleLabel(date)) return date;
+			}
+			if (!fallback && [view isKindOfClass:nativeDateClass] &&
+				JikanInlineViewBelongsToRoot(view, root) && JikanLegacySubtitleLabel(view)) {
+				fallback = view;
+			}
+			[pending addObjectsFromArray:view.subviews];
+		}
+		return fallback;
 	}
 	return nil;
 }
@@ -64,8 +126,12 @@ static UIViewController *JikanFindInlineWidgetController(UIView *root) {
 
 static void JikanRefreshInlineDateView(UIView *view) {
 	if (!view) return;
-	SEL selector = NSSelectorFromString(@"_updateLabel");
-	if ([view respondsToSelector:selector]) ((void (*)(id, SEL))objc_msgSend)(view, selector);
+	if (@available(iOS 16.0, *)) {
+		SEL selector = NSSelectorFromString(@"_updateLabel");
+		if ([view respondsToSelector:selector]) ((void (*)(id, SEL))objc_msgSend)(view, selector);
+	} else {
+		[JikanInlineEstimateAdapter legacySubtitleDidLayout:view];
+	}
 	[view setNeedsLayout];
 	[view.superview setNeedsLayout];
 }
@@ -78,7 +144,9 @@ static UILabel *JikanInlineDateLabel(UIView *view) {
 }
 
 static BOOL JikanInlineDateShowsEstimate(UIView *view, NSString *text) {
-	NSString *renderedText = JikanInlineDateLabel(view).text;
+	NSString *renderedText = nil;
+	if (@available(iOS 16.0, *)) renderedText = JikanInlineDateLabel(view).text;
+	else renderedText = JikanLegacySubtitleString(JikanLegacySubtitleLabel(view));
 	NSString *suffix = [NSString stringWithFormat:@" · %@", text];
 	return view && !view.hidden && text.length && renderedText.length &&
 		[renderedText rangeOfString:suffix].location != NSNotFound;
@@ -148,6 +216,57 @@ static BOOL JikanInlineDateShowsEstimate(UIView *view, NSString *text) {
 	// charge of the date, font, color, and midnight updates.
 	if (!adapter.estimateText.length || dateView.hidden || !JikanInlineViewBelongsToRoot(dateView, adapter.rootView) || !dateString.length) return dateString;
 	return [NSString stringWithFormat:@"%@ · %@", dateString, adapter.estimateText];
+}
+
++ (void)legacySubtitleDidLayout:(UIView *)dateView {
+	if (@available(iOS 16.0, *)) return;
+	JikanInlineEstimateAdapter *adapter = objc_getAssociatedObject(dateView, kJikanInlineEstimateAdapterKey);
+	JikanLegacySubtitleState *state = objc_getAssociatedObject(dateView, kJikanLegacySubtitleStateKey);
+	if (!adapter && !state) return;
+	if (state.updating) return;
+
+	id label = JikanLegacySubtitleLabel(dateView);
+	if (!label) return;
+	if (!state) {
+		state = [JikanLegacySubtitleState new];
+		objc_setAssociatedObject(dateView, kJikanLegacySubtitleStateKey, state, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+	}
+	// setString: may synchronously request another layout. Ignore that nested
+	// callback, then allow later native date changes to supply a new base string.
+	state.updating = YES;
+	@try {
+		if (state.label != label) {
+			id previousLabel = state.label;
+			if (state.original.length && [JikanLegacySubtitleString(previousLabel) isEqualToString:state.applied]) {
+				JikanLegacySetSubtitleString(previousLabel, state.original);
+			}
+			state.label = label;
+			state.original = nil;
+			state.applied = nil;
+		}
+
+		NSString *current = JikanLegacySubtitleString(label);
+		if (!current.length) {
+			if (!adapter) objc_setAssociatedObject(dateView, kJikanLegacySubtitleStateKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+			return;
+		}
+		NSString *base = state.applied.length && [current isEqualToString:state.applied] && state.original.length ? state.original : current;
+		BOOL shouldAppend = adapter.estimateText.length && !dateView.hidden &&
+			JikanInlineViewBelongsToRoot(dateView, adapter.rootView);
+		if (shouldAppend) {
+			NSString *combined = [NSString stringWithFormat:@"%@ · %@", base, adapter.estimateText];
+			state.original = base;
+			state.applied = combined;
+			if (![current isEqualToString:combined]) JikanLegacySetSubtitleString(label, combined);
+		} else {
+			if (state.applied.length && [current isEqualToString:state.applied] && state.original.length) {
+				JikanLegacySetSubtitleString(label, state.original);
+			}
+			objc_setAssociatedObject(dateView, kJikanLegacySubtitleStateKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+		}
+	} @finally {
+		state.updating = NO;
+	}
 }
 
 #pragma mark - LiquidAss compatibility
