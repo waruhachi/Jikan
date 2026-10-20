@@ -1,5 +1,9 @@
 TOOL_NAME = JikanPowerd
 
+ifeq ($(THEOS_PACKAGE_SCHEME),)
+ARCHS = arm64
+endif
+
 $(TOOL_NAME)_FILES = $(wildcard *.m)
 $(TOOL_NAME)_CFLAGS = -fobjc-arc
 $(TOOL_NAME)_FRAMEWORKS = Foundation IOKit

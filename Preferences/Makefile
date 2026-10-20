@@ -2,6 +2,11 @@ BUNDLE_NAME = JikanPreferences
 
 $(BUNDLE_NAME)_FILES = $(wildcard Controllers/*.m) $(wildcard Views/*.m) $(wildcard ../Localization/*.m) $(wildcard ../Shared/*.m) $(wildcard ../Shared/JikanPillContentView/*.m)
 $(BUNDLE_NAME)_CFLAGS = -fobjc-arc
+
+ifeq ($(THEOS_PACKAGE_SCHEME),)
+$(BUNDLE_NAME)_CFLAGS += -fno-ptrauth-objc-class-ro
+endif
+
 $(BUNDLE_NAME)_FRAMEWORKS = UIKit QuartzCore IOKit
 $(BUNDLE_NAME)_PRIVATE_FRAMEWORKS = Preferences
 $(BUNDLE_NAME)_LIBRARIES = MobileGestalt
