@@ -14,9 +14,16 @@
 #import "JikanPresentationStore/JikanPresentationStore.h"
 #import "JikanQuickActionAdapter/JikanQuickActionAdapter.h"
 #import "JikanSessionRecorder/JikanSessionRecorder.h"
+#import "JikanUnlockTextVisibility/JikanUnlockTextVisibility.h"
 #import "TT100/TT100.h"
 
 @interface JikanQuickActionControl : UIControl
+@end
+
+@interface CSTeachableMomentsContainerView : UIView
+@end
+
+@interface SBUICallToActionLabel : UIView
 @end
 
 @interface CSQuickActionsView : UIView

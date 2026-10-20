@@ -11,6 +11,7 @@
 @property (nonatomic, readonly) BOOL enabled;
 @property (nonatomic, readonly) BOOL hideQuickActionButtons;
 @property (nonatomic, readonly) BOOL hideQuickActionButtonsOnlyWhenCharging;
+@property (nonatomic, readonly) BOOL hideSwipeToUnlockText;
 @property (nonatomic, readonly) BOOL showAfterFullCharge;
 @property (nonatomic, readonly) BOOL showEstimateBesideDate;
 @property (nonatomic, readonly) BOOL lockPreviewXAxis;

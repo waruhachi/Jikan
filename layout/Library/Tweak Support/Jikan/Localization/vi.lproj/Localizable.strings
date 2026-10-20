@@ -60,6 +60,7 @@
 "jikan.prefs.row.estimate_target" = "Mục tiêu ước tính";
 "jikan.prefs.row.estimate_target_percent" = "Mục tiêu dự đoán (%)";
 "jikan.prefs.row.hide_quick_action_buttons" = "Ẩn các nút tác vụ nhanh";
+"jikan.prefs.row.hide_swipe_to_unlock_text" = "Ẩn hướng dẫn vuốt để mở khóa";
 "jikan.prefs.row.landscape" = "Ngang";
 "jikan.prefs.row.landscape_x" = "Ngang X";
 "jikan.prefs.row.landscape_y" = "Ngang Y";

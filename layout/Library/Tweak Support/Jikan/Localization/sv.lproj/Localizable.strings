@@ -60,6 +60,7 @@
 "jikan.prefs.row.estimate_target" = "Beräkningsmål";
 "jikan.prefs.row.estimate_target_percent" = "Målnivå för uppskattning (%)";
 "jikan.prefs.row.hide_quick_action_buttons" = "Dölj snabbåtgärdsknappar";
+"jikan.prefs.row.hide_swipe_to_unlock_text" = "Dölj texten för att svepa upp och låsa upp";
 "jikan.prefs.row.landscape" = "Landskap";
 "jikan.prefs.row.landscape_x" = "Landskap X";
 "jikan.prefs.row.landscape_y" = "Landskap Y";

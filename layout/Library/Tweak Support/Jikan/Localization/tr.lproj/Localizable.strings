@@ -60,6 +60,7 @@
 "jikan.prefs.row.estimate_target" = "Tahmin Hedefi";
 "jikan.prefs.row.estimate_target_percent" = "Tahmin Hedefi (%)";
 "jikan.prefs.row.hide_quick_action_buttons" = "Hızlı İşlem Düğmelerini Gizle";
+"jikan.prefs.row.hide_swipe_to_unlock_text" = "Kaydırarak Kilit Açma Yazısını Gizle";
 "jikan.prefs.row.landscape" = "Yatay";
 "jikan.prefs.row.landscape_x" = "Yatay X";
 "jikan.prefs.row.landscape_y" = "Yatay Y";

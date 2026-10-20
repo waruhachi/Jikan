@@ -60,6 +60,7 @@
 "jikan.prefs.row.estimate_target" = "Estimate Target";
 "jikan.prefs.row.estimate_target_percent" = "Estimate Target (%)";
 "jikan.prefs.row.hide_quick_action_buttons" = "Hide Quick Action Buttons";
+"jikan.prefs.row.hide_swipe_to_unlock_text" = "Hide Swipe to Unlock Text";
 "jikan.prefs.row.landscape" = "Landscape";
 "jikan.prefs.row.landscape_x" = "Landscape X";
 "jikan.prefs.row.landscape_y" = "Landscape Y";

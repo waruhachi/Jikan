@@ -86,6 +86,7 @@ static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFS
 	dispatch_async(dispatch_get_main_queue(), ^{
 		NSDictionary *lastBatteryInfo = _ttPresentationStore.state.snapshot.batteryInfo;
 		[TT100 preferencesDidChange];
+		[JikanUnlockTextVisibility refreshTrackedLabels];
 		TTApplyEnabledState(lastBatteryInfo);
 	});
 }
@@ -109,6 +110,29 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 %hook JikanQuickActionControl
 - (void)setHidden:(BOOL)hidden {
 	%orig([JikanQuickActionAdapter hiddenValueForControl:self requestedHidden:hidden]);
+}
+%end
+%end
+
+%group JikanModernUnlockText
+%hook CSTeachableMomentsContainerView
+- (void)layoutSubviews {
+	%orig;
+	[JikanUnlockTextVisibility updateModernContainer:self];
+}
+%end
+%end
+
+%group JikanLegacyUnlockText
+%hook SBUICallToActionLabel
+- (void)didMoveToWindow {
+	%orig;
+	[JikanUnlockTextVisibility updateLegacyLabel:self];
+}
+
+- (void)layoutSubviews {
+	%orig;
+	[JikanUnlockTextVisibility updateLegacyLabel:self];
 }
 %end
 %end
@@ -246,6 +270,11 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 	_ttPresentationStore = [JikanPresentationStore sharedInstance];
 	_ttSessionRecorder = [JikanSessionRecorder new];
 	%init;
+	Class modernUnlockClass = NSClassFromString(@"CSTeachableMomentsContainerView");
+	if ([modernUnlockClass instancesRespondToSelector:@selector(layoutSubviews)]) %init(JikanModernUnlockText);
+	Class legacyUnlockClass = NSClassFromString(@"SBUICallToActionLabel");
+	if ([legacyUnlockClass instancesRespondToSelector:@selector(layoutSubviews)] &&
+		[legacyUnlockClass instancesRespondToSelector:@selector(didMoveToWindow)]) %init(JikanLegacyUnlockText);
 	Class visibilityClass = [JikanQuickActionAdapter visibilityControlClass];
 	if (visibilityClass) {
 		%init(JikanQuickActionVisibility, JikanQuickActionControl = visibilityClass);

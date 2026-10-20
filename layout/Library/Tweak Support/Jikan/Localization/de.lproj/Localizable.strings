@@ -60,6 +60,7 @@
 "jikan.prefs.row.estimate_target" = "Schätzziel";
 "jikan.prefs.row.estimate_target_percent" = "Geschätztes Maximum (in %)";
 "jikan.prefs.row.hide_quick_action_buttons" = "Schnellzugriff ausblenden";
+"jikan.prefs.row.hide_swipe_to_unlock_text" = "Entsperrhinweis ausblenden";
 "jikan.prefs.row.landscape" = "Querformat";
 "jikan.prefs.row.landscape_x" = "Querformat X-Position";
 "jikan.prefs.row.landscape_y" = "Querformat Y-Position";
