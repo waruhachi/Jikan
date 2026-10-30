@@ -14,8 +14,16 @@
 #import "JikanPresentationStore/JikanPresentationStore.h"
 #import "JikanQuickActionAdapter/JikanQuickActionAdapter.h"
 #import "JikanSessionRecorder/JikanSessionRecorder.h"
+#import "JikanTargetNotification/JikanNotificationPublisher.h"
+#import "JikanTargetNotification/JikanTargetNotification.h"
 #import "JikanUnlockTextVisibility/JikanUnlockTextVisibility.h"
 #import "TT100/TT100.h"
+
+@interface BBServer : NSObject
+@end
+
+@interface BBDataProviderConnection : NSObject
+@end
 
 @interface JikanQuickActionControl : UIControl
 @end

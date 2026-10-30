@@ -8,6 +8,8 @@
 "jikan.inline.format.min" = "%ldm";
 "jikan.inline.format.to_target" = "%@ to %ld%%";
 
+"jikan.notification.target_reached.message" = "Your battery has reached the %ld%% charge target.";
+
 "jikan.platter.accessibility.next_item" = "Shows the next Stack item";
 
 "jikan.platter.label.battery_temperature" = "battery temperature";
@@ -66,6 +68,7 @@
 "jikan.prefs.row.landscape_y" = "Landscape Y";
 "jikan.prefs.row.lock_x_axis" = "Lock X Axis";
 "jikan.prefs.row.lock_y_axis" = "Lock Y Axis";
+"jikan.prefs.row.notify_when_target_reached" = "Notify When Target Reached";
 "jikan.prefs.row.only_while_charging" = "Only While Charging";
 "jikan.prefs.row.opacity" = "Opacity";
 "jikan.prefs.row.pill_background_opacity" = "Pill Background Opacity (%)";

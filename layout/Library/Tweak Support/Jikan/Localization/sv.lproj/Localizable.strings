@@ -8,6 +8,8 @@
 "jikan.inline.format.min" = "%ld min";
 "jikan.inline.format.to_target" = "%@ till %ld%%";
 
+"jikan.notification.target_reached.message" = "Batteriet har nått laddningsmålet på %ld%%.";
+
 "jikan.platter.accessibility.next_item" = "Visar nästa värde i stacken";
 
 "jikan.platter.label.battery_temperature" = "batteritemperatur";
@@ -66,6 +68,7 @@
 "jikan.prefs.row.landscape_y" = "Landskap Y";
 "jikan.prefs.row.lock_x_axis" = "Lås X-axeln";
 "jikan.prefs.row.lock_y_axis" = "Lås Y-axeln";
+"jikan.prefs.row.notify_when_target_reached" = "Meddela när målet har nåtts";
 "jikan.prefs.row.only_while_charging" = "Endast under laddning";
 "jikan.prefs.row.opacity" = "Opacitet";
 "jikan.prefs.row.pill_background_opacity" = "Pillbakgrundens opacitet (%)";

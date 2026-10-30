@@ -16,6 +16,7 @@
 			@"Pill Display": @"jikan.prefs.section.pill_display",
 			@"Pill Style": @"jikan.prefs.section.pill_style",
 			@"Show after full charge": @"jikan.prefs.row.show_after_full_charge",
+			@"Notify When Target Reached": @"jikan.prefs.row.notify_when_target_reached",
 			@"Stack": @"jikan.prefs.row.stack",
 			@"Tap and Hold the Slider Knob to Edit": @"jikan.prefs.footer.slider_hint",
 			@"Opacity": @"jikan.prefs.row.opacity",

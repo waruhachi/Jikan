@@ -10,6 +10,7 @@
 		_hideQuickActionButtonsOnlyWhenCharging = [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"];
 		_hideSwipeToUnlockText = [preferences boolForKey:@"hideSwipeToUnlockText"];
 		_showAfterFullCharge = [preferences boolForKey:@"showAfterFullCharge"];
+		_notifyWhenTargetReached = [preferences boolForKey:@"notifyWhenTargetReached"];
 		_showEstimateBesideDate = [preferences boolForKey:JikanEstimateBesideDateKey];
 		_lockPreviewXAxis = [preferences boolForKey:JikanPreviewXAxisLockKey];
 		_lockPreviewYAxis = [preferences boolForKey:JikanPreviewYAxisLockKey];
@@ -35,6 +36,7 @@
 	settings->_hideQuickActionButtonsOnlyWhenCharging = _hideQuickActionButtonsOnlyWhenCharging;
 	settings->_hideSwipeToUnlockText = _hideSwipeToUnlockText;
 	settings->_showAfterFullCharge = _showAfterFullCharge;
+	settings->_notifyWhenTargetReached = _notifyWhenTargetReached;
 	settings->_showEstimateBesideDate = _showEstimateBesideDate;
 	settings->_lockPreviewXAxis = _lockPreviewXAxis;
 	settings->_lockPreviewYAxis = _lockPreviewYAxis;

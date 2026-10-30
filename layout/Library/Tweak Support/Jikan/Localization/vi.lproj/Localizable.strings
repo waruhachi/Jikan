@@ -8,6 +8,8 @@
 "jikan.inline.format.min" = "%ldph";
 "jikan.inline.format.to_target" = "%@ đến %ld%%";
 
+"jikan.notification.target_reached.message" = "Pin đã đạt mục tiêu sạc %ld%%.";
+
 "jikan.platter.accessibility.next_item" = "Hiển thị mục tiếp theo trong ngăn xếp";
 
 "jikan.platter.label.battery_temperature" = "nhiệt độ pin";
@@ -66,6 +68,7 @@
 "jikan.prefs.row.landscape_y" = "Ngang Y";
 "jikan.prefs.row.lock_x_axis" = "Khoá trục X";
 "jikan.prefs.row.lock_y_axis" = "Khoá trục Y";
+"jikan.prefs.row.notify_when_target_reached" = "Thông báo khi đạt mục tiêu";
 "jikan.prefs.row.only_while_charging" = "Chỉ khi đang sạc";
 "jikan.prefs.row.opacity" = "Độ mờ đục";
 "jikan.prefs.row.pill_background_opacity" = "Độ mờ đục nền hình bo tròn (%)";

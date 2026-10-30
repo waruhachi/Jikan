@@ -2,6 +2,7 @@
 
 static JikanPresentationStore *_ttPresentationStore;
 static JikanSessionRecorder *_ttSessionRecorder;
+static JikanTargetNotification *_ttTargetNotification;
 static CFAbsoluteTime _ttLastNCPreviewTriggerTime = 0;
 static BOOL _ttMonitoringEnabled = NO;
 static void TTApplyEnabledState(NSDictionary *lastBatteryInfo);
@@ -61,6 +62,7 @@ static BOOL TTOpenNotificationCenterPreview(void) {
 	CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
 	if ((now - _ttLastNCPreviewTriggerTime) < 0.35) return NO;
 	_ttLastNCPreviewTriggerTime = now;
+	[_ttTargetNotification showPreviewWithSettings:_ttPresentationStore.state.settings];
 	@try {
 		return TTOpenNotificationCenterViaCoverSheetManager();
 	}
@@ -191,6 +193,22 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 %end
 %end
 
+%hook BBServer
+- (id)initWithQueue:(dispatch_queue_t)queue {
+	id server = %orig;
+	if (server) [JikanNotificationPublisher setServerQueue:queue];
+	return server;
+}
+%end
+
+%hook BBDataProviderConnection
+- (id)initWithServiceName:(NSString *)serviceName onQueue:(dispatch_queue_t)queue {
+	id connection = %orig;
+	[JikanNotificationPublisher setDataProviderConnection:connection];
+	return connection;
+}
+%end
+
 %hook _UIBatteryView
 - (void)setChargingState:(NSInteger)state {
 	%orig;
@@ -269,6 +287,7 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 	}
 	_ttPresentationStore = [JikanPresentationStore sharedInstance];
 	_ttSessionRecorder = [JikanSessionRecorder new];
+	_ttTargetNotification = [JikanTargetNotification new];
 	%init;
 	Class modernUnlockClass = NSClassFromString(@"CSTeachableMomentsContainerView");
 	if ([modernUnlockClass instancesRespondToSelector:@selector(layoutSubviews)]) %init(JikanModernUnlockText);
@@ -280,6 +299,9 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 		%init(JikanQuickActionVisibility, JikanQuickActionControl = visibilityClass);
 	}
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTPrefsDidChange, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+	[[NSNotificationCenter defaultCenter] addObserverForName:JikanPresentationStateDidChangeNotification object:_ttPresentationStore queue:[NSOperationQueue mainQueue] usingBlock:^(__unused NSNotification *note) {
+		[_ttTargetNotification updateWithState:_ttPresentationStore.state];
+	}];
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTNCPreviewRequestReceived, (__bridge CFStringRef)JikanPreviewRequestNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	[[NSNotificationCenter defaultCenter] addObserverForName:TT100InternalDidRefreshBatteryInfoNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {
 		if (!_ttPresentationStore.state.settings.enabled) return;
