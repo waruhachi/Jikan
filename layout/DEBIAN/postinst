@@ -2,11 +2,23 @@
 set -e
 
 if [ "$1" = "configure" ]; then
+	domain=system
+	kernel_release=$(uname -r 2>/dev/null || true)
+	kernel_major=${kernel_release%%.*}
+	case "$kernel_major" in
+		''|*[!0-9]*) ;;
+		*)
+			if [ "$kernel_major" -ge 22 ] && launchctl print user/foreground >/dev/null 2>&1; then
+				domain=user/foreground
+			fi
+			;;
+	esac
+
 	for helper in "${DPKG_ROOT:-}/usr/libexec/JikanPowerd" /var/jb/usr/libexec/JikanPowerd; do
 		if [ -x "$helper" ]; then
 			plist=$("$helper" --configure)
-			launchctl bootout system/moe.waru.jikan.input-power >/dev/null 2>&1 || true
-			launchctl bootstrap system "$plist"
+			launchctl bootout "$domain/moe.waru.jikan.input-power" >/dev/null 2>&1 || true
+			launchctl bootstrap "$domain" "$plist"
 			exit 0
 		fi
 	done
