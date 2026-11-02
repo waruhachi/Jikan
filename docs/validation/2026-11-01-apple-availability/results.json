@@ -1,0 +1,543 @@
+{
+  "date": "2026-11-01",
+  "host_checks": {
+    "availability": 39,
+    "stack_and_estimators": 96,
+    "sanitizers": [
+      "AddressSanitizer",
+      "UndefinedBehaviorSanitizer"
+    ]
+  },
+  "helper_fix": "rootfs(jbroot(@\"/usr/libexec/JikanPowerd\"))",
+  "devices": {
+    "14.8": {
+      "ui_host": "Settings",
+      "ui_checks": [
+        {
+          "name": "disabling approximation persists",
+          "passed": true
+        },
+        {
+          "name": "enabling asks for confirmation",
+          "passed": true
+        },
+        {
+          "name": "cancel leaves approximation disabled",
+          "passed": true
+        },
+        {
+          "name": "confirm enables approximation",
+          "passed": true
+        },
+        {
+          "name": "selecting Jikan persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple grants no approximation consent",
+          "passed": true
+        },
+        {
+          "name": "Apple has the selected checkmark",
+          "passed": true
+        }
+      ],
+      "ui_success": true,
+      "bridge_checks": [
+        {
+          "name": "Settings reader matches SpringBoard algorithm",
+          "passed": true
+        },
+        {
+          "name": "rendered recommendation matches the shared record",
+          "passed": true
+        },
+        {
+          "name": "new target is published without fake hardware classification",
+          "passed": true
+        },
+        {
+          "name": "Settings updates in place to the unconfirmed target",
+          "passed": true
+        },
+        {
+          "name": "returning to the main target preserves its observed classification",
+          "passed": true
+        },
+        {
+          "name": "same mounted Algorithm controller remains active",
+          "passed": true
+        }
+      ],
+      "bridge_success": true,
+      "helper_connection": {
+        "exit_code": 0,
+        "result": {
+          "status": "input_power_unavailable"
+        }
+      },
+      "final_verification": {
+        "springboard_stable_since_install": true,
+        "healthy": true,
+        "preferences_restored": true,
+        "differing_keys": []
+      },
+      "availability_samples": {
+        "before": {
+          "target": 100,
+          "status": "target_reached",
+          "powerSource": "unavailable",
+          "supportedTargets": [],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target80": {
+          "target": 80,
+          "status": "target_reached",
+          "powerSource": "unavailable",
+          "supportedTargets": [],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target100": {
+          "target": 100,
+          "status": "target_reached",
+          "powerSource": "unavailable",
+          "supportedTargets": [],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        }
+      },
+      "charging_observation": {
+        "samples": 26,
+        "duration_seconds": 478.0,
+        "final_power": {
+          "ExternalConnected": true,
+          "IsCharging": false,
+          "CurrentCapacity": 100
+        },
+        "active_charging_observed": false,
+        "final_status": "target_reached"
+      }
+    },
+    "16.3.1": {
+      "ui_host": "Settings",
+      "ui_checks": [
+        {
+          "name": "disabling approximation persists",
+          "passed": true
+        },
+        {
+          "name": "enabling asks for confirmation",
+          "passed": true
+        },
+        {
+          "name": "cancel leaves approximation disabled",
+          "passed": true
+        },
+        {
+          "name": "confirm enables approximation",
+          "passed": true
+        },
+        {
+          "name": "selecting Jikan persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple grants no approximation consent",
+          "passed": true
+        },
+        {
+          "name": "Apple has the selected checkmark",
+          "passed": true
+        }
+      ],
+      "ui_success": true,
+      "bridge_checks": [
+        {
+          "name": "Settings reader matches SpringBoard algorithm",
+          "passed": true
+        },
+        {
+          "name": "rendered recommendation matches the shared record",
+          "passed": true
+        },
+        {
+          "name": "new target is published without fake hardware classification",
+          "passed": true
+        },
+        {
+          "name": "Settings updates in place to the unconfirmed target",
+          "passed": true
+        },
+        {
+          "name": "returning to the main target preserves its observed classification",
+          "passed": true
+        },
+        {
+          "name": "same mounted Algorithm controller remains active",
+          "passed": true
+        }
+      ],
+      "bridge_success": true,
+      "helper_connection": {
+        "exit_code": 0,
+        "result": {
+          "status": "available",
+          "timestamp": 1793571384.158531,
+          "source": "smc",
+          "milliwatts": 2377.6871745164194
+        }
+      },
+      "final_verification": {
+        "springboard_stable_since_install": true,
+        "healthy": true,
+        "preferences_restored": true,
+        "differing_keys": []
+      },
+      "availability_samples": {
+        "before": {
+          "target": 100,
+          "status": "available",
+          "powerSource": "native",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target80": {
+          "target": 80,
+          "status": "target_reached",
+          "powerSource": "unavailable",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target100": {
+          "target": 100,
+          "status": "available",
+          "powerSource": "native",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        }
+      },
+      "actual_inference": {
+        "estimateSource": "apple",
+        "estimateStatus": "available",
+        "inputPowerSource": "native",
+        "remainingSeconds": 1053.040808309568,
+        "hasEstimate": true,
+        "targetPercent": 100,
+        "actual_prediction_verified": true
+      },
+      "effective_restoration": {
+        "runtime_settings": {
+          "enabled": true,
+          "allowEstimatedAppleInputPower": true,
+          "notifyWhenTargetReached": true,
+          "targetPercent": 100
+        },
+        "expected": {
+          "enabled": true,
+          "allowEstimatedAppleInputPower": true,
+          "notifyWhenTargetReached": true,
+          "targetPercent": 100
+        },
+        "runtime_restored": true
+      }
+    },
+    "16.7.16": {
+      "ui_host": "Settings",
+      "ui_checks": [
+        {
+          "name": "disabling approximation persists",
+          "passed": true
+        },
+        {
+          "name": "enabling asks for confirmation",
+          "passed": true
+        },
+        {
+          "name": "cancel leaves approximation disabled",
+          "passed": true
+        },
+        {
+          "name": "confirm enables approximation",
+          "passed": true
+        },
+        {
+          "name": "selecting Jikan persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple grants no approximation consent",
+          "passed": true
+        },
+        {
+          "name": "Apple has the selected checkmark",
+          "passed": true
+        }
+      ],
+      "ui_success": true,
+      "bridge_checks": [
+        {
+          "name": "Settings reader matches SpringBoard algorithm",
+          "passed": true
+        },
+        {
+          "name": "rendered recommendation matches the shared record",
+          "passed": true
+        },
+        {
+          "name": "new target is published without fake hardware classification",
+          "passed": true
+        },
+        {
+          "name": "Settings updates in place to the unconfirmed target",
+          "passed": true
+        },
+        {
+          "name": "returning to the main target preserves its observed classification",
+          "passed": true
+        },
+        {
+          "name": "same mounted Algorithm controller remains active",
+          "passed": true
+        }
+      ],
+      "bridge_success": true,
+      "helper_connection": {
+        "exit_code": 0,
+        "result": {
+          "status": "available",
+          "timestamp": 1793571384.442689,
+          "source": "smc",
+          "milliwatts": 1528.0366618341457
+        }
+      },
+      "final_verification": {
+        "springboard_stable_since_install": true,
+        "healthy": true,
+        "preferences_restored": true,
+        "differing_keys": []
+      },
+      "availability_samples": {
+        "before": {
+          "target": 100,
+          "status": "available",
+          "powerSource": "smc",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target80": {
+          "target": 80,
+          "status": "target_reached",
+          "powerSource": "unavailable",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target100": {
+          "target": 100,
+          "status": "available",
+          "powerSource": "smc",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        }
+      },
+      "actual_inference": {
+        "estimateSource": "apple",
+        "estimateStatus": "available",
+        "inputPowerSource": "smc",
+        "remainingSeconds": 2419.5623433259316,
+        "hasEstimate": true,
+        "actual_prediction_verified": true
+      },
+      "effective_restoration": {
+        "runtime_settings": {
+          "enabled": false,
+          "allowEstimatedAppleInputPower": false,
+          "notifyWhenTargetReached": false,
+          "targetPercent": 100
+        },
+        "expected": {
+          "enabled": false,
+          "allowEstimatedAppleInputPower": false,
+          "notifyWhenTargetReached": false,
+          "targetPercent": 100
+        },
+        "runtime_restored": true
+      }
+    },
+    "26.0": {
+      "ui_host": "TweakSettings",
+      "ui_checks": [
+        {
+          "name": "disabling approximation persists",
+          "passed": true
+        },
+        {
+          "name": "enabling asks for confirmation",
+          "passed": true
+        },
+        {
+          "name": "cancel leaves approximation disabled",
+          "passed": true
+        },
+        {
+          "name": "confirm enables approximation",
+          "passed": true
+        },
+        {
+          "name": "selecting Jikan persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple persists",
+          "passed": true
+        },
+        {
+          "name": "selecting Apple grants no approximation consent",
+          "passed": true
+        },
+        {
+          "name": "Apple has the selected checkmark",
+          "passed": true
+        }
+      ],
+      "ui_success": true,
+      "bridge_checks": [
+        {
+          "name": "Settings reader matches SpringBoard algorithm",
+          "passed": true
+        },
+        {
+          "name": "rendered recommendation matches the shared record",
+          "passed": true
+        },
+        {
+          "name": "new target is published without fake hardware classification",
+          "passed": true
+        },
+        {
+          "name": "Settings updates in place to the unconfirmed target",
+          "passed": true
+        },
+        {
+          "name": "returning to the main target preserves its observed classification",
+          "passed": true
+        },
+        {
+          "name": "same mounted Algorithm controller remains active",
+          "passed": true
+        }
+      ],
+      "bridge_success": true,
+      "helper_connection": {
+        "exit_code": 0,
+        "result": {
+          "status": "input_power_unavailable"
+        }
+      },
+      "final_verification": {
+        "springboard_stable_since_install": true,
+        "healthy": true,
+        "preferences_restored": true,
+        "differing_keys": []
+      },
+      "availability_samples": {
+        "before": {
+          "target": 100,
+          "status": "paused",
+          "powerSource": "unavailable",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target80": {
+          "target": 80,
+          "status": "target_reached",
+          "powerSource": "unavailable",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        },
+        "target100": {
+          "target": 100,
+          "status": "paused",
+          "powerSource": "unavailable",
+          "supportedTargets": [
+            100
+          ],
+          "unavailableTargets": [],
+          "missingFeatures": []
+        }
+      },
+      "actual_inference": {
+        "estimateSource": "apple",
+        "estimateStatus": "paused",
+        "inputPowerSource": "unavailable",
+        "remainingSeconds": -1,
+        "hasEstimate": false,
+        "targetPercent": 100,
+        "actual_prediction_verified": false
+      },
+      "effective_restoration": {
+        "runtime_settings": {
+          "enabled": true,
+          "allowEstimatedAppleInputPower": false,
+          "notifyWhenTargetReached": false,
+          "targetPercent": 100
+        },
+        "expected": {
+          "enabled": true,
+          "allowEstimatedAppleInputPower": false,
+          "notifyWhenTargetReached": false,
+          "targetPercent": 100
+        },
+        "runtime_restored": true
+      }
+    }
+  },
+  "packages": {
+    "moe.waru.jikan_1.0.3_iphoneos-arm64.deb": "addbdd855f0e2e4af56cb1ca51cc0ad836ab69ccb29b9ede0c79388e236faf71",
+    "moe.waru.jikan_1.0.3_iphoneos-arm64e.deb": "d4f8d84667b1216a033ca5732f4e50c8f5012ccb07a8b778d2b03061076add63",
+    "moe.waru.jikan_1.0.3_iphoneos-arm.deb": "1b4c60de86df5a4e10c2ab96a575b633ea8a77f53aa22e3f8f9c4c236970cabc"
+  },
+  "cleanup": {
+    "ios14_temporary_bridge_removed": true,
+    "ios14_deliberate_cleanup_respring": true,
+    "ios14_persisted_original_preferences_verified_after_cleanup": true,
+    "temporary_device_probe_and_installers_removed": true
+  }
+}

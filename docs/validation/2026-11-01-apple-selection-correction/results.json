@@ -1,0 +1,107 @@
+{
+  "16.3.1": {
+    "checks": [
+      {
+        "name": "no estimated-input-power toggle",
+        "passed": true
+      },
+      {
+        "name": "Jikan selection clears approximation consent",
+        "passed": true
+      },
+      {
+        "name": "Apple selection shows no approximation warning",
+        "passed": true
+      },
+      {
+        "name": "Apple selected",
+        "passed": true
+      },
+      {
+        "name": "approximation stays disabled",
+        "passed": true
+      },
+      {
+        "name": "inspecting the currently displayed Algorithm controller",
+        "passed": true
+      },
+      {
+        "name": "rendered footer does not claim approximation is enabled",
+        "passed": true
+      }
+    ],
+    "rendered_footer": "Apple (Recommended): Uses a fixed local copy of Apple's charging models. Choose 80%, 85%, 90%, 95%, or 100%.\n\nJikan: Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.",
+    "success": true,
+    "preferences_restored_except_requested_no_approximation": true
+  },
+  "16.7.16": {
+    "checks": [
+      {
+        "name": "no estimated-input-power toggle",
+        "passed": true
+      },
+      {
+        "name": "Jikan selection clears approximation consent",
+        "passed": true
+      },
+      {
+        "name": "Apple selection shows no approximation warning",
+        "passed": true
+      },
+      {
+        "name": "Apple selected",
+        "passed": true
+      },
+      {
+        "name": "approximation stays disabled",
+        "passed": true
+      },
+      {
+        "name": "inspecting the currently displayed Algorithm controller",
+        "passed": true
+      },
+      {
+        "name": "rendered footer does not claim approximation is enabled",
+        "passed": true
+      }
+    ],
+    "rendered_footer": "Apple (Recommended): Uses a fixed local copy of Apple's charging models. Choose 80%, 85%, 90%, 95%, or 100%.\n\nJikan: Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.",
+    "success": true,
+    "preferences_restored_except_requested_no_approximation": true
+  },
+  "26.0": {
+    "checks": [
+      {
+        "name": "no estimated-input-power toggle",
+        "passed": true
+      },
+      {
+        "name": "Jikan selection clears approximation consent",
+        "passed": true
+      },
+      {
+        "name": "Apple selection shows no approximation warning",
+        "passed": true
+      },
+      {
+        "name": "Apple selected",
+        "passed": true
+      },
+      {
+        "name": "approximation stays disabled",
+        "passed": true
+      },
+      {
+        "name": "inspecting the currently displayed Algorithm controller",
+        "passed": true
+      },
+      {
+        "name": "rendered footer does not claim approximation is enabled",
+        "passed": true
+      }
+    ],
+    "rendered_footer": "Apple (Recommended): Uses a fixed local copy of Apple's charging models. Choose 80%, 85%, 90%, 95%, or 100%.\n\nJikan: Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.",
+    "success": true,
+    "preferences_restored_except_requested_no_approximation": true
+  }
+}
