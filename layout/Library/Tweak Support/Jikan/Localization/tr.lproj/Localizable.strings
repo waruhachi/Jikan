@@ -123,3 +123,5 @@
 "jikan.tt100.format.min" = "%d dk";
 
 "jikan.tt100.value.na" = "N/A";
+
+"jikan.prefs.algorithm.checking" = "Apple girdilerinin kullanılabilirliği henüz doğrulanmadı. Jikan, cihaz şarj olurken kontrol eder; geçici olarak eksik okumalar daha önce doğrulanmış bir öneriyi değiştirmez.";

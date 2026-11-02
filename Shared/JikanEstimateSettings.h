@@ -8,6 +8,7 @@ FOUNDATION_EXPORT NSString *const JikanEstimateAppleSyncedKey;
 FOUNDATION_EXPORT NSString *const JikanEstimateAppleEstimatedPowerKey;
 
 FOUNDATION_EXPORT NSString *JikanEstimateSource(NSUserDefaults *preferences);
+FOUNDATION_EXPORT NSString *JikanEstimateSourceForAvailability(NSUserDefaults *preferences, NSDictionary *availability);
 FOUNDATION_EXPORT NSInteger JikanEstimateTarget(NSUserDefaults *preferences, NSString *source);
 FOUNDATION_EXPORT BOOL JikanAppleTargetIsSupported(NSInteger target);
 FOUNDATION_EXPORT NSNumber *JikanAppleTargetFromValue(id value);

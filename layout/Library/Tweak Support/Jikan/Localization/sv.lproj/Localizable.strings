@@ -123,3 +123,5 @@
 "jikan.tt100.format.min" = "%d min";
 
 "jikan.tt100.value.na" = "Ej tillämpligt";
+
+"jikan.prefs.algorithm.checking" = "Tillgängligheten för Apples indata har inte bekräftats. Jikan kontrollerar detta under laddning. Tillfälligt saknade värden ändrar inte en tidigare bekräftad rekommendation.";

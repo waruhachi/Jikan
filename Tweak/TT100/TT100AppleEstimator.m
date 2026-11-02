@@ -43,6 +43,7 @@ static NSString *JikanSHA256(NSString *path) {
 @property (nonatomic) double predictedAt;
 @property (nonatomic) double predictedSeconds;
 @property (nonatomic, copy) NSString *inputPowerSource;
+@property (nonatomic, copy) NSDictionary *measuredInputs;
 @property (nonatomic, copy) NSDictionary *predictionAdapter;
 @end
 @implementation TT100ApplePrediction
@@ -203,7 +204,7 @@ static NSString *JikanSHA256(NSString *path) {
 	if (cachedPrediction.predictedAt > 0 && (![cachedPrediction.predictionAdapter isEqual:batteryInfo[@"AdapterDetails"]] || ([cachedPrediction.inputPowerSource isEqual:@"smc"] && nativePowerPresent) || ([cachedPrediction.inputPowerSource isEqual:@"native"] && !nativePowerPresent) || ([cachedPrediction.inputPowerSource isEqual:@"adapter_estimate"] && (!allowEstimatedInputPower || nativePowerPresent)))) cachedPrediction.predictedAt = 0;
 	if (cachedPrediction.predictedAt > 0 && now - cachedPrediction.predictedAt < 300.0) {
 		double remaining = cachedPrediction.predictedSeconds - (now - cachedPrediction.predictedAt);
-		if (isfinite(remaining) && remaining > 0) return @{@"status": @"available", @"seconds": @(remaining), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": cachedPrediction.inputPowerSource ?: @"native"};
+		if (isfinite(remaining) && remaining > 0) return @{@"status": @"available", @"seconds": @(remaining), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": cachedPrediction.inputPowerSource ?: @"native", @"measuredInputs": cachedPrediction.measuredInputs ?: @{}};
 		cachedPrediction.predictedAt = 0;
 	}
 	NSString *failure = nil;
@@ -240,6 +241,7 @@ static NSString *JikanSHA256(NSString *path) {
 			}
 		}
 	}
+	NSDictionary *measuredInputs = @{@"status": features ? @"available" : (failure ?: @"unknown"), @"powerSource": features ? inputPowerSource : @"unavailable", @"missingFeatures": missingFeatures ?: @[], @"checkedAt": @(NSDate.date.timeIntervalSince1970)};
 	if (!features && [failure isEqualToString:@"missing_input_power"] && allowEstimatedInputPower) {
 		// AdapterDetails describes the charger's capability, never actual USB draw.
 		// Only an explicit user opt-in permits this unmeasured model input.
@@ -252,6 +254,7 @@ static NSString *JikanSHA256(NSString *path) {
 	if (!features) {
 		NSMutableDictionary *unavailable = [[self _unavailable:failure] mutableCopy];
 		if (missingFeatures.count) unavailable[@"missingFeatures"] = missingFeatures;
+		unavailable[@"measuredInputs"] = measuredInputs;
 		return unavailable;
 	}
 	MLModel *model = [self _modelForTarget:target failure:&failure];
@@ -272,8 +275,9 @@ static NSString *JikanSHA256(NSString *path) {
 	cachedPrediction.predictedAt = JikanMonotonicSeconds();
 	cachedPrediction.predictedSeconds = seconds;
 	cachedPrediction.inputPowerSource = inputPowerSource;
+	cachedPrediction.measuredInputs = measuredInputs;
 	cachedPrediction.predictionAdapter = batteryInfo[@"AdapterDetails"];
-	return @{@"status": @"available", @"seconds": @(seconds), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": inputPowerSource};
+	return @{@"status": @"available", @"seconds": @(seconds), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": inputPowerSource, @"measuredInputs": measuredInputs};
 }
 
 @end

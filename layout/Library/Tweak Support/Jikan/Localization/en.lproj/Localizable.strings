@@ -123,3 +123,5 @@
 "jikan.tt100.format.min" = "%d min";
 
 "jikan.tt100.value.na" = "N/A";
+
+"jikan.prefs.algorithm.checking" = "Apple input availability has not been confirmed. Jikan checks while the device is charging; temporary missing readings do not change a previously confirmed recommendation.";

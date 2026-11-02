@@ -24,7 +24,7 @@ On iOS 16 or later, **Use Date Row Instead** places an estimate such as "27m to 
 
 ## Charging estimates
 
-Apple is the default and recommended algorithm when the device provides its required inputs. Devices without usable native inputs automatically use Jikan; you can still select Apple and accept a warning to use approximate inputs. Apple uses reconstructed charging models based on Apple's iOS 26 estimator, with targets of 80%, 85%, 90%, 95%, and 100%.
+Apple is the initial default and is recommended after Jikan confirms measured inputs. Devices with consistently unavailable inputs automatically use Jikan; a previously confirmed Apple recommendation survives temporary missing readings. You can select either algorithm yourself. The existing estimated-power warning is shown only after measured inputs have been confirmed unavailable. Apple uses reconstructed charging models based on Apple's iOS 26 estimator, with targets of 80%, 85%, 90%, 95%, and 100%.
 
 The Jikan algorithm uses your device's charging history and current battery readings. It supports any whole percentage from 1% to 100%.
 

@@ -123,3 +123,5 @@
 "jikan.tt100.format.min" = "%d Minuten";
 
 "jikan.tt100.value.na" = "N/A";
+
+"jikan.prefs.algorithm.checking" = "Die Verfügbarkeit der Apple-Eingaben wurde noch nicht bestätigt. Jikan prüft sie beim Laden. Vorübergehend fehlende Werte ändern eine zuvor bestätigte Empfehlung nicht.";

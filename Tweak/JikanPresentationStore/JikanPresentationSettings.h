@@ -23,6 +23,7 @@
 @property (nonatomic, copy, readonly) NSString *temperatureUnit;
 @property (nonatomic, copy, readonly) NSString *estimateSource;
 @property (nonatomic, readonly) BOOL allowEstimatedAppleInputPower;
+@property (nonatomic, readonly) NSInteger appleTargetPercent;
 @property (nonatomic, readonly) NSInteger targetPercent;
 @property (nonatomic, copy, readonly) NSArray<NSNumber *> *estimateTargets;
 @property (nonatomic, readonly) JikanPillPosition portraitPosition;

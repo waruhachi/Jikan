@@ -48,7 +48,7 @@ NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChan
 - (void)reloadPreferences {
 	NSAssert([NSThread isMainThread], @"Presentation settings must change on the main thread");
 	JikanPresentationSettings *settings = [[JikanPresentationSettings alloc] initWithPreferences:_preferences];
-	BOOL estimateChanged = ![settings.estimateTargets isEqualToArray:_state.settings.estimateTargets] || ![settings.estimateSource isEqualToString:_state.settings.estimateSource] || settings.targetPercent != _state.settings.targetPercent || settings.allowEstimatedAppleInputPower != _state.settings.allowEstimatedAppleInputPower;
+	BOOL estimateChanged = ![settings.estimateTargets isEqualToArray:_state.settings.estimateTargets] || ![settings.estimateSource isEqualToString:_state.settings.estimateSource] || settings.targetPercent != _state.settings.targetPercent || settings.appleTargetPercent != _state.settings.appleTargetPercent || settings.allowEstimatedAppleInputPower != _state.settings.allowEstimatedAppleInputPower;
 	NSUInteger generation = _state.estimateGeneration + (estimateChanged || settings.enabled != _state.settings.enabled);
 	JikanBatterySnapshot *snapshot = settings.enabled ? _state.snapshot : nil;
 	if (estimateChanged) snapshot = [snapshot snapshotWithoutEstimateForSettings:settings];

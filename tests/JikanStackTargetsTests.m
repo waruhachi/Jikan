@@ -244,9 +244,11 @@ static void TestAppleCache(void) {
 	NSArray *targets = @[@80, @90, @100];
 	NSDictionary *first = [estimator resultsForBatteryInfo:currentBattery targets:targets allowEstimatedInputPower:NO][@"results"];
 	CHECK(first.count == 3);
+	CHECK([first[@"100"][@"measuredInputs"][@"powerSource"] isEqual:@"native"]);
 	CHECK([first[@"80"][@"status"] isEqual:@"available"]);
 	CHECK([first[@"80"][@"seconds"] doubleValue] != [first[@"90"][@"seconds"] doubleValue]);
-	[estimator resultsForBatteryInfo:currentBattery targets:targets allowEstimatedInputPower:NO];
+	NSDictionary *cachedBatch = [estimator resultsForBatteryInfo:currentBattery targets:targets allowEstimatedInputPower:NO][@"results"];
+	CHECK([cachedBatch[@"100"][@"measuredInputs"] isEqual:first[@"100"][@"measuredInputs"]]);
 	for (NSNumber *target in targets) CHECK([estimator.model.calls[target] integerValue] == 1);
 	NSDictionary *predictions = [estimator valueForKey:@"predictions"];
 	id cached = predictions[@80];
@@ -268,7 +270,8 @@ static void TestAppleCache(void) {
 	// Every target in a refresh shares one helper sample and its revalidated battery state.
 	changed = [currentBattery mutableCopy]; [changed removeObjectForKey:@"PowerTelemetryData"]; currentBattery = changed;
 	sampleReads = 0;
-	[estimator resultsForBatteryInfo:currentBattery targets:targets allowEstimatedInputPower:NO];
+	NSDictionary *helperBatch = [estimator resultsForBatteryInfo:currentBattery targets:targets allowEstimatedInputPower:NO][@"results"];
+	CHECK([helperBatch[@"100"][@"measuredInputs"][@"powerSource"] isEqual:@"smc"]);
 	CHECK(sampleReads == 1);
 	NSDictionary *unsupported = [estimator resultsForBatteryInfo:currentBattery targets:@[@72, @90] allowEstimatedInputPower:NO][@"results"];
 	CHECK([unsupported[@"72"][@"status"] isEqual:@"unsupported_target"]);
@@ -292,7 +295,9 @@ static void TestAppleCache(void) {
 	[approximate observeBatteryInfo:currentBattery]; AgeSession(approximate);
 	NSDictionary *approximateResult = [approximate resultForBatteryInfo:currentBattery target:100 allowEstimatedInputPower:YES];
 	CHECK([approximateResult[@"inputPowerSource"] isEqual:@"adapter_estimate"]);
-	[approximate resultForBatteryInfo:currentBattery target:100 allowEstimatedInputPower:YES];
+	CHECK([approximateResult[@"measuredInputs"][@"status"] isEqual:@"missing_input_power"]);
+	NSDictionary *cachedApproximation = [approximate resultForBatteryInfo:currentBattery target:100 allowEstimatedInputPower:YES];
+	CHECK([cachedApproximation[@"measuredInputs"] isEqual:approximateResult[@"measuredInputs"]]);
 	helperPowerAvailable = YES;
 
 }
@@ -300,6 +305,3 @@ int main(void) { @autoreleasepool {
 	TestSettingsAndSelection(); TestPresentation(); TestAppleCache(); TestHistoryBatch();
 	printf("Passed %lu Stack settings, selection, snapshot, and estimator-cache checks.\n", (unsigned long)checks);
 } return 0; }
-
-// The pre-shared-status default probe is outside these Stack tests.
-BOOL JikanAppleHasRequiredNativeInputs(void) { return YES; }

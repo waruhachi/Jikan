@@ -62,6 +62,12 @@ NSArray<NSNumber *> *JikanAppleFeaturesWithDiagnostics(NSDictionary *properties,
 	NSDictionary *battery = properties[@"BatteryData"];
 	NSDictionary *telemetry = properties[@"PowerTelemetryData"];
 	if (![adapter isKindOfClass:NSDictionary.class] || ![battery isKindOfClass:NSDictionary.class]) {
+		if (missingFeatures) {
+			NSMutableArray *missing = [NSMutableArray array];
+			if (![adapter isKindOfClass:NSDictionary.class]) [missing addObject:@"AdapterDetails"];
+			if (![battery isKindOfClass:NSDictionary.class]) [missing addObject:@"BatteryData"];
+			*missingFeatures = [missing copy];
+		}
 		if (failure) *failure = @"missing_feature_dictionary";
 		return nil;
 	}
@@ -104,10 +110,12 @@ NSArray<NSNumber *> *JikanAppleFeaturesWithDiagnostics(NSDictionary *properties,
 	NSNumber *amperage = ttl ? JikanFeatureNumber(properties, @"InstantAmperage") : nil;
 	NSNumber *batteryVoltage = ttl ? JikanFeatureNumber(properties, @"Voltage") : nil;
 	if (ttl && (!amperage || !batteryVoltage)) {
+		if (missingFeatures) *missingFeatures = !amperage && !batteryVoltage ? @[@"InstantAmperage", @"Voltage"] : (!amperage ? @[@"InstantAmperage"] : @[@"Voltage"]);
 		if (failure) *failure = @"missing_amperage_or_voltage";
 		return nil;
 	}
 	if (!power || power.doubleValue <= 0 || !isfinite((float)(power.doubleValue * 0.001))) {
+		if (missingFeatures) *missingFeatures = @[@"PowerTelemetryData.SystemPowerIn"];
 		if (failure) *failure = nativePowerPresent ? @"invalid_input_power" : @"missing_input_power";
 		return nil;
 	}

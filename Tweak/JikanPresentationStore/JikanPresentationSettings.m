@@ -21,6 +21,7 @@
 		_temperatureUnit = [JikanTemperatureUnit(preferences) copy];
 		_estimateSource = [JikanEstimateSource(preferences) copy];
 		_allowEstimatedAppleInputPower = [preferences boolForKey:JikanEstimateAppleEstimatedPowerKey];
+		_appleTargetPercent = JikanEstimateTarget(preferences, @"apple");
 		_targetPercent = JikanEstimateTarget(preferences, _estimateSource);
 		_stackItems = JikanEffectiveStackItems(JikanStackItems(preferences), _targetPercent);
 		_estimateTargets = JikanStackTargets(_stackItems, _targetPercent);
@@ -49,6 +50,7 @@
 	settings->_estimateSource = _estimateSource;
 	settings->_allowEstimatedAppleInputPower = _allowEstimatedAppleInputPower;
 	settings->_targetPercent = _targetPercent;
+	settings->_appleTargetPercent = _appleTargetPercent;
 	settings->_portraitPosition = landscape ? _portraitPosition : position;
 	settings->_landscapePosition = landscape ? position : _landscapePosition;
 	return settings;

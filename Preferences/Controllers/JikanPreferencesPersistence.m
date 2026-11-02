@@ -102,8 +102,8 @@ static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithCh
 	}
 	[prefs setInteger:100 forKey:kBatteryEstimateTargetKey];
 	[prefs setBool:NO forKey:kBatteryEstimateSyncedKey];
-	// Let the shared default pick Apple only when its complete native feature
-	// vector is available; resetting also revokes any previous opt-in.
+	// Restore the shared automatic choice without erasing observed capability.
+	// Resetting also revokes any previous approximation consent.
 	[prefs removeObjectForKey:JikanEstimateSourceKey];
 	[prefs setInteger:100 forKey:JikanEstimateAppleTargetKey];
 	[prefs setBool:NO forKey:JikanEstimateAppleSyncedKey];

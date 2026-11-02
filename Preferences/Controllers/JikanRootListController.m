@@ -1,3 +1,4 @@
+#import "../../Shared/JikanAppleEstimateAvailability.h"
 #import "JikanRootListController.h"
 
 @interface PSListController (Private)
@@ -48,6 +49,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		[JikanPreferencesPresentation configureAxisSliderLeftImagesForController:self];
 		if (!self.jikanObservingPreferences) {
 			CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+			CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanPrefsDidChange, (__bridge CFStringRef)JikanAppleAvailabilityChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_appDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
 			self.jikanObservingPreferences = YES;
 		}
@@ -92,6 +94,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[_jikanChargeLimiterDetector cancel];
 	[[NSNotificationCenter defaultCenter] removeObserver:self name:UIApplicationDidBecomeActiveNotification object:nil];
 	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL);
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)JikanAppleAvailabilityChangedNotification, NULL);
 }
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier {

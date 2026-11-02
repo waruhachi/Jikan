@@ -2,16 +2,24 @@
 #import "../../Shared/JikanEstimateSettings.h"
 #import "../../Shared/JikanPreferences.h"
 
+static void JikanAlgorithmStatusChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
+	JikanAlgorithmListController *controller = (__bridge JikanAlgorithmListController *)observer;
+	dispatch_async(dispatch_get_main_queue(), ^{ if (controller.viewIfLoaded.window) [controller reloadSpecifiers]; });
+}
+
 @implementation JikanAlgorithmListController
 
 - (NSString *)_algorithmDescription {
 	NSString *recommended = JikanLocalizedString(@"jikan.prefs.algorithm.recommended", @"Recommended");
 	NSString *jikan = JikanLocalizedString(@"jikan.prefs.algorithm.jikan_description", @"Estimates time from your charging history and current battery readings. Choose any target from 1% to 100%.");
 	NSString *apple = JikanLocalizedString(@"jikan.prefs.algorithm.apple_description", @"Uses a fixed local copy of Apple's charging models. Choose 80%, 85%, 90%, 95%, or 100%.");
-	BOOL appleAvailable = JikanAppleHasRequiredNativeInputs();
+	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
+	NSString *recommendation = JikanAppleRecommendation(JikanAppleEstimateAvailability(), JikanEstimateTarget(prefs, @"apple"));
+	BOOL appleAvailable = [recommendation isEqual:@"apple"];
 	NSString *appleLabel = appleAvailable ? [NSString stringWithFormat:@"Apple (%@)", recommended] : @"Apple";
-	NSString *jikanLabel = appleAvailable ? @"Jikan" : [NSString stringWithFormat:@"Jikan (%@)", recommended];
+	NSString *jikanLabel = [recommendation isEqual:@"jikan"] ? [NSString stringWithFormat:@"Jikan (%@)", recommended] : @"Jikan";
 	NSString *description = [NSString stringWithFormat:@"%@: %@\n\n%@: %@", appleLabel, apple, jikanLabel, jikan];
+	if (!recommendation) description = [description stringByAppendingFormat:@"\n\n%@", JikanLocalizedString(@"jikan.prefs.algorithm.checking", @"Apple input availability has not been confirmed. Jikan checks while the device is charging; temporary missing readings do not change a previously confirmed recommendation.")];
 	if (JikanRecentAppleEstimateFailure()) {
 		NSString *unavailable = JikanLocalizedString(@"jikan.prefs.algorithm.apple_unavailable", @"Some battery readings were unavailable recently. Apple predictions may remain unavailable even with estimated input power.");
 		description = [description stringByAppendingFormat:@"\n\n%@", unavailable];
@@ -27,7 +35,7 @@
 	NSUInteger appleIndex = [values isKindOfClass:NSArray.class] ? [values indexOfObject:@"apple"] : NSNotFound;
 	BOOL selectingApple = indexPath.section == 0 && appleIndex != NSNotFound && indexPath.row == (NSInteger)appleIndex;
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	if (!selectingApple || [prefs boolForKey:JikanEstimateAppleEstimatedPowerKey] || JikanAppleHasRequiredNativeInputs()) {
+	if (!selectingApple || [prefs boolForKey:JikanEstimateAppleEstimatedPowerKey] || ![JikanAppleRecommendation(JikanAppleEstimateAvailability(), JikanEstimateTarget(prefs, @"apple")) isEqualToString:@"jikan"]) {
 		[super tableView:tableView didSelectRowAtIndexPath:indexPath];
 		return;
 	}
@@ -65,6 +73,8 @@
 
 - (void)viewWillAppear:(BOOL)animated {
 	[super viewWillAppear:animated];
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanAlgorithmStatusChanged, (__bridge CFStringRef)JikanAppleAvailabilityChangedNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, JikanAlgorithmStatusChanged, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	for (PSSpecifier *item in self.specifiers) {
 		if ([[item propertyForKey:PSIDKey] isEqual:@"jikanAlgorithmDescriptions"]) {
 			[item setProperty:[self _algorithmDescription] forKey:PSFooterTextGroupKey];
@@ -72,6 +82,17 @@
 			break;
 		}
 	}
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+	[super viewDidDisappear:animated];
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)JikanAppleAvailabilityChangedNotification, NULL);
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL);
+}
+
+- (void)dealloc {
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)JikanAppleAvailabilityChangedNotification, NULL);
+	CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(), (__bridge void *)self, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL);
 }
 
 - (NSArray *)specifiers {

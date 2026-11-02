@@ -123,3 +123,5 @@
 "jikan.tt100.format.min" = "%d phút";
 
 "jikan.tt100.value.na" = "N/A";
+
+"jikan.prefs.algorithm.checking" = "Chưa xác nhận dữ liệu đầu vào cho mô hình Apple. Jikan kiểm tra khi thiết bị đang sạc; dữ liệu tạm thời bị thiếu không thay đổi đề xuất đã được xác nhận.";

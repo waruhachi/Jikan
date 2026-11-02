@@ -141,7 +141,12 @@ static void TT100PowerChanged(void *context) {
 			if (!tt100AppleEstimator) tt100AppleEstimator = [TT100AppleEstimator new];
 			[tt100AppleEstimator observeBatteryInfo:batteryInfo];
 			NSDictionary *appleBatch = [source isEqualToString:@"apple"] ? [tt100AppleEstimator resultsForBatteryInfo:batteryInfo targets:presentation.settings.estimateTargets allowEstimatedInputPower:presentation.settings.allowEstimatedAppleInputPower] : nil;
-			batteryInfo = appleBatch[@"batteryInfo"] ?: batteryInfo;
+			// Probe measured Apple inputs even while Jikan is selected. Otherwise an
+			// automatic fallback could never discover that native readings recovered.
+			NSDictionary *availabilityBatch = appleBatch ?: [tt100AppleEstimator resultsForBatteryInfo:batteryInfo targets:@[@(presentation.settings.appleTargetPercent)] allowEstimatedInputPower:NO];
+			NSInteger availabilityTarget = appleBatch ? target : presentation.settings.appleTargetPercent;
+			NSDictionary *availabilityResult = availabilityBatch[@"results"][@(availabilityTarget).stringValue];
+			batteryInfo = availabilityBatch[@"batteryInfo"] ?: batteryInfo;
 			NSDictionary *appleResult = appleBatch[@"results"][@(target).stringValue];
 			if (appleResult && (![appleResult[@"status"] isEqualToString:tt100LastAppleStatus] || tt100LastAppleTarget != target || tt100LastAppleSession != [appleResult[@"session"] integerValue])) {
 				tt100LastAppleStatus = appleResult[@"status"];
@@ -199,7 +204,10 @@ static void TT100PowerChanged(void *context) {
 					BOOL published = [presentationStore publishBatteryDictionary:snapshot generation:presentation.estimateGeneration publisher:self];
 					if (published && tt100Monitoring && generation == tt100Generation) {
 						JikanRecordAppleEstimateStatus(snapshot);
-						if ([[targetEstimates.allValues valueForKey:@"estimateStatus"] containsObject:@"waiting_for_first_prediction"]) {
+						JikanPublishAppleEstimateAvailability(batteryInfo, availabilityResult, availabilityTarget);
+						[presentationStore refreshAutomaticEstimateSelection];
+						if (presentationStore.state.estimateGeneration != presentation.estimateGeneration) tt100RefreshPending = YES;
+						if ([availabilityResult[@"status"] isEqual:@"waiting_for_first_prediction"] || [[targetEstimates.allValues valueForKey:@"estimateStatus"] containsObject:@"waiting_for_first_prediction"]) {
 							dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 								if (tt100Monitoring && generation == tt100Generation) [self _refreshBatteryInfo];
 							});
