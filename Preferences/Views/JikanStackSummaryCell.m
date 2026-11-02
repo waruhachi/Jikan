@@ -1,4 +1,5 @@
 #import "JikanStackSummaryCell.h"
+#import "../../Shared/JikanEstimateSettings.h"
 
 @implementation JikanStackSummaryCell
 
@@ -22,15 +23,10 @@
 
 - (void)_updateSummary {
 	NSUserDefaults *prefs = [[NSUserDefaults alloc] initWithSuiteName:JikanPreferencesSuite];
-	NSArray<NSString *> *items = JikanStackItems(prefs);
-	NSDictionary<NSString *, NSString *> *names = @{
-		JikanStackEstimate: JikanLocalizedString(@"jikan.stack.item.estimate", @"Estimated Time"),
-		JikanStackWattage: JikanLocalizedString(@"jikan.stack.item.wattage", @"Wattage"),
-		JikanStackTemperature: JikanLocalizedString(@"jikan.stack.item.temperature", @"Temperature"),
-		JikanStackVoltage: JikanLocalizedString(@"jikan.stack.item.voltage", @"Voltage")
-	};
+	NSInteger mainTarget = JikanEstimateTarget(prefs, JikanEstimateSource(prefs));
+	NSArray<JikanStackItem *> *items = JikanEffectiveStackItems(JikanStackItems(prefs), mainTarget);
 	NSMutableArray<NSString *> *readings = [NSMutableArray arrayWithCapacity:items.count];
-	for (NSString *item in items) [readings addObject:names[item]];
+	for (JikanStackItem *item in items) [readings addObject:JikanStackItemName(item, mainTarget)];
 	NSString *allReadings = [readings componentsJoinedByString:@", "];
 	// Estimated Time is always included; name it only when no optional readings are active.
 	if (readings.count > 1) [readings removeObjectAtIndex:0];

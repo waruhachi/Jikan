@@ -16,6 +16,7 @@
 "jikan.platter.label.battery_voltage" = "battery voltage";
 "jikan.platter.label.charged" = "charged";
 "jikan.platter.label.current_wattage" = "current wattage";
+"jikan.platter.label.target_reached" = "target reached";
 "jikan.platter.label.until_fully_charged" = "until fully charged";
 "jikan.platter.label.until_target" = "until %ld%% charged";
 
@@ -97,7 +98,9 @@
 "jikan.prefs.slider.portrait_x.title" = "Portrait X";
 "jikan.prefs.slider.portrait_y.title" = "Portrait Y";
 
+"jikan.stack.action.add_estimate" = "Add Estimate";
 "jikan.stack.item.estimate" = "Estimated Time";
+"jikan.stack.item.estimate_target" = "Estimate to %ld%%";
 "jikan.stack.item.temperature" = "Temperature";
 "jikan.stack.item.voltage" = "Voltage";
 "jikan.stack.item.wattage" = "Wattage";
@@ -106,6 +109,11 @@
 "jikan.stack.section.available" = "Available";
 "jikan.stack.section.unit" = "Temperature Unit";
 
+"jikan.stack.target.duplicate" = "This target is already used by the main estimate or another Stack estimate.";
+"jikan.stack.target.hint" = "Choose a different target for this estimate. The pill advances to the next higher unfinished target when the displayed target is reached.";
+"jikan.stack.target.main" = "Main target: %ld%%";
+"jikan.stack.target.unique" = "Enter an unused target. Apple estimates support 80, 85, 90, 95, and 100%. Jikan estimates support 1–100%.";
+"jikan.stack.target.unsupported" = "%ld%% is unavailable with Apple estimates";
 "jikan.stack.unit.celsius" = "Celsius";
 "jikan.stack.unit.fahrenheit" = "Fahrenheit";
 

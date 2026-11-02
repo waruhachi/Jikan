@@ -19,11 +19,12 @@
 @property (nonatomic, readonly) BOOL lockPreviewYAxis;
 @property (nonatomic, readonly) double backgroundOpacity;
 @property (nonatomic, copy, readonly) NSString *appearance;
-@property (nonatomic, copy, readonly) NSArray<NSString *> *stackItems;
+@property (nonatomic, copy, readonly) NSArray<JikanStackItem *> *stackItems;
 @property (nonatomic, copy, readonly) NSString *temperatureUnit;
 @property (nonatomic, copy, readonly) NSString *estimateSource;
 @property (nonatomic, readonly) BOOL allowEstimatedAppleInputPower;
 @property (nonatomic, readonly) NSInteger targetPercent;
+@property (nonatomic, copy, readonly) NSArray<NSNumber *> *estimateTargets;
 @property (nonatomic, readonly) JikanPillPosition portraitPosition;
 @property (nonatomic, readonly) JikanPillPosition landscapePosition;
 - (instancetype)initWithPreferences:(NSUserDefaults *)preferences;

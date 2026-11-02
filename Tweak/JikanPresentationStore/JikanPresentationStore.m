@@ -7,6 +7,7 @@ NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChan
 
 @interface JikanPresentationStore ()
 @property (nonatomic, strong) NSUserDefaults *preferences;
+@property (nonatomic, strong) NSMutableSet<NSNumber *> *completedTargets;
 @end
 
 @implementation JikanPresentationStore
@@ -25,6 +26,7 @@ NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChan
 	self = [super init];
 	if (self) {
 		_preferences = preferences;
+		_completedTargets = [NSMutableSet set];
 		_state = [[JikanPresentationState alloc] initWithSnapshot:nil settings:[[JikanPresentationSettings alloc] initWithPreferences:preferences] previewActive:NO estimateGeneration:0];
 	}
 	return self;
@@ -46,7 +48,7 @@ NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChan
 - (void)reloadPreferences {
 	NSAssert([NSThread isMainThread], @"Presentation settings must change on the main thread");
 	JikanPresentationSettings *settings = [[JikanPresentationSettings alloc] initWithPreferences:_preferences];
-	BOOL estimateChanged = ![settings.estimateSource isEqualToString:_state.settings.estimateSource] || settings.targetPercent != _state.settings.targetPercent || settings.allowEstimatedAppleInputPower != _state.settings.allowEstimatedAppleInputPower;
+	BOOL estimateChanged = ![settings.estimateTargets isEqualToArray:_state.settings.estimateTargets] || ![settings.estimateSource isEqualToString:_state.settings.estimateSource] || settings.targetPercent != _state.settings.targetPercent || settings.allowEstimatedAppleInputPower != _state.settings.allowEstimatedAppleInputPower;
 	NSUInteger generation = _state.estimateGeneration + (estimateChanged || settings.enabled != _state.settings.enabled);
 	JikanBatterySnapshot *snapshot = settings.enabled ? _state.snapshot : nil;
 	if (estimateChanged) snapshot = [snapshot snapshotWithoutEstimateForSettings:settings];
@@ -70,6 +72,11 @@ NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChan
 	id target = dictionary[@"targetPercent"];
 	if (![target isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)target) == CFBooleanGetTypeID() || !isfinite([target doubleValue]) || [target doubleValue] != _state.settings.targetPercent) return NO;
 	JikanBatterySnapshot *snapshot = [[JikanBatterySnapshot alloc] initWithDictionary:dictionary settings:_state.settings];
+	if (!snapshot.externalPowerConnected) [self.completedTargets removeAllObjects];
+	else [self.completedTargets unionSet:snapshot.completedTargets];
+	NSMutableDictionary *sessionSnapshot = [snapshot.dictionary mutableCopy];
+	sessionSnapshot[@"completedTargets"] = self.completedTargets.allObjects;
+	snapshot = [[JikanBatterySnapshot alloc] initWithDictionary:sessionSnapshot settings:_state.settings];
 	BOOL wasConnected = _state.snapshot.externalPowerConnected;
 	_state = [[JikanPresentationState alloc] initWithSnapshot:snapshot settings:_state.settings previewActive:_state.previewActive estimateGeneration:generation];
 	[[NSNotificationCenter defaultCenter] postNotificationName:TT100InternalDidRefreshBatteryInfoNotification object:publisher userInfo:snapshot.dictionary];
@@ -84,6 +91,7 @@ NSString *const JikanChargingStateChangedNotification = @"JikanChargingStateChan
 
 - (void)clearBatterySnapshot {
 	NSAssert([NSThread isMainThread], @"Battery state must change on the main thread");
+	[self.completedTargets removeAllObjects];
 	_state = [[JikanPresentationState alloc] initWithSnapshot:nil settings:_state.settings previewActive:_state.previewActive estimateGeneration:_state.estimateGeneration + 1];
 	[self notifyStateChanged];
 }

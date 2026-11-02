@@ -1,4 +1,5 @@
 #import "JikanPlatterView.h"
+#import "../../Shared/JikanStackSelection.h"
 
 static CGFloat TTWiggleRandomOffset(void) {
 	return ((arc4random_uniform(1000) / 1000.0) - 0.5) * 0.03;
@@ -12,8 +13,8 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	CAShapeLayer *_previewOutlineLayer;
 	UITapGestureRecognizer *_tapGesture;
 	JikanPresentationState *_presentationState;
-	NSArray<NSString *> *_activeStackItems;
-	NSString *_selectedStackItem;
+	NSArray<JikanStackItem *> *_activeStackItems;
+	JikanStackSelection *_stackSelection;
 	BOOL _previewMode;
 	BOOL _editingMode;
 	JikanPillContentView *_contentView;
@@ -31,6 +32,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	if (self) {
 		self.translatesAutoresizingMaskIntoConstraints = NO;
 		self.isAccessibilityElement = YES;
+		_stackSelection = [JikanStackSelection new];
 
 		[self _setupSubviews];
 
@@ -51,7 +53,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	[super didMoveToWindow];
 
 	if (!self.window) {
-		_selectedStackItem = JikanStackEstimate;
+		[_stackSelection selectDefaultItem];
 		return;
 	}
 
@@ -67,7 +69,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	_contentView.appearance = state.settings.appearance;
 	if (wasConnected && !state.snapshot.externalPowerConnected) {
 		[self enterEditMode:NO];
-		_selectedStackItem = JikanStackEstimate;
+		[_stackSelection selectDefaultItem];
 	}
 	[self setPreviewMode:state.usesPreviewContent];
 	if (!self.window) return;
@@ -128,35 +130,40 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 }
 
 - (void)_reloadStackPreferences {
-	NSArray<NSString *> *items = _presentationState.settings.stackItems ?: @[JikanStackEstimate];
-	if (![_activeStackItems isEqualToArray:items]) _activeStackItems = [items copy];
-	if (![_activeStackItems containsObject:_selectedStackItem]) _selectedStackItem = JikanStackEstimate;
+	NSArray<JikanStackItem *> *items = _presentationState.settings.stackItems ?: JikanNormalizeStackItems(nil);
+	_activeStackItems = [items copy];
+	[_stackSelection updateItems:items mainTarget:_presentationState.settings.targetPercent reachedTargets:_presentationState.snapshot.completedTargets ?: [NSSet set] connected:_presentationState.snapshot.externalPowerConnected generation:_presentationState.estimateGeneration];
 	[self _updateTapGestureState];
 }
 
 - (void)_renderCurrentItem {
-	NSString *item = _selectedStackItem ?: JikanStackEstimate;
+	JikanStackItem *item = _activeStackItems.firstObject;
+	for (JikanStackItem *candidate in _activeStackItems) if ([candidate.identifier isEqual:_stackSelection.selectedIdentifier]) { item = candidate; break; }
 	NSString *primaryText;
 	NSString *secondaryText;
 	NSDictionary *batteryInfo = _presentationState.snapshot.batteryInfo;
-	if ([item isEqualToString:JikanStackWattage]) {
+	NSInteger mainTarget = _presentationState ? _presentationState.settings.targetPercent : 100;
+	NSInteger target = item.isEstimate ? [item targetForMainTarget:mainTarget] : mainTarget;
+	JikanTargetEstimate *estimate = _presentationState.snapshot.estimatesByTarget[@(target)];
+	if ([item.type isEqualToString:JikanStackWattage]) {
 		double watts = _previewMode ? 5.0 : [TT100 effectiveChargingWattageWithBatteryInfo:batteryInfo];
 		primaryText = [JikanPillContent formattedWattage:watts];
 		secondaryText = JikanLocalizedString(@"jikan.platter.label.current_wattage", @"current wattage");
-	} else if ([item isEqualToString:JikanStackTemperature]) {
+	} else if ([item.type isEqualToString:JikanStackTemperature]) {
 		primaryText = JikanFormattedBatteryTemperature(_previewMode ? @{@"Temperature": @3700} : batteryInfo, JikanResolveTemperatureUnit(_presentationState.settings.temperatureUnit)) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 		secondaryText = JikanLocalizedString(@"jikan.platter.label.battery_temperature", @"battery temperature");
-	} else if ([item isEqualToString:JikanStackVoltage]) {
+	} else if ([item.type isEqualToString:JikanStackVoltage]) {
 		primaryText = JikanFormattedBatteryVoltage(_previewMode ? @{@"Voltage": @4000} : batteryInfo) ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A");
 		secondaryText = JikanLocalizedString(@"jikan.platter.label.battery_voltage", @"battery voltage");
-	} else if (_presentationState.snapshot.targetReached && _presentationState.settings.showAfterFullCharge && !_previewMode) {
-		primaryText = [NSString stringWithFormat:@"%ld%%", (long)_presentationState.snapshot.displayPercent];
-		secondaryText = JikanLocalizedString(@"jikan.platter.label.charged", @"charged");
+	} else if (!_previewMode && [_stackSelection isTargetCompleted:target]) {
+		primaryText = [NSString stringWithFormat:@"%ld%%", (long)target];
+		secondaryText = JikanLocalizedString(@"jikan.platter.label.target_reached", @"target reached");
 	} else {
-		primaryText = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : (_presentationState.snapshot.timeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A"));
-		secondaryText = [JikanPillContent estimateSubtitleForTargetPercent:_presentationState ? _presentationState.settings.targetPercent : 100];
+		primaryText = _previewMode ? JikanLocalizedString(@"jikan.platter.preview.eta", @"1 hr 23 min") : (estimate.timeString ?: JikanLocalizedString(@"jikan.tt100.value.na", @"N/A"));
+		secondaryText = [JikanPillContent estimateSubtitleForTargetPercent:target];
+		if (!_previewMode && [estimate.status isEqualToString:@"unsupported_target"]) secondaryText = [NSString stringWithFormat:JikanLocalizedString(@"jikan.stack.target.unsupported", @"%ld%% is unavailable with Apple estimates"), (long)target];
 	}
-	double progress = (double)_presentationState.snapshot.displayPercent / MAX(1, _presentationState.settings.targetPercent);
+	double progress = _previewMode ? 0.72 : (double)_presentationState.snapshot.displayPercent / MAX(1, target);
 	[_contentView applyContent:[[JikanPillContent alloc] initWithPrimaryText:primaryText secondaryText:secondaryText progress:progress chargingSpeed:_presentationState.snapshot.chargingSpeed]];
 }
 
@@ -166,7 +173,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 		return;
 	}
 	_previewMode = preview;
-	_selectedStackItem = JikanStackEstimate;
+	[_stackSelection selectDefaultItem];
 	[self _renderCurrentItem];
 	[self _updateTapGestureState];
 	[self _updatePreviewOutlineAppearance];
@@ -201,7 +208,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 	if (_editingMode == editing) return;
 	_editingMode = editing;
 	if (editing) {
-		_selectedStackItem = JikanStackEstimate;
+		[_stackSelection selectDefaultItem];
 		[self _renderCurrentItem];
 	}
 	if (UIAccessibilityIsReduceMotionEnabled()) {
@@ -278,8 +285,7 @@ static const CGFloat kTTPreviewOutlineGap = 2.0;
 
 - (void)_advanceStack {
 	if (_activeStackItems.count < 2 || (!_presentationState.snapshot.externalPowerConnected && !_previewMode) || _editingMode) return;
-	NSUInteger index = [_activeStackItems indexOfObject:_selectedStackItem];
-	_selectedStackItem = _activeStackItems[(index == NSNotFound ? 0 : index + 1) % _activeStackItems.count];
+	[_stackSelection selectNextItem];
 	[self _renderCurrentItem];
 	if (UIAccessibilityIsVoiceOverRunning()) UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, self.accessibilityLabel);
 }

@@ -18,17 +18,12 @@
 }
 
 - (BOOL)shouldShowPlatter {
-	// Keep the pill visible in Apple mode when the selected model cannot
-	// produce an estimate. Its content already renders "N/A" in this case.
-	// Wait for the initial prediction before showing that unavailable state.
-	BOOL showUnavailableAppleEstimate = [_settings.estimateSource isEqualToString:@"apple"] &&
-		!_snapshot.targetReached && ![_snapshot.estimateStatus isEqualToString:@"waiting_for_first_prediction"];
 	return _settings.enabled && (_previewActive || (_snapshot.externalPowerConnected &&
-		(_snapshot.hasEstimate || showUnavailableAppleEstimate || (_settings.showAfterFullCharge && _snapshot.targetReached))));
+		(_snapshot.hasAnyEstimate || (_snapshot.targetReached && _snapshot.hasUnfinishedTarget) || _snapshot.hasUnavailableAppleTarget || (_settings.showAfterFullCharge && !_snapshot.hasUnfinishedTarget))));
 }
 
 - (BOOL)usesPreviewContent {
-	return _previewActive && (!_snapshot.externalPowerConnected || (!_snapshot.hasEstimate && !(_settings.showAfterFullCharge && _snapshot.targetReached)));
+	return _previewActive && (!_snapshot.externalPowerConnected || (!_snapshot.hasAnyEstimate && !(_settings.showAfterFullCharge && !_snapshot.hasUnfinishedTarget)));
 }
 
 @end

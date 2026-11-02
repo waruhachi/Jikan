@@ -82,6 +82,24 @@ static double JikanTargetSOC(NSDictionary *batteryInfo, NSString *source) {
 		values[@"targetReached"] = @(_targetReached);
 		values[@"isFullyCharged"] = @(_fullyCharged);
 		values[@"displayPercent"] = @(_displayPercent);
+		NSMutableSet *completed = [NSMutableSet set];
+		id completedValues = values[@"completedTargets"];
+		if ([completedValues isKindOfClass:NSArray.class]) for (id value in completedValues) if ([settings.estimateTargets containsObject:value]) [completed addObject:value];
+		NSMutableDictionary *estimates = [NSMutableDictionary dictionary];
+		NSDictionary *results = [values[@"targetEstimates"] isKindOfClass:NSDictionary.class] ? values[@"targetEstimates"] : @{};
+		for (NSNumber *target in settings.estimateTargets) {
+			NSDictionary *result = [results[target.stringValue] isKindOfClass:NSDictionary.class] ? results[target.stringValue] : @{};
+			if (!result.count && target.integerValue == settings.targetPercent) result = values;
+			JikanTargetEstimate *estimate = [[JikanTargetEstimate alloc] initWithDictionary:result targetPercent:target.integerValue];
+			estimates[target] = estimate;
+			if (estimate.targetReached && _externalPowerConnected) [completed addObject:target];
+			BOOL finished = [completed containsObject:target];
+			_hasUnfinishedTarget |= !finished;
+			_hasAnyEstimate |= estimate.hasEstimate && !finished;
+			_hasUnavailableAppleTarget |= [settings.estimateSource isEqualToString:@"apple"] && !finished && ![estimate.status isEqualToString:@"waiting_for_first_prediction"];
+		}
+		_estimatesByTarget = [estimates copy];
+		_completedTargets = [completed copy];
 		_dictionary = [values copy];
 	}
 	return self;
@@ -97,6 +115,12 @@ static double JikanTargetSOC(NSDictionary *batteryInfo, NSString *source) {
 	values[@"estimateStatus"] = @"unavailable";
 	values[@"sessionStartEstimated"] = @NO;
 	values[@"modelRevision"] = @"";
+	NSMutableDictionary *targets = [NSMutableDictionary dictionary];
+	for (NSNumber *target in settings.estimateTargets) {
+		NSString *status = [settings.estimateSource isEqualToString:@"apple"] && !JikanAppleTargetIsSupported(target.integerValue) ? @"unsupported_target" : @"unavailable";
+		targets[target.stringValue] = @{@"targetReached": @(_fullyCharged || (isfinite(soc) && soc >= target.integerValue)), @"estimateStatus": status};
+	}
+	values[@"targetEstimates"] = targets;
 	return [[JikanBatterySnapshot alloc] initWithDictionary:values settings:settings];
 }
 

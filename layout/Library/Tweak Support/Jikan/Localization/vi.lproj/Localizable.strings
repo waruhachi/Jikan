@@ -16,6 +16,7 @@
 "jikan.platter.label.battery_voltage" = "điện áp pin";
 "jikan.platter.label.charged" = "đã sạc";
 "jikan.platter.label.current_wattage" = "số watt hiện tại";
+"jikan.platter.label.target_reached" = "đã đạt mục tiêu";
 "jikan.platter.label.until_fully_charged" = "cho đến lúc đầy";
 "jikan.platter.label.until_target" = "đến khi sạc %ld%%";
 
@@ -97,7 +98,9 @@
 "jikan.prefs.slider.portrait_x.title" = "Dọc X";
 "jikan.prefs.slider.portrait_y.title" = "Dọc Y";
 
+"jikan.stack.action.add_estimate" = "Thêm ước tính";
 "jikan.stack.item.estimate" = "Thời gian ước tính";
+"jikan.stack.item.estimate_target" = "Ước tính đến %ld%%";
 "jikan.stack.item.temperature" = "Nhiệt độ";
 "jikan.stack.item.voltage" = "Điện áp";
 "jikan.stack.item.wattage" = "Công suất";
@@ -106,6 +109,11 @@
 "jikan.stack.section.available" = "Có thể thêm";
 "jikan.stack.section.unit" = "Đơn vị nhiệt độ";
 
+"jikan.stack.target.duplicate" = "Mục tiêu này đã được dùng cho ước tính chính hoặc một ước tính khác trong Stack.";
+"jikan.stack.target.hint" = "Chọn mục tiêu khác cho ước tính này. Khi đạt mục tiêu đang hiển thị, thanh sẽ chuyển sang mục tiêu cao hơn tiếp theo chưa đạt.";
+"jikan.stack.target.main" = "Mục tiêu chính: %ld%%";
+"jikan.stack.target.unique" = "Nhập mục tiêu chưa được dùng. Ước tính Apple hỗ trợ 80, 85, 90, 95 và 100%. Ước tính Jikan hỗ trợ 1–100%.";
+"jikan.stack.target.unsupported" = "Ước tính Apple không hỗ trợ %ld%%";
 "jikan.stack.unit.celsius" = "Độ C";
 "jikan.stack.unit.fahrenheit" = "Độ F";
 

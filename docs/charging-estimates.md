@@ -215,7 +215,7 @@ Later integration testing verified live estimates on the Lock Screen. With the i
 
 Jikan uses the recovered feature order and conversion to seconds. It waits until at least four seconds after its recorded connection time, caches a prediction for up to 300 seconds, and subtracts elapsed time between predictions. Its 15-second refresh loop checks whether another inference is due. This schedule does not reproduce every event in Apple's daemon.
 
-Disconnecting resets the model session. Changes to the target, adapter, or availability of native versus measured input power invalidate the cached prediction. An explicit charging pause clears it too.
+Disconnecting resets the model session. Predictions are cached separately for each configured target, sharing the session and loaded models. Changes to the adapter or availability of native versus measured input power invalidate affected predictions. An explicit charging pause clears the prediction caches. A refresh shares one input-power helper sample and its revalidated battery state across targets.
 
 If SpringBoard starts while the phone is already plugged in, Jikan uses the first valid sample's percentage and time as an approximate session start. This lets it resume predictions instead of remaining unavailable indefinitely. The result marks this recovery as `sessionStartEstimated`, since it can differ from Apple's original session baseline.
 
@@ -239,7 +239,7 @@ Snapshots record `inputPowerSource` as `native`, `smc`, or `unavailable`. Measur
 
 The optional pill wattage uses battery current and voltage to calculate net power entering the battery. It does not show the adapter's rated watts. The Apple model's `curr_est_watts` input describes the adapter, while `curr_system_power` is a separate input. Using the pill's wattage for either feature would change the recovered model inputs.
 
-The Stack keeps Estimated Time first. Users can add, remove, and reorder Wattage, Temperature, and Voltage. Temperature comes from the battery's top-level `Temperature` reading, converted from hundredths of a degree Celsius for display. Voltage comes from the top-level `Voltage` reading, converted from millivolts. Invalid or missing readings appear as N/A.
+The Stack keeps Estimated Time first and tied to the main target. Users can add, edit, remove, and reorder estimates for additional percentages, as well as Wattage, Temperature, and Voltage. Manual cycling follows Stack order. When the displayed estimate newly reaches its target, selection advances to the next higher unfinished percentage; other readings and manual visits to completed estimates retain their selection. The date-row estimate and target notification still follow the main target. Temperature comes from the battery's top-level `Temperature` reading, converted from hundredths of a degree Celsius for display. Voltage comes from the top-level `Voltage` reading, converted from millivolts. Invalid or missing readings appear as N/A.
 
 Temperature follows the iPhone's unit setting where available, with Celsius and Fahrenheit overrides. These display conversions leave the raw features passed to Apple's models unchanged.
 

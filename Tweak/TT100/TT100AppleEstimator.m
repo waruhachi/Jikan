@@ -39,6 +39,15 @@ static NSString *JikanSHA256(NSString *path) {
 	return hex;
 }
 
+@interface TT100ApplePrediction : NSObject
+@property (nonatomic) double predictedAt;
+@property (nonatomic) double predictedSeconds;
+@property (nonatomic, copy) NSString *inputPowerSource;
+@property (nonatomic, copy) NSDictionary *predictionAdapter;
+@end
+@implementation TT100ApplePrediction
+@end
+
 @interface TT100AppleEstimator ()
 @property (nonatomic, strong) MLModel *tt80Model;
 @property (nonatomic, strong) MLModel *ttlModel;
@@ -49,12 +58,10 @@ static NSString *JikanSHA256(NSString *path) {
 @property (nonatomic, assign) NSInteger startSOC;
 @property (nonatomic, assign) NSInteger sessionNumber;
 @property (nonatomic, assign) double connectionTime;
-@property (nonatomic, assign) double predictedAt;
-@property (nonatomic, assign) double predictedSeconds;
-@property (nonatomic, assign) NSInteger predictedTarget;
+@property (nonatomic, strong) NSMutableDictionary<NSNumber *, TT100ApplePrediction *> *predictions;
+@property (nonatomic, copy) NSDictionary *batchBatteryInfo;
+@property (nonatomic, copy) NSDictionary *batchInputSample;
 @property (nonatomic, copy) NSString *lastFailure;
-@property (nonatomic, copy) NSString *inputPowerSource;
-@property (nonatomic, copy) NSDictionary *predictionAdapter;
 @end
 
 @implementation TT100AppleEstimator
@@ -65,11 +72,7 @@ static NSString *JikanSHA256(NSString *path) {
 	self.sessionValid = NO;
 	self.sessionStartEstimated = NO;
 	self.connectionTime = 0;
-	self.predictedAt = 0;
-	self.predictedSeconds = 0;
-	self.predictedTarget = 0;
-	self.inputPowerSource = nil;
-	self.predictionAdapter = nil;
+	[self.predictions removeAllObjects];
 	self.sessionNumber++;
 }
 
@@ -87,11 +90,11 @@ static NSString *JikanSHA256(NSString *path) {
 		return;
 	}
 	NSNumber *charging = JikanFeatureNumber(batteryInfo, @"IsCharging");
-	if (charging && !charging.boolValue) self.predictedAt = 0;
+	if (charging && !charging.boolValue) [self.predictions removeAllObjects];
 	if (self.sessionValid) return;
 	if (!self.wasConnected) {
 		self.wasConnected = YES;
-		self.predictedAt = 0;
+		[self.predictions removeAllObjects];
 		self.sessionNumber++;
 	}
 	double now = JikanMonotonicSeconds();
@@ -149,32 +152,59 @@ static NSString *JikanSHA256(NSString *path) {
 }
 
 - (NSDictionary *)resultForBatteryInfo:(NSDictionary *)batteryInfo target:(NSInteger)target allowEstimatedInputPower:(BOOL)allowEstimatedInputPower {
+	return [self resultsForBatteryInfo:batteryInfo targets:@[@(target)] allowEstimatedInputPower:allowEstimatedInputPower][@"results"][@(target).stringValue];
+}
+
+- (NSDictionary *)resultsForBatteryInfo:(NSDictionary *)batteryInfo targets:(NSArray<NSNumber *> *)targets allowEstimatedInputPower:(BOOL)allowEstimatedInputPower {
+	[self observeBatteryInfo:batteryInfo];
+	if (!self.predictions) self.predictions = [NSMutableDictionary dictionary];
+	NSSet *active = [NSSet setWithArray:targets];
+	for (NSNumber *target in self.predictions.allKeys) if (![active containsObject:target]) [self.predictions removeObjectForKey:target];
+	self.batchBatteryInfo = batteryInfo;
+	self.batchInputSample = nil;
+	NSMutableDictionary *results = [NSMutableDictionary dictionary];
+	for (NSUInteger pass = 0; pass < 2; pass++) {
+		for (NSNumber *target in targets) {
+			if (!self.predictions[target]) self.predictions[target] = [TT100ApplePrediction new];
+			results[target.stringValue] = [self _resultForBatteryInfo:self.batchBatteryInfo target:target.integerValue allowEstimatedInputPower:allowEstimatedInputPower];
+		}
+		// Helper IPC can discover a new adapter or power state. Re-evaluate any
+		// earlier cached results against that same refreshed state, reusing the
+		// one helper sample. Native-only refreshes need just the first pass.
+		if (!self.batchInputSample) break;
+	}
+	NSDictionary *batch = @{@"results": [results copy], @"batteryInfo": self.batchBatteryInfo ?: @{}};
+	self.batchInputSample = nil;
+	self.batchBatteryInfo = nil;
+	return batch;
+}
+
+- (NSDictionary *)_resultForBatteryInfo:(NSDictionary *)batteryInfo target:(NSInteger)target allowEstimatedInputPower:(BOOL)allowEstimatedInputPower {
 	NSNumber *connected = JikanFeatureNumber(batteryInfo, @"ExternalConnected");
 	NSNumber *soc = JikanFeatureNumber(batteryInfo, @"CurrentCapacity");
 	double now = JikanMonotonicSeconds();
-	[self observeBatteryInfo:batteryInfo];
+	TT100ApplePrediction *cachedPrediction = self.predictions[@(target)];
 	if (!connected || !soc || !isfinite(now)) return [self _unavailable:@"missing_power_state"];
 	if (!connected.boolValue) return [self _unavailable:@"disconnected"];
 	if (!self.sessionValid) return [self _unavailable:@"unknown_connection_time"];
 	if (!JikanAppleTargetIsSupported(target)) return [self _unavailable:@"unsupported_target"];
 	if (soc.doubleValue >= target || [JikanFeatureNumber(batteryInfo, @"FullyCharged") boolValue]) {
-		self.predictedAt = 0;
+		cachedPrediction.predictedAt = 0;
 		return [self _unavailable:@"target_reached"];
 	}
 	if (now - self.connectionTime < 4.0) return [self _unavailable:@"waiting_for_first_prediction"];
 	NSNumber *charging = JikanFeatureNumber(batteryInfo, @"IsCharging");
 	if (!charging || !charging.boolValue) {
-		self.predictedAt = 0;
+		cachedPrediction.predictedAt = 0;
 		return [self _unavailable:@"paused"];
 	}
-	if (self.predictedTarget != target) self.predictedAt = 0;
 	NSDictionary *telemetry = batteryInfo[@"PowerTelemetryData"];
 	BOOL nativePowerPresent = [telemetry isKindOfClass:NSDictionary.class] && telemetry[@"SystemPowerIn"] != nil;
-	if (self.predictedAt > 0 && (![self.predictionAdapter isEqual:batteryInfo[@"AdapterDetails"]] || ([self.inputPowerSource isEqual:@"smc"] && nativePowerPresent) || ([self.inputPowerSource isEqual:@"native"] && !nativePowerPresent) || ([self.inputPowerSource isEqual:@"adapter_estimate"] && (!allowEstimatedInputPower || nativePowerPresent)))) self.predictedAt = 0;
-	if (self.predictedAt > 0 && now - self.predictedAt < 300.0) {
-		double remaining = self.predictedSeconds - (now - self.predictedAt);
-		if (isfinite(remaining) && remaining > 0) return @{@"status": @"available", @"seconds": @(remaining), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": self.inputPowerSource ?: @"native"};
-		self.predictedAt = 0;
+	if (cachedPrediction.predictedAt > 0 && (![cachedPrediction.predictionAdapter isEqual:batteryInfo[@"AdapterDetails"]] || ([cachedPrediction.inputPowerSource isEqual:@"smc"] && nativePowerPresent) || ([cachedPrediction.inputPowerSource isEqual:@"native"] && !nativePowerPresent) || ([cachedPrediction.inputPowerSource isEqual:@"adapter_estimate"] && (!allowEstimatedInputPower || nativePowerPresent)))) cachedPrediction.predictedAt = 0;
+	if (cachedPrediction.predictedAt > 0 && now - cachedPrediction.predictedAt < 300.0) {
+		double remaining = cachedPrediction.predictedSeconds - (now - cachedPrediction.predictedAt);
+		if (isfinite(remaining) && remaining > 0) return @{@"status": @"available", @"seconds": @(remaining), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": cachedPrediction.inputPowerSource ?: @"native"};
+		cachedPrediction.predictedAt = 0;
 	}
 	NSString *failure = nil;
 	NSArray<NSString *> *missingFeatures = nil;
@@ -184,9 +214,13 @@ static NSString *JikanSHA256(NSString *path) {
 		if (!JikanCanMeasureWiredInputPower(batteryInfo) && !allowEstimatedInputPower) return [self _unavailable:@"input_power_unsupported_path"];
 	}
 	if (!features && [failure isEqualToString:@"missing_input_power"] && JikanCanMeasureWiredInputPower(batteryInfo)) {
-		NSDictionary *sample = [TT100InputPowerProvider readSample];
-		batteryInfo = [TT100BatteryProvider fetchBatteryInfo];
-		[self observeBatteryInfo:batteryInfo];
+		if (!self.batchInputSample) {
+			self.batchInputSample = [TT100InputPowerProvider readSample];
+			self.batchBatteryInfo = [TT100BatteryProvider fetchBatteryInfo];
+			[self observeBatteryInfo:self.batchBatteryInfo];
+		}
+		NSDictionary *sample = self.batchInputSample;
+		batteryInfo = self.batchBatteryInfo;
 		if (!JikanFeatureNumber(batteryInfo, @"ExternalConnected") || !JikanFeatureNumber(batteryInfo, @"IsCharging")) return [self _unavailable:@"missing_power_state"];
 		if (![batteryInfo[@"ExternalConnected"] boolValue]) return [self _unavailable:@"disconnected"];
 		if ([JikanFeatureNumber(batteryInfo, @"CurrentCapacity") doubleValue] >= target || [batteryInfo[@"FullyCharged"] boolValue]) return [self _unavailable:@"target_reached"];
@@ -235,11 +269,10 @@ static NSString *JikanSHA256(NSString *path) {
 	double hours = [output[0] doubleValue];
 	double seconds = hours * 3600.0 + (target == 80 ? 0.0 : 300.0);
 	if (!isfinite(seconds) || seconds <= 0 || seconds > INT_MAX) return [self _unavailable:@"invalid_prediction"];
-	self.predictedAt = JikanMonotonicSeconds();
-	self.predictedSeconds = seconds;
-	self.predictedTarget = target;
-	self.inputPowerSource = inputPowerSource;
-	self.predictionAdapter = batteryInfo[@"AdapterDetails"];
+	cachedPrediction.predictedAt = JikanMonotonicSeconds();
+	cachedPrediction.predictedSeconds = seconds;
+	cachedPrediction.inputPowerSource = inputPowerSource;
+	cachedPrediction.predictionAdapter = batteryInfo[@"AdapterDetails"];
 	return @{@"status": @"available", @"seconds": @(seconds), @"revision": JikanModelRevision, @"session": @(self.sessionNumber), @"sessionStartEstimated": @(self.sessionStartEstimated), @"inputPowerSource": inputPowerSource};
 }
 

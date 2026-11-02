@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import <BulletinBoard/BBServer.h>
 #import <IOKit/IOKitLib.h>
 #import <SpringBoard/SpringBoard.h>
 #import <UIKit/UIKit.h>
@@ -18,9 +19,6 @@
 #import "JikanTargetNotification/JikanTargetNotification.h"
 #import "JikanUnlockTextVisibility/JikanUnlockTextVisibility.h"
 #import "TT100/TT100.h"
-
-@interface BBServer : NSObject
-@end
 
 @interface BBDataProviderConnection : NSObject
 @end

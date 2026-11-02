@@ -16,6 +16,7 @@
 "jikan.platter.label.battery_voltage" = "pil voltajı";
 "jikan.platter.label.charged" = "şarj oldu";
 "jikan.platter.label.current_wattage" = "anlık güç";
+"jikan.platter.label.target_reached" = "hedefe ulaşıldı";
 "jikan.platter.label.until_fully_charged" = "tam şarja kadar";
 "jikan.platter.label.until_target" = "%ld%% şarj olana kadar";
 
@@ -97,7 +98,9 @@
 "jikan.prefs.slider.portrait_x.title" = "Dikey X";
 "jikan.prefs.slider.portrait_y.title" = "Dikey Y";
 
+"jikan.stack.action.add_estimate" = "Tahmin Ekle";
 "jikan.stack.item.estimate" = "Tahmini Süre";
+"jikan.stack.item.estimate_target" = "%ld%% için tahmin";
 "jikan.stack.item.temperature" = "Sıcaklık";
 "jikan.stack.item.voltage" = "Voltaj";
 "jikan.stack.item.wattage" = "Güç";
@@ -106,6 +109,11 @@
 "jikan.stack.section.available" = "Kullanılabilir";
 "jikan.stack.section.unit" = "Sıcaklık Birimi";
 
+"jikan.stack.target.duplicate" = "Bu hedef ana tahminde veya başka bir Stack tahmininde zaten kullanılıyor.";
+"jikan.stack.target.hint" = "Bu tahmin için farklı bir hedef seçin. Gösterilen hedefe ulaşıldığında gösterge, henüz ulaşılmamış bir sonraki yüksek hedefe geçer.";
+"jikan.stack.target.main" = "Ana hedef: %ld%%";
+"jikan.stack.target.unique" = "Kullanılmayan bir hedef girin. Apple tahminleri 80, 85, 90, 95 ve 100% değerlerini destekler. Jikan tahminleri 1–100% değerlerini destekler.";
+"jikan.stack.target.unsupported" = "Apple tahminlerinde %ld%% kullanılamaz";
 "jikan.stack.unit.celsius" = "Celsius";
 "jikan.stack.unit.fahrenheit" = "Fahrenheit";
 

@@ -2,6 +2,7 @@
 #import <Foundation/Foundation.h>
 #import <dlfcn.h>
 #import <math.h>
+#import "JikanStackItem.h"
 
 FOUNDATION_EXPORT NSString *const JikanStackItemsKey;
 FOUNDATION_EXPORT NSString *const JikanTemperatureUnitKey;
@@ -10,8 +11,14 @@ FOUNDATION_EXPORT NSString *const JikanStackWattage;
 FOUNDATION_EXPORT NSString *const JikanStackTemperature;
 FOUNDATION_EXPORT NSString *const JikanStackVoltage;
 
-FOUNDATION_EXPORT NSArray<NSString *> *JikanStackItems(NSUserDefaults *preferences);
-FOUNDATION_EXPORT NSArray<NSString *> *JikanNormalizeStackItems(id value);
+FOUNDATION_EXPORT NSArray<JikanStackItem *> *JikanStackItems(NSUserDefaults *preferences);
+FOUNDATION_EXPORT NSArray<JikanStackItem *> *JikanNormalizeStackItems(id value);
+FOUNDATION_EXPORT NSArray<NSDictionary *> *JikanStackPropertyList(NSArray<JikanStackItem *> *items);
+FOUNDATION_EXPORT NSArray<JikanStackItem *> *JikanEffectiveStackItems(NSArray<JikanStackItem *> *items, NSInteger mainTarget);
+FOUNDATION_EXPORT NSArray<NSNumber *> *JikanStackTargets(NSArray<JikanStackItem *> *items, NSInteger mainTarget);
+FOUNDATION_EXPORT NSArray<NSNumber *> *JikanAvailableStackTargets(NSArray<JikanStackItem *> *items, NSInteger mainTarget, NSString *source, NSString *editingIdentifier);
+FOUNDATION_EXPORT NSString *JikanStackItemName(JikanStackItem *item, NSInteger mainTarget);
+
 FOUNDATION_EXPORT NSString *JikanTemperatureUnit(NSUserDefaults *preferences);
 FOUNDATION_EXPORT NSString *JikanResolvedTemperatureUnit(NSUserDefaults *preferences);
 FOUNDATION_EXPORT NSString *JikanResolveTemperatureUnit(NSString *choice);

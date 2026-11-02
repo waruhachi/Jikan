@@ -16,6 +16,7 @@
 "jikan.platter.label.battery_voltage" = "batterispänning";
 "jikan.platter.label.charged" = "laddad";
 "jikan.platter.label.current_wattage" = "Aktuell effekt";
+"jikan.platter.label.target_reached" = "målet har nåtts";
 "jikan.platter.label.until_fully_charged" = "till full laddning";
 "jikan.platter.label.until_target" = "tills %ld%% laddat";
 
@@ -97,7 +98,9 @@
 "jikan.prefs.slider.portrait_x.title" = "Porträtt X";
 "jikan.prefs.slider.portrait_y.title" = "Porträtt Y";
 
+"jikan.stack.action.add_estimate" = "Lägg till uppskattning";
 "jikan.stack.item.estimate" = "Beräknad tid";
+"jikan.stack.item.estimate_target" = "Uppskattning till %ld%%";
 "jikan.stack.item.temperature" = "Temperatur";
 "jikan.stack.item.voltage" = "Spänning";
 "jikan.stack.item.wattage" = "Effekt";
@@ -106,6 +109,11 @@
 "jikan.stack.section.available" = "Tillgängliga";
 "jikan.stack.section.unit" = "Temperaturenhet";
 
+"jikan.stack.target.duplicate" = "Det här målet används redan av huvuduppskattningen eller en annan uppskattning i Stack.";
+"jikan.stack.target.hint" = "Välj ett annat mål för den här uppskattningen. När det visade målet nås växlar pillret till nästa högre mål som inte har nåtts.";
+"jikan.stack.target.main" = "Huvudmål: %ld%%";
+"jikan.stack.target.unique" = "Ange ett mål som inte redan används. Apples uppskattningar stöder 80, 85, 90, 95 och 100%. Jikans uppskattningar stöder 1–100%.";
+"jikan.stack.target.unsupported" = "%ld%% är inte tillgängligt med Apples uppskattningar";
 "jikan.stack.unit.celsius" = "Celsius";
 "jikan.stack.unit.fahrenheit" = "Fahrenheit";
 

@@ -3,6 +3,7 @@
 
 #import "../../Localization/JikanLocalization.h"
 #import "JikanPresentationSettings.h"
+#import "JikanTargetEstimate.h"
 
 @interface JikanBatterySnapshot : NSObject
 @property (nonatomic, copy, readonly) NSDictionary *dictionary;
@@ -19,6 +20,11 @@
 @property (nonatomic, readonly) BOOL fullyCharged;
 @property (nonatomic, readonly) NSInteger displayPercent;
 @property (nonatomic, readonly) NSInteger targetPercent;
+@property (nonatomic, copy, readonly) NSDictionary<NSNumber *, JikanTargetEstimate *> *estimatesByTarget;
+@property (nonatomic, readonly) BOOL hasUnfinishedTarget;
+@property (nonatomic, copy, readonly) NSSet<NSNumber *> *completedTargets;
+@property (nonatomic, readonly) BOOL hasAnyEstimate;
+@property (nonatomic, readonly) BOOL hasUnavailableAppleTarget;
 - (instancetype)initWithDictionary:(NSDictionary *)dictionary settings:(JikanPresentationSettings *)settings;
 - (JikanBatterySnapshot *)snapshotWithoutEstimateForSettings:(JikanPresentationSettings *)settings;
 @end

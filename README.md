@@ -34,7 +34,9 @@ Read [how Jikan estimates charging time](docs/charging-estimates.md), including 
 
 ## Build your Stack
 
-Estimated Time is always included. Add wattage, battery temperature, or battery voltage and arrange the optional readings in your preferred order. Tap the pill to cycle through them.
+Estimated Time is always included and follows the main target in Settings. Add estimates for other charge targets, wattage, battery temperature, or battery voltage, then arrange the optional readings in your preferred order. Tap the pill to cycle through them.
+
+When the displayed estimate reaches its target, the pill advances to the next higher unfinished target. Other readings stay selected, and completed targets remain available when cycling manually. The pill stays available while a higher target remains unfinished. The date-row estimate and target notification continue to follow the main target.
 
 ## Appearance and placement
 

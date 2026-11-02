@@ -18,11 +18,12 @@
 		double percent = [opacity respondsToSelector:@selector(doubleValue)] ? [opacity doubleValue] : 100.0;
 		_backgroundOpacity = isfinite(percent) ? MAX(0.0, MIN(100.0, percent)) / 100.0 : 1.0;
 		_appearance = [JikanPillAppearance(preferences) copy];
-		_stackItems = [[NSArray alloc] initWithArray:JikanStackItems(preferences) copyItems:YES];
 		_temperatureUnit = [JikanTemperatureUnit(preferences) copy];
 		_estimateSource = [JikanEstimateSource(preferences) copy];
 		_allowEstimatedAppleInputPower = [preferences boolForKey:JikanEstimateAppleEstimatedPowerKey];
 		_targetPercent = JikanEstimateTarget(preferences, _estimateSource);
+		_stackItems = JikanEffectiveStackItems(JikanStackItems(preferences), _targetPercent);
+		_estimateTargets = JikanStackTargets(_stackItems, _targetPercent);
 		_portraitPosition = JikanReadPillPosition(preferences, NO);
 		_landscapePosition = JikanReadPillPosition(preferences, YES);
 	}
@@ -43,6 +44,7 @@
 	settings->_backgroundOpacity = _backgroundOpacity;
 	settings->_appearance = _appearance;
 	settings->_stackItems = _stackItems;
+	settings->_estimateTargets = _estimateTargets;
 	settings->_temperatureUnit = _temperatureUnit;
 	settings->_estimateSource = _estimateSource;
 	settings->_allowEstimatedAppleInputPower = _allowEstimatedAppleInputPower;

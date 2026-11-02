@@ -1,4 +1,6 @@
 #import "JikanStackSettings.h"
+#import "JikanEstimateSettings.h"
+#import "../Localization/JikanLocalization.h"
 
 NSString *const JikanStackItemsKey = @"stackItems";
 NSString *const JikanTemperatureUnitKey = @"temperatureUnit";
@@ -13,20 +15,78 @@ static NSNumber *JikanBatteryNumber(NSDictionary *batteryInfo, NSString *key) {
 	return value;
 }
 
-NSArray<NSString *> *JikanNormalizeStackItems(id value) {
-	NSMutableArray<NSString *> *result = [NSMutableArray arrayWithObject:JikanStackEstimate];
+NSArray<JikanStackItem *> *JikanNormalizeStackItems(id value) {
+	JikanStackItem *main = [[JikanStackItem alloc] initWithIdentifier:JikanStackEstimate type:JikanStackEstimate targetPercent:nil];
+	NSMutableArray<JikanStackItem *> *result = [NSMutableArray arrayWithObject:main];
 	if (![value isKindOfClass:NSArray.class]) return result;
-	NSSet<NSString *> *allowed = [NSSet setWithArray:@[JikanStackWattage, JikanStackTemperature, JikanStackVoltage]];
-	for (id item in (NSArray *)value) {
-		if ([item isKindOfClass:NSString.class] && [allowed containsObject:item] && ![result containsObject:item]) [result addObject:item];
+	NSSet *readings = [NSSet setWithArray:@[JikanStackWattage, JikanStackTemperature, JikanStackVoltage]];
+	NSMutableSet *identifiers = [NSMutableSet setWithObject:JikanStackEstimate];
+	NSMutableSet *targets = [NSMutableSet set];
+	for (id raw in (NSArray *)value) {
+		NSDictionary *entry = [raw isKindOfClass:JikanStackItem.class] ? [raw propertyList] : raw;
+		// Legacy configurations are arrays of built-in reading names.
+		if ([raw isKindOfClass:NSString.class]) entry = @{@"id": raw, @"type": raw};
+		if (![entry isKindOfClass:NSDictionary.class]) continue;
+		NSString *identifier = entry[@"id"], *type = entry[@"type"];
+		if (![identifier isKindOfClass:NSString.class] || !identifier.length || [identifiers containsObject:identifier]) continue;
+		NSNumber *target = nil;
+		if ([type isEqual:JikanStackEstimate]) {
+			id number = entry[@"target"];
+			if (![number isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)number) == CFBooleanGetTypeID()) continue;
+			double percent = [number doubleValue];
+			if (!isfinite(percent) || floor(percent) != percent || percent < 1 || percent > 100) continue;
+			target = @((NSInteger)percent);
+			if ([targets containsObject:target] || [readings containsObject:identifier]) continue;
+			[targets addObject:target];
+		} else if (![readings containsObject:type] || ![identifier isEqual:type]) continue;
+		[identifiers addObject:identifier];
+		[result addObject:[[JikanStackItem alloc] initWithIdentifier:identifier type:type targetPercent:target]];
 	}
-	return result;
+	return [result copy];
 }
 
-NSArray<NSString *> *JikanStackItems(NSUserDefaults *preferences) {
+NSArray<JikanStackItem *> *JikanStackItems(NSUserDefaults *preferences) {
 	id saved = [preferences objectForKey:JikanStackItemsKey];
 	if (saved) return JikanNormalizeStackItems(saved);
-	return [preferences boolForKey:@"tapToShowWattage"] ? @[JikanStackEstimate, JikanStackWattage] : @[JikanStackEstimate];
+	return JikanNormalizeStackItems([preferences boolForKey:@"tapToShowWattage"] ? @[JikanStackEstimate, JikanStackWattage] : @[JikanStackEstimate]);
+}
+
+NSArray<NSDictionary *> *JikanStackPropertyList(NSArray<JikanStackItem *> *items) {
+	NSMutableArray *values = [NSMutableArray array];
+	for (JikanStackItem *item in JikanNormalizeStackItems(items)) [values addObject:item.propertyList];
+	return [values copy];
+}
+
+NSArray<JikanStackItem *> *JikanEffectiveStackItems(NSArray<JikanStackItem *> *items, NSInteger mainTarget) {
+	NSMutableArray *effective = [NSMutableArray array];
+	for (JikanStackItem *item in items) {
+		if (!item.isMainEstimate && item.isEstimate && item.targetPercent.integerValue == mainTarget) continue;
+		[effective addObject:item];
+	}
+	return [effective copy];
+}
+
+NSArray<NSNumber *> *JikanStackTargets(NSArray<JikanStackItem *> *items, NSInteger mainTarget) {
+	NSMutableSet *targets = [NSMutableSet setWithObject:@(mainTarget)];
+	for (JikanStackItem *item in items) if (item.isEstimate) [targets addObject:@([item targetForMainTarget:mainTarget])];
+	return [[targets allObjects] sortedArrayUsingSelector:@selector(compare:)];
+}
+
+NSArray<NSNumber *> *JikanAvailableStackTargets(NSArray<JikanStackItem *> *items, NSInteger mainTarget, NSString *source, NSString *editingIdentifier) {
+	NSMutableSet *used = [NSMutableSet setWithObject:@(mainTarget)];
+	for (JikanStackItem *item in items) if (item.isEstimate && ![item.identifier isEqual:editingIdentifier]) [used addObject:@([item targetForMainTarget:mainTarget])];
+	NSMutableArray *available = [NSMutableArray array];
+	BOOL apple = [source isEqualToString:@"apple"];
+	for (NSInteger target = apple ? 80 : 1; target <= 100; target += apple ? 5 : 1) if (![used containsObject:@(target)]) [available addObject:@(target)];
+	return [available copy];
+}
+
+NSString *JikanStackItemName(JikanStackItem *item, NSInteger mainTarget) {
+	if (item.isMainEstimate) return JikanLocalizedString(@"jikan.stack.item.estimate", @"Estimated Time");
+	if (item.isEstimate) return [NSString stringWithFormat:JikanLocalizedString(@"jikan.stack.item.estimate_target", @"Estimate to %ld%%"), (long)[item targetForMainTarget:mainTarget]];
+	if ([item.type isEqual:JikanStackWattage]) return JikanLocalizedString(@"jikan.stack.item.wattage", @"Wattage");
+	if ([item.type isEqual:JikanStackTemperature]) return JikanLocalizedString(@"jikan.stack.item.temperature", @"Temperature");
+	return JikanLocalizedString(@"jikan.stack.item.voltage", @"Voltage");
 }
 
 NSString *JikanTemperatureUnit(NSUserDefaults *preferences) {

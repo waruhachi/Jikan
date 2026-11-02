@@ -140,7 +140,9 @@ static void TT100PowerChanged(void *context) {
 			NSInteger target = presentation.settings.targetPercent;
 			if (!tt100AppleEstimator) tt100AppleEstimator = [TT100AppleEstimator new];
 			[tt100AppleEstimator observeBatteryInfo:batteryInfo];
-			NSDictionary *appleResult = [source isEqualToString:@"apple"] ? [tt100AppleEstimator resultForBatteryInfo:batteryInfo target:target allowEstimatedInputPower:presentation.settings.allowEstimatedAppleInputPower] : nil;
+			NSDictionary *appleBatch = [source isEqualToString:@"apple"] ? [tt100AppleEstimator resultsForBatteryInfo:batteryInfo targets:presentation.settings.estimateTargets allowEstimatedInputPower:presentation.settings.allowEstimatedAppleInputPower] : nil;
+			batteryInfo = appleBatch[@"batteryInfo"] ?: batteryInfo;
+			NSDictionary *appleResult = appleBatch[@"results"][@(target).stringValue];
 			if (appleResult && (![appleResult[@"status"] isEqualToString:tt100LastAppleStatus] || tt100LastAppleTarget != target || tt100LastAppleSession != [appleResult[@"session"] integerValue])) {
 				tt100LastAppleStatus = appleResult[@"status"];
 				tt100LastAppleTarget = target;
@@ -149,15 +151,27 @@ static void TT100PowerChanged(void *context) {
 			} else if (!appleResult) {
 				tt100LastAppleStatus = nil;
 			}
-			BOOL hasEstimate = appleResult ? [appleResult[@"status"] isEqualToString:@"available"] : NO;
-			double remainingSeconds = appleResult ? [appleResult[@"seconds"] doubleValue] : [TT100HistoryEstimator estimatedSecondsWithBatteryInfo:batteryInfo targetPercent:target];
-			NSString *timeString = [TT100HistoryEstimator formattedTimeForSeconds:remainingSeconds];
-			if (hasEstimate && [appleResult[@"inputPowerSource"] isEqualToString:@"adapter_estimate"]) timeString = [@"≈ " stringByAppendingString:timeString];
-			if (!appleResult) hasEstimate = ![timeString isEqualToString:JikanLocalizedString(@"jikan.tt100.value.na", @"N/A")];
 			NSInteger percent = 0;
 			BOOL fullyCharged = [TT100 isFullyChargedWithBatteryInfo:batteryInfo displayPercent:&percent];
-			double targetSOC = [source isEqualToString:@"apple"] ? TT100Number(batteryInfo, @"CurrentCapacity").doubleValue : [TT100BatteryProvider displaySOCWithBatteryInfo:batteryInfo];
-			BOOL targetReached = fullyCharged || (isfinite(targetSOC) && targetSOC >= target);
+			NSNumber *appleSOC = TT100Number(batteryInfo, @"CurrentCapacity");
+			double targetSOC = [source isEqualToString:@"apple"] ? (appleSOC ? appleSOC.doubleValue : NAN) : [TT100BatteryProvider displaySOCWithBatteryInfo:batteryInfo];
+			NSDictionary *historySeconds = appleBatch ? nil : [TT100HistoryEstimator estimatedSecondsWithBatteryInfo:batteryInfo targets:presentation.settings.estimateTargets];
+			NSMutableDictionary *targetEstimates = [NSMutableDictionary dictionary];
+			for (NSNumber *configuredTarget in presentation.settings.estimateTargets) {
+				NSInteger value = configuredTarget.integerValue;
+				NSDictionary *result = appleBatch[@"results"][configuredTarget.stringValue];
+				double seconds = result ? [result[@"seconds"] doubleValue] : [historySeconds[configuredTarget.stringValue] doubleValue];
+				NSString *text = [TT100HistoryEstimator formattedTimeForSeconds:seconds];
+				BOOL available = result ? [result[@"status"] isEqualToString:@"available"] : isfinite(seconds) && seconds > 0;
+				if (available && [result[@"inputPowerSource"] isEqualToString:@"adapter_estimate"]) text = [@"≈ " stringByAppendingString:text];
+				BOOL reached = fullyCharged || (isfinite(targetSOC) && targetSOC >= value);
+				targetEstimates[configuredTarget.stringValue] = @{@"timeString": text, @"remainingSeconds": @(isfinite(seconds) && seconds > 0 ? seconds : -1), @"hasEstimate": @(available && !reached), @"targetReached": @(reached), @"estimateStatus": result[@"status"] ?: (available ? @"available" : @"unavailable")};
+			}
+			NSDictionary *mainEstimate = targetEstimates[@(target).stringValue];
+			BOOL hasEstimate = [mainEstimate[@"hasEstimate"] boolValue];
+			double remainingSeconds = [mainEstimate[@"remainingSeconds"] doubleValue];
+			NSString *timeString = mainEstimate[@"timeString"];
+			BOOL targetReached = [mainEstimate[@"targetReached"] boolValue];
 			BOOL wireless = NO;
 			NSString *chargerClass = [TT100 chargerClassWithBatteryInfo:batteryInfo outIsWireless:&wireless];
 			NSDictionary *snapshot = @{
@@ -169,6 +183,7 @@ static void TT100PowerChanged(void *context) {
 				@"targetReached": @(targetReached),
 				@"displayPercent": @(percent),
 				@"targetPercent": @(target),
+				@"targetEstimates": [targetEstimates copy],
 				@"estimateSource": source,
 				@"estimateStatus": appleResult[@"status"] ?: (hasEstimate ? @"available" : @"unavailable"),
 				@"missingFeatures": appleResult[@"missingFeatures"] ?: @[],
@@ -184,7 +199,7 @@ static void TT100PowerChanged(void *context) {
 					BOOL published = [presentationStore publishBatteryDictionary:snapshot generation:presentation.estimateGeneration publisher:self];
 					if (published && tt100Monitoring && generation == tt100Generation) {
 						JikanRecordAppleEstimateStatus(snapshot);
-						if ([snapshot[@"estimateStatus"] isEqualToString:@"waiting_for_first_prediction"]) {
+						if ([[targetEstimates.allValues valueForKey:@"estimateStatus"] containsObject:@"waiting_for_first_prediction"]) {
 							dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 								if (tt100Monitoring && generation == tt100Generation) [self _refreshBatteryInfo];
 							});

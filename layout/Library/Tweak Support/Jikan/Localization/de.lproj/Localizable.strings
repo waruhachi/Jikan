@@ -16,6 +16,7 @@
 "jikan.platter.label.battery_voltage" = "Batteriespannung";
 "jikan.platter.label.charged" = "geladen";
 "jikan.platter.label.current_wattage" = "Ladeleistung";
+"jikan.platter.label.target_reached" = "Ziel erreicht";
 "jikan.platter.label.until_fully_charged" = "bis vollständig geladen";
 "jikan.platter.label.until_target" = "bis auf %ld%% geladen";
 
@@ -97,7 +98,9 @@
 "jikan.prefs.slider.portrait_x.title" = "Hochformat X-Position";
 "jikan.prefs.slider.portrait_y.title" = "Hochformat Y-Position";
 
+"jikan.stack.action.add_estimate" = "Schätzung hinzufügen";
 "jikan.stack.item.estimate" = "Geschätzte Dauer";
+"jikan.stack.item.estimate_target" = "Schätzung bis %ld%%";
 "jikan.stack.item.temperature" = "Temperatur";
 "jikan.stack.item.voltage" = "Spannung";
 "jikan.stack.item.wattage" = "Ladeleistung";
@@ -106,6 +109,11 @@
 "jikan.stack.section.available" = "Verfügbar";
 "jikan.stack.section.unit" = "Temperatureinheit";
 
+"jikan.stack.target.duplicate" = "Dieses Ziel wird bereits von der Hauptschätzung oder einer anderen Stack-Schätzung verwendet.";
+"jikan.stack.target.hint" = "Wähle ein anderes Ziel für diese Schätzung. Sobald das angezeigte Ziel erreicht ist, wechselt die Anzeige zum nächsten höheren, noch nicht erreichten Ziel.";
+"jikan.stack.target.main" = "Hauptziel: %ld%%";
+"jikan.stack.target.unique" = "Gib ein noch nicht verwendetes Ziel ein. Apple-Schätzungen unterstützen 80, 85, 90, 95 und 100%. Jikan-Schätzungen unterstützen 1–100%.";
+"jikan.stack.target.unsupported" = "%ld%% ist mit Apple-Schätzungen nicht verfügbar";
 "jikan.stack.unit.celsius" = "Celsius";
 "jikan.stack.unit.fahrenheit" = "Fahrenheit";
 
