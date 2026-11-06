@@ -329,7 +329,29 @@ static void TestFocusIndicator(void) {
 	CHECK(!store.state.shouldHideFocusIndicator);
 }
 
+static void TestSwipeToUnlockText(void) {
+	MemoryDefaults *prefs = [MemoryDefaults new];
+	[prefs setObject:@"jikan" forKey:JikanEstimateSourceKey];
+	[prefs setObject:@80 forKey:@"batteryEstimateTargetPercent"];
+	JikanPresentationStore *store = [[JikanPresentationStore alloc] initWithPreferences:prefs];
+	NSDictionary *pending = @{@"80": @{@"targetReached": @NO, @"hasEstimate": @YES, @"remainingSeconds": @600, @"timeString": @"10 min", @"estimateStatus": @"available"}};
+	CHECK(!store.state.shouldHideSwipeToUnlockText); // off by default
+	[prefs setObject:@YES forKey:@"hideSwipeToUnlockText"];
+	[store reloadPreferences];
+	CHECK(store.state.shouldHideSwipeToUnlockText);
+	[prefs setObject:@YES forKey:@"hideSwipeToUnlockTextOnlyWhenCharging"];
+	[store reloadPreferences];
+	CHECK(!store.state.shouldHideSwipeToUnlockText);
+	CHECK([store publishBatteryDictionary:Snapshot(Battery(50, YES), 80, pending, @"jikan") generation:store.state.estimateGeneration publisher:nil]);
+	CHECK(store.state.shouldHideSwipeToUnlockText);
+	CHECK([store publishBatteryDictionary:Snapshot(Battery(50, NO), 80, pending, @"jikan") generation:store.state.estimateGeneration publisher:nil]);
+	CHECK(!store.state.shouldHideSwipeToUnlockText);
+	[prefs setObject:@NO forKey:@"enabled"];
+	[store reloadPreferences];
+	CHECK(!store.state.shouldHideSwipeToUnlockText);
+}
+
 int main(void) { @autoreleasepool {
-	TestSettingsAndSelection(); TestPresentation(); TestFocusIndicator(); TestAppleCache(); TestHistoryBatch();
+	TestSettingsAndSelection(); TestPresentation(); TestFocusIndicator(); TestSwipeToUnlockText(); TestAppleCache(); TestHistoryBatch();
 	printf("Passed %lu Stack settings, selection, snapshot, and estimator-cache checks.\n", (unsigned long)checks);
 } return 0; }

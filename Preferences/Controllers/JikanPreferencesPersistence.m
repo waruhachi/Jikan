@@ -70,6 +70,7 @@ static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithCh
 		@"hideQuickActionButtons",
 		@"hideQuickActionButtonsOnlyWhenCharging",
 		@"hideSwipeToUnlockText",
+		@"hideSwipeToUnlockTextOnlyWhenCharging",
 		@"hideFocusIndicator",
 		@"hideFocusIndicatorOnlyWhenCharging",
 		@"showRemainingBatteryTime",

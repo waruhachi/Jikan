@@ -525,6 +525,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>hideSwipeToUnlockTextToggleID</string>
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
@@ -533,6 +535,24 @@
 			<string>hideSwipeToUnlockText</string>
 			<key>label</key>
 			<string>Hide Swipe to Unlock Text</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>hideSwipeToUnlockTextOnlyWhenCharging</string>
+			<key>id</key>
+			<string>hideSwipeToUnlockTextChargingOnlyToggleID</string>
+			<key>label</key>
+			<string>Only While Charging</string>
+			<key>height</key>
+			<real>44</real>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>

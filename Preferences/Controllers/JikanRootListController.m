@@ -33,6 +33,7 @@ static NSDictionary<NSString *, NSString *> *JikanChargingOnlySpecifierIDs(void)
 	return @{
 		@"hideQuickActionsToggleID": kQuickActionsChargingOnlySpecifierID,
 		@"hideFocusIndicatorToggleID": @"hideFocusIndicatorChargingOnlyToggleID",
+		@"hideSwipeToUnlockTextToggleID": @"hideSwipeToUnlockTextChargingOnlyToggleID",
 	};
 }
 @implementation JikanRootListController

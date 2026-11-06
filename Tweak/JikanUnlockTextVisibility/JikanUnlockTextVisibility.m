@@ -21,8 +21,7 @@
 	NSAssert(NSThread.isMainThread, @"Unlock instruction visibility belongs to the main thread");
 	[[self trackedLabels] addObject:label];
 	NSMapTable<UIView *, NSNumber *> *visibility = [self originalVisibility];
-	BOOL shouldHide = [JikanPresentationStore sharedInstance].state.settings.enabled &&
-		[JikanPresentationStore sharedInstance].state.settings.hideSwipeToUnlockText;
+	BOOL shouldHide = [JikanPresentationStore sharedInstance].state.shouldHideSwipeToUnlockText;
 	NSNumber *originalHidden = [visibility objectForKey:label];
 	if (shouldHide) {
 		if (!originalHidden) [visibility setObject:@(label.hidden) forKey:label];

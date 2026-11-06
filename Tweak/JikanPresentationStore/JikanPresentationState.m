@@ -21,6 +21,10 @@
 	return _settings.enabled && _settings.hideFocusIndicator && (!_settings.hideFocusIndicatorOnlyWhenCharging || _snapshot.externalPowerConnected);
 }
 
+- (BOOL)shouldHideSwipeToUnlockText {
+	return _settings.enabled && _settings.hideSwipeToUnlockText && (!_settings.hideSwipeToUnlockTextOnlyWhenCharging || _snapshot.externalPowerConnected);
+}
+
 - (BOOL)shouldShowPlatter {
 	return _settings.enabled && (_previewActive || (_snapshot.externalPowerConnected &&
 		(_snapshot.hasAnyEstimate || (_snapshot.targetReached && _snapshot.hasUnfinishedTarget) || _snapshot.hasUnavailableAppleTarget || (_settings.showAfterFullCharge && !_snapshot.hasUnfinishedTarget))));

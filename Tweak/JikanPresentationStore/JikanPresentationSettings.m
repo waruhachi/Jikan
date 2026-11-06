@@ -9,6 +9,7 @@
 		_hideQuickActionButtons = [preferences boolForKey:@"hideQuickActionButtons"];
 		_hideQuickActionButtonsOnlyWhenCharging = [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"];
 		_hideSwipeToUnlockText = [preferences boolForKey:@"hideSwipeToUnlockText"];
+		_hideSwipeToUnlockTextOnlyWhenCharging = [preferences boolForKey:@"hideSwipeToUnlockTextOnlyWhenCharging"];
 		_hideFocusIndicator = [preferences objectForKey:@"hideFocusIndicator"] ? [preferences boolForKey:@"hideFocusIndicator"] : YES;
 		_hideFocusIndicatorOnlyWhenCharging = [preferences boolForKey:@"hideFocusIndicatorOnlyWhenCharging"];
 		_showAfterFullCharge = [preferences boolForKey:@"showAfterFullCharge"];
@@ -39,6 +40,7 @@
 	settings->_hideQuickActionButtons = _hideQuickActionButtons;
 	settings->_hideQuickActionButtonsOnlyWhenCharging = _hideQuickActionButtonsOnlyWhenCharging;
 	settings->_hideSwipeToUnlockText = _hideSwipeToUnlockText;
+	settings->_hideSwipeToUnlockTextOnlyWhenCharging = _hideSwipeToUnlockTextOnlyWhenCharging;
 	settings->_hideFocusIndicator = _hideFocusIndicator;
 	settings->_hideFocusIndicatorOnlyWhenCharging = _hideFocusIndicatorOnlyWhenCharging;
 	settings->_showAfterFullCharge = _showAfterFullCharge;
