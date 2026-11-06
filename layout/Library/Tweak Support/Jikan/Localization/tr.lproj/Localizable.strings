@@ -28,7 +28,7 @@
 "jikan.prefs.alert.detect_limit.single.message" = "Uygulanan pil sınırı: %ld%%";
 "jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter algılandı";
 "jikan.prefs.alert.detect_limit.unchanged.message" = "Hiçbir ChargeLimiter sınırı algılanamadı. Tahmin hedefiniz değiştirilmedi.";
-"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter %@@ bildiriyor. Apple hedefleri 80, 85, 90, 95 ve %100'dür. Hedefiniz değiştirilmedi.";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter %%%@ bildiriyor. Apple hedefleri 80, 85, 90, 95 ve %%100'dür. Hedefiniz değiştirilmedi.";
 "jikan.prefs.alert.detect_limit.unsupported.title" = "Desteklenmeyen Apple hedefi";
 "jikan.prefs.alert.limit_sources.applied.message" = "ChargeLimiter'dan son uygulanan: %ld%%";
 "jikan.prefs.alert.limit_sources.title" = "ChargeLimiter ile senkronize edildi";
