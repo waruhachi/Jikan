@@ -60,7 +60,7 @@ Tap Sync again whenever you change your limit. For limits outside Apple's preset
 
 ## Localization and open source
 
-Jikan includes English, German, Swedish, and Vietnamese. Contributions that add a language or improve a translation are welcome.
+Jikan includes English, German, Swedish, Turkish, and Vietnamese. Translations are managed on [Crowdin](https://crowdin.com/project/jikan), where you can improve an existing translation or request a new language without using Git.
 
 Jikan is open source under the [GNU GPLv3 license](LICENSE). You can explore the code, contribute improvements, or [report an issue](https://github.com/waruhachi/Jikan/issues).
 
