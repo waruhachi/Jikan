@@ -28,7 +28,7 @@
 "jikan.prefs.alert.detect_limit.single.message" = "Uygulanan pil sınırı: %ld%%";
 "jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter algılandı";
 "jikan.prefs.alert.detect_limit.unchanged.message" = "Hiçbir ChargeLimiter sınırı algılanamadı. Tahmin hedefiniz değiştirilmedi.";
-"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter %@@ bildiriyor. Apple hedefleri 80, 85, 90, 95 ve %100'dür. Hedefiniz değiştirilmedi.";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter %%%@ bildiriyor. Apple hedefleri 80, 85, 90, 95 ve %%100'dür. Hedefiniz değiştirilmedi.";
 "jikan.prefs.alert.detect_limit.unsupported.title" = "Desteklenmeyen Apple hedefi";
 "jikan.prefs.alert.limit_sources.applied.message" = "ChargeLimiter'dan son uygulanan: %ld%%";
 "jikan.prefs.alert.limit_sources.title" = "ChargeLimiter ile senkronize edildi";
@@ -115,14 +115,10 @@
 "jikan.stack.target.main" = "Ana hedef: %ld%%";
 "jikan.stack.target.unique" = "Kullanılmayan bir hedef girin. Apple tahminleri 80, 85, 90, 95 ve 100% değerlerini destekler. Jikan tahminleri 1–100% değerlerini destekler.";
 "jikan.stack.target.unsupported" = "Apple tahminlerinde %ld%% kullanılamaz";
-"jikan.stack.unit.celsius" = "Celsius";
-"jikan.stack.unit.fahrenheit" = "Fahrenheit";
 
 "jikan.tt100.format.hr" = "%d sa";
 "jikan.tt100.format.hr_min" = "%d sa %d dk";
 "jikan.tt100.format.lt1min" = "<1 dk";
 "jikan.tt100.format.min" = "%d dk";
-
-"jikan.tt100.value.na" = "N/A";
 
 "jikan.prefs.algorithm.checking" = "Apple girdilerinin kullanılabilirliği henüz doğrulanmadı. Jikan, cihaz şarj olurken kontrol eder; geçici olarak eksik okumalar daha önce doğrulanmış bir öneriyi değiştirmez.";
