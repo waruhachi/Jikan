@@ -1,5 +1,4 @@
 "jikan.common.action.cancel" = "Huỷ";
-"jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Lưu";
 
 "jikan.inline.format.hr" = "%ldg";
@@ -122,7 +121,5 @@
 "jikan.tt100.format.hr_min" = "%d giờ %d phút";
 "jikan.tt100.format.lt1min" = "<1 phút";
 "jikan.tt100.format.min" = "%d phút";
-
-"jikan.tt100.value.na" = "N/A";
 
 "jikan.prefs.algorithm.checking" = "Chưa xác nhận dữ liệu đầu vào cho mô hình Apple. Jikan kiểm tra khi thiết bị đang sạc; dữ liệu tạm thời bị thiếu không thay đổi đề xuất đã được xác nhận.";
