@@ -1,0 +1,3 @@
+files:
+  - source: /layout/Library/Tweak Support/Jikan/Localization/en.lproj/Localizable.strings
+    translation: /layout/Library/Tweak Support/Jikan/Localization/%osx_code%/Localizable.strings
