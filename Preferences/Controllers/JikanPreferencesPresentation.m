@@ -37,6 +37,7 @@
 			@"Sync with ChargeLimiter": @"jikan.prefs.row.sync_with_chargelimiter",
 			@"Hide Quick Action Buttons": @"jikan.prefs.row.hide_quick_action_buttons",
 			@"Hide Swipe to Unlock Text": @"jikan.prefs.row.hide_swipe_to_unlock_text",
+			@"Hide Focus Indicator": @"jikan.prefs.row.hide_focus_indicator",
 			@"Only While Charging": @"jikan.prefs.row.only_while_charging",
 			@"Reset": @"jikan.prefs.section.reset",
 			@"Reset Pill Position": @"jikan.prefs.row.reset_pill_position",

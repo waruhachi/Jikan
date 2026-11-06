@@ -1,6 +1,6 @@
 TWEAK_NAME = Jikan
 
-$(TWEAK_NAME)_FILES = $(TWEAK_NAME).x $(wildcard JikanCoverSheetCoordinator/*.m) $(wildcard JikanInlineEstimateAdapter/*.m) $(wildcard JikanPresentationStore/*.m) $(wildcard JikanPlatterView/*.m) $(wildcard JikanQuickActionAdapter/*.m) $(wildcard JikanSessionRecorder/*.m) $(wildcard JikanTargetNotification/*.m) $(wildcard JikanUnlockTextVisibility/*.m) $(wildcard TT100/*.m) $(wildcard ../Localization/*.m) $(wildcard ../Shared/*.m) $(wildcard ../Shared/JikanPillContentView/*.m)
+$(TWEAK_NAME)_FILES = $(TWEAK_NAME).x $(wildcard JikanCoverSheetCoordinator/*.m) $(wildcard JikanInlineEstimateAdapter/*.m) $(wildcard JikanPresentationStore/*.m) $(wildcard JikanPlatterView/*.m) $(wildcard JikanQuickActionAdapter/*.m) $(wildcard JikanSessionRecorder/*.m) $(wildcard JikanTargetNotification/*.m) $(wildcard JikanUnlockTextVisibility/*.m) $(wildcard JikanFocusIndicatorVisibility/*.m) $(wildcard TT100/*.m) $(wildcard ../Localization/*.m) $(wildcard ../Shared/*.m) $(wildcard ../Shared/JikanPillContentView/*.m)
 $(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation IOKit CoreML
 $(TWEAK_NAME)_PRIVATE_FRAMEWORKS = BulletinBoard
 $(TWEAK_NAME)_LIBRARIES += sqlite3

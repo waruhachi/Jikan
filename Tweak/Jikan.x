@@ -89,6 +89,7 @@ static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFS
 		NSDictionary *lastBatteryInfo = _ttPresentationStore.state.snapshot.batteryInfo;
 		[TT100 preferencesDidChange];
 		[JikanUnlockTextVisibility refreshTrackedLabels];
+		[JikanFocusIndicatorVisibility refreshTrackedViews];
 		TTApplyEnabledState(lastBatteryInfo);
 	});
 }
@@ -135,6 +136,19 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 - (void)layoutSubviews {
 	%orig;
 	[JikanUnlockTextVisibility updateLegacyLabel:self];
+}
+%end
+%end
+
+%group JikanFocusIndicator
+%hook NCNotificationListCountIndicatorView
+- (void)setHidden:(BOOL)hidden {
+	%orig([JikanFocusIndicatorVisibility hiddenValueForView:self requested:hidden]);
+}
+
+- (void)didMoveToWindow {
+	%orig;
+	[JikanFocusIndicatorVisibility updateView:self];
 }
 %end
 %end
@@ -294,6 +308,8 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 	Class legacyUnlockClass = NSClassFromString(@"SBUICallToActionLabel");
 	if ([legacyUnlockClass instancesRespondToSelector:@selector(layoutSubviews)] &&
 		[legacyUnlockClass instancesRespondToSelector:@selector(didMoveToWindow)]) %init(JikanLegacyUnlockText);
+	Class focusIndicatorClass = NSClassFromString(@"NCNotificationListCountIndicatorView");
+	if ([focusIndicatorClass isSubclassOfClass:UIView.class]) %init(JikanFocusIndicator);
 	Class visibilityClass = [JikanQuickActionAdapter visibilityControlClass];
 	if (visibilityClass) {
 		%init(JikanQuickActionVisibility, JikanQuickActionControl = visibilityClass);

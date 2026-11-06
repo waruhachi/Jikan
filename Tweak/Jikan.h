@@ -11,6 +11,7 @@
 #import "../Shared/JikanPositionSettings.h"
 #import "../Shared/JikanPreferences.h"
 #import "JikanCoverSheetCoordinator/JikanCoverSheetCoordinator.h"
+#import "JikanFocusIndicatorVisibility/JikanFocusIndicatorVisibility.h"
 #import "JikanInlineEstimateAdapter/JikanInlineEstimateAdapter.h"
 #import "JikanPresentationStore/JikanPresentationStore.h"
 #import "JikanQuickActionAdapter/JikanQuickActionAdapter.h"
@@ -30,6 +31,9 @@
 @end
 
 @interface SBUICallToActionLabel : UIView
+@end
+
+@interface NCNotificationListCountIndicatorView : UIView
 @end
 
 @interface CSQuickActionsView : UIView
