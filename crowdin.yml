@@ -1,3 +1,7 @@
+pull_request_title: "chore: update translations"
+commit_message: "chore: update %language% translations"
+append_commit_message: false
+
 files:
   - source: /layout/Library/Tweak Support/Jikan/Localization/en.lproj/Localizable.strings
     translation: /layout/Library/Tweak Support/Jikan/Localization/%osx_code%/Localizable.strings
