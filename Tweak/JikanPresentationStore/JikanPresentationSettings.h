@@ -13,6 +13,7 @@
 @property (nonatomic, readonly) BOOL hideQuickActionButtonsOnlyWhenCharging;
 @property (nonatomic, readonly) BOOL hideSwipeToUnlockText;
 @property (nonatomic, readonly) BOOL hideFocusIndicator;
+@property (nonatomic, readonly) BOOL hideFocusIndicatorOnlyWhenCharging;
 @property (nonatomic, readonly) BOOL showAfterFullCharge;
 @property (nonatomic, readonly) BOOL notifyWhenTargetReached;
 @property (nonatomic, readonly) BOOL showEstimateBesideDate;

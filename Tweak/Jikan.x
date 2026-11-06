@@ -89,7 +89,6 @@ static void TTPrefsDidChange(CFNotificationCenterRef center, void *observer, CFS
 		NSDictionary *lastBatteryInfo = _ttPresentationStore.state.snapshot.batteryInfo;
 		[TT100 preferencesDidChange];
 		[JikanUnlockTextVisibility refreshTrackedLabels];
-		[JikanFocusIndicatorVisibility refreshTrackedViews];
 		TTApplyEnabledState(lastBatteryInfo);
 	});
 }
@@ -317,6 +316,8 @@ static void TTApplyEnabledState(NSDictionary *lastBatteryInfo) {
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTPrefsDidChange, (__bridge CFStringRef)JikanPreferencesReloadNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	[[NSNotificationCenter defaultCenter] addObserverForName:JikanPresentationStateDidChangeNotification object:_ttPresentationStore queue:[NSOperationQueue mainQueue] usingBlock:^(__unused NSNotification *note) {
 		[_ttTargetNotification updateWithState:_ttPresentationStore.state];
+		// Covers preference reloads and charger connect/disconnect.
+		[JikanFocusIndicatorVisibility refreshTrackedViews];
 	}];
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, TTNCPreviewRequestReceived, (__bridge CFStringRef)JikanPreviewRequestNotification, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 	[[NSNotificationCenter defaultCenter] addObserverForName:TT100InternalDidRefreshBatteryInfoNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *note) {

@@ -49,7 +49,7 @@ When the displayed estimate reaches its target, the pill advances to the next hi
 - See a yellow charging indicator when charging is slow.
 - Keep the charged state visible after reaching your selected percentage.
 - Hide the Lock Screen quick action buttons always or only while charging.
-- Hide the Focus and notification count text, which can overlap the pill.
+- Hide the Focus and notification count text, which can overlap the pill, always or only while charging.
 
 ## ChargeLimiter integration
 

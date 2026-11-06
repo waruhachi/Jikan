@@ -10,6 +10,7 @@
 		_hideQuickActionButtonsOnlyWhenCharging = [preferences boolForKey:@"hideQuickActionButtonsOnlyWhenCharging"];
 		_hideSwipeToUnlockText = [preferences boolForKey:@"hideSwipeToUnlockText"];
 		_hideFocusIndicator = [preferences objectForKey:@"hideFocusIndicator"] ? [preferences boolForKey:@"hideFocusIndicator"] : YES;
+		_hideFocusIndicatorOnlyWhenCharging = [preferences boolForKey:@"hideFocusIndicatorOnlyWhenCharging"];
 		_showAfterFullCharge = [preferences boolForKey:@"showAfterFullCharge"];
 		_notifyWhenTargetReached = [preferences boolForKey:@"notifyWhenTargetReached"];
 		_showEstimateBesideDate = [preferences boolForKey:JikanEstimateBesideDateKey];
@@ -39,6 +40,7 @@
 	settings->_hideQuickActionButtonsOnlyWhenCharging = _hideQuickActionButtonsOnlyWhenCharging;
 	settings->_hideSwipeToUnlockText = _hideSwipeToUnlockText;
 	settings->_hideFocusIndicator = _hideFocusIndicator;
+	settings->_hideFocusIndicatorOnlyWhenCharging = _hideFocusIndicatorOnlyWhenCharging;
 	settings->_showAfterFullCharge = _showAfterFullCharge;
 	settings->_notifyWhenTargetReached = _notifyWhenTargetReached;
 	settings->_showEstimateBesideDate = _showEstimateBesideDate;

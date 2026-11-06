@@ -301,7 +301,35 @@ static void TestAppleCache(void) {
 	helperPowerAvailable = YES;
 
 }
+static void TestFocusIndicator(void) {
+	MemoryDefaults *prefs = [MemoryDefaults new];
+	[prefs setObject:@"jikan" forKey:JikanEstimateSourceKey];
+	[prefs setObject:@80 forKey:@"batteryEstimateTargetPercent"];
+	JikanPresentationStore *store = [[JikanPresentationStore alloc] initWithPreferences:prefs];
+	NSDictionary *pending = @{@"80": @{@"targetReached": @NO, @"hasEstimate": @YES, @"remainingSeconds": @600, @"timeString": @"10 min", @"estimateStatus": @"available"}};
+	CHECK(store.state.settings.hideFocusIndicator); // on by default
+	CHECK(!store.state.settings.hideFocusIndicatorOnlyWhenCharging);
+	CHECK(store.state.shouldHideFocusIndicator);
+	[prefs setObject:@YES forKey:@"hideFocusIndicatorOnlyWhenCharging"];
+	[store reloadPreferences];
+	CHECK(!store.state.shouldHideFocusIndicator); // no snapshot: not charging
+	CHECK([store publishBatteryDictionary:Snapshot(Battery(50, YES), 80, pending, @"jikan") generation:store.state.estimateGeneration publisher:nil]);
+	CHECK(store.state.shouldHideFocusIndicator);
+	CHECK([store publishBatteryDictionary:Snapshot(Battery(50, NO), 80, pending, @"jikan") generation:store.state.estimateGeneration publisher:nil]);
+	CHECK(!store.state.shouldHideFocusIndicator);
+	[prefs setObject:@NO forKey:@"hideFocusIndicatorOnlyWhenCharging"];
+	[store reloadPreferences];
+	CHECK(store.state.shouldHideFocusIndicator);
+	[prefs setObject:@NO forKey:@"hideFocusIndicator"];
+	[store reloadPreferences];
+	CHECK(!store.state.shouldHideFocusIndicator);
+	[prefs setObject:@YES forKey:@"hideFocusIndicator"];
+	[prefs setObject:@NO forKey:@"enabled"];
+	[store reloadPreferences];
+	CHECK(!store.state.shouldHideFocusIndicator);
+}
+
 int main(void) { @autoreleasepool {
-	TestSettingsAndSelection(); TestPresentation(); TestAppleCache(); TestHistoryBatch();
+	TestSettingsAndSelection(); TestPresentation(); TestFocusIndicator(); TestAppleCache(); TestHistoryBatch();
 	printf("Passed %lu Stack settings, selection, snapshot, and estimator-cache checks.\n", (unsigned long)checks);
 } return 0; }

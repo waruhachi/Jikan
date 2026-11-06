@@ -17,6 +17,10 @@
 	return _settings.enabled && _settings.hideQuickActionButtons && (!_settings.hideQuickActionButtonsOnlyWhenCharging || _snapshot.externalPowerConnected);
 }
 
+- (BOOL)shouldHideFocusIndicator {
+	return _settings.enabled && _settings.hideFocusIndicator && (!_settings.hideFocusIndicatorOnlyWhenCharging || _snapshot.externalPowerConnected);
+}
+
 - (BOOL)shouldShowPlatter {
 	return _settings.enabled && (_previewActive || (_snapshot.externalPowerConnected &&
 		(_snapshot.hasAnyEstimate || (_snapshot.targetReached && _snapshot.hasUnfinishedTarget) || _snapshot.hasUnavailableAppleTarget || (_settings.showAfterFullCharge && !_snapshot.hasUnfinishedTarget))));

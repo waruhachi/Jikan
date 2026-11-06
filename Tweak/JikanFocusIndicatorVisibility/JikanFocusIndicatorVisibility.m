@@ -11,8 +11,7 @@
 }
 
 + (BOOL)shouldHide {
-	JikanPresentationSettings *settings = [JikanPresentationStore sharedInstance].state.settings;
-	return settings.enabled && settings.hideFocusIndicator;
+	return [JikanPresentationStore sharedInstance].state.shouldHideFocusIndicator;
 }
 
 + (BOOL)hiddenValueForView:(UIView *)view requested:(BOOL)hidden {

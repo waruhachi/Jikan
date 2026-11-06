@@ -19,7 +19,7 @@
 @property (nonatomic, copy) NSString *jikanDetectionSource;
 @property (nonatomic, assign) NSInteger jikanDetectionTarget;
 @property (nonatomic, strong) JikanSliderEditor *jikanSliderEditor;
-@property (nonatomic, strong) PSSpecifier *jikanQuickActionChargingSpecifier;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, PSSpecifier *> *jikanChargingOnlySpecifiers;
 @property (nonatomic, assign) BOOL jikanAnimatingQuickActionRow;
 @property (nonatomic, assign) NSUInteger jikanQuickActionAnimationGeneration;
 @end
@@ -27,6 +27,14 @@
 static NSString *const kBatteryEstimateTargetKey = @"batteryEstimateTargetPercent";
 static NSString *const kBatteryEstimateSyncedKey = @"batteryEstimateSyncedWithChargeLimiter";
 static NSString *const kQuickActionsChargingOnlySpecifierID = @"hideQuickActionsChargingOnlyToggleID";
+
+// Parent toggle ID -> "Only While Charging" child row shown only while the parent is on.
+static NSDictionary<NSString *, NSString *> *JikanChargingOnlySpecifierIDs(void) {
+	return @{
+		@"hideQuickActionsToggleID": kQuickActionsChargingOnlySpecifierID,
+		@"hideFocusIndicatorToggleID": @"hideFocusIndicatorChargingOnlyToggleID",
+	};
+}
 @implementation JikanRootListController
 
 static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
@@ -44,7 +52,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 		_specifiers = [self loadSpecifiersFromPlistName:@"Root" target:self];
 		[JikanPreferencesPresentation localizeSpecifiers:_specifiers];
 		[self _configureDeviceAvailability:_specifiers];
-		[self _filterQuickActionChargingSpecifier:_specifiers];
+		[self _filterChargingOnlySpecifiers:_specifiers];
 		[self _updateBatteryLimitInfoSpecifier];
 		[JikanPreferencesPresentation configureAxisSliderLeftImagesForController:self];
 		if (!self.jikanObservingPreferences) {
@@ -107,7 +115,8 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	if (![JikanPreferencesPersistence prepareValue:&value forKey:key preferences:prefs]) return;
 	[super setPreferenceValue:value specifier:specifier];
 	if ([key isEqualToString:JikanEstimateSourceKey]) [self _scheduleSpecifiersReload:YES];
-	if ([key isEqualToString:@"hideQuickActionButtons"]) [self _updateQuickActionChargingSpecifierAnimated];
+	NSString *identifier = [specifier propertyForKey:PSIDKey];
+	if (identifier && JikanChargingOnlySpecifierIDs()[identifier]) [self _updateChargingOnlySpecifierForParentID:identifier];
 }
 
 - (id)readPreferenceValue:(PSSpecifier *)specifier {
@@ -184,25 +193,28 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	}
 }
 
-- (void)_filterQuickActionChargingSpecifier:(NSMutableArray<PSSpecifier *> *)specifiers {
-	PSSpecifier *parent = nil;
-	PSSpecifier *child = nil;
+- (void)_filterChargingOnlySpecifiers:(NSMutableArray<PSSpecifier *> *)specifiers {
+	NSDictionary<NSString *, NSString *> *childIDs = JikanChargingOnlySpecifierIDs();
+	NSMutableDictionary<NSString *, PSSpecifier *> *byID = [NSMutableDictionary dictionary];
 	for (PSSpecifier *specifier in specifiers) {
 		NSString *identifier = [specifier propertyForKey:PSIDKey];
-		if ([identifier isEqualToString:@"hideQuickActionsToggleID"]) parent = specifier;
-		if ([identifier isEqualToString:kQuickActionsChargingOnlySpecifierID]) child = specifier;
+		if (identifier) byID[identifier] = specifier;
 	}
-	self.jikanQuickActionChargingSpecifier = child;
-	if (parent && child && [self _isQuickActionChargingOptionHiddenForParent:parent]) {
-		[specifiers removeObject:child];
-	}
+	self.jikanChargingOnlySpecifiers = [NSMutableDictionary dictionary];
+	[childIDs enumerateKeysAndObjectsUsingBlock:^(NSString *parentID, NSString *childID, __unused BOOL *stop) {
+		PSSpecifier *parent = byID[parentID];
+		PSSpecifier *child = byID[childID];
+		if (!child) return;
+		self.jikanChargingOnlySpecifiers[parentID] = child;
+		if (parent && [self _isChargingOnlyOptionHiddenForParent:parent]) [specifiers removeObject:child];
+	}];
 }
 
-- (void)_updateQuickActionChargingSpecifierAnimated {
-	PSSpecifier *parent = [self specifierForID:@"hideQuickActionsToggleID"];
-	PSSpecifier *child = self.jikanQuickActionChargingSpecifier;
+- (void)_updateChargingOnlySpecifierForParentID:(NSString *)parentID {
+	PSSpecifier *parent = [self specifierForID:parentID];
+	PSSpecifier *child = self.jikanChargingOnlySpecifiers[parentID];
 	if (!parent || !child) return;
-	BOOL hidden = [self _isQuickActionChargingOptionHiddenForParent:parent];
+	BOOL hidden = [self _isChargingOnlyOptionHiddenForParent:parent];
 	BOOL present = [self.specifiers containsObject:child];
 	if (hidden == !present) return;
 
@@ -223,7 +235,7 @@ static void JikanPrefsDidChange(CFNotificationCenterRef center, void *observer, 
 	[CATransaction commit];
 }
 
-- (BOOL)_isQuickActionChargingOptionHiddenForParent:(PSSpecifier *)parent {
+- (BOOL)_isChargingOnlyOptionHiddenForParent:(PSSpecifier *)parent {
 	id opposingValue = [self readPreferenceValue:parent];
 	// Preserve the existing comparisons for stored values without parsing a rule.
 	if ([opposingValue isKindOfClass:NSNumber.class]) {

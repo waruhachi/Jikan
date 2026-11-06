@@ -539,6 +539,8 @@
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>hideFocusIndicatorToggleID</string>
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
@@ -547,6 +549,24 @@
 			<string>hideFocusIndicator</string>
 			<key>label</key>
 			<string>Hide Focus Indicator</string>
+			<key>PostNotification</key>
+			<string>moe.waru.jikan.preferences.reload</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>moe.waru.jikan.preferences</string>
+			<key>key</key>
+			<string>hideFocusIndicatorOnlyWhenCharging</string>
+			<key>id</key>
+			<string>hideFocusIndicatorChargingOnlyToggleID</string>
+			<key>label</key>
+			<string>Only While Charging</string>
+			<key>height</key>
+			<real>44</real>
 			<key>PostNotification</key>
 			<string>moe.waru.jikan.preferences.reload</string>
 		</dict>
