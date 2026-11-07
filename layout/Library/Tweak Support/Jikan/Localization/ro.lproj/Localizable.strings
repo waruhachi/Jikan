@@ -1,0 +1,9 @@
+"jikan.common.action.cancel" = "Anulează";
+"jikan.common.action.ok" = "OK";
+"jikan.common.action.save" = "Salveazä";
+
+"jikan.inline.format.hr" = "%ldh";
+"jikan.inline.format.hr_min" = "%ldh %ldm";
+"jikan.inline.format.lt1min" = "<1m";
+"jikan.inline.format.min" = "%ldm";
+"jikan.inline.format.to_target" = "%@ la %ld%%";
