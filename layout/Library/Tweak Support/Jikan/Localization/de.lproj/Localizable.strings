@@ -1,5 +1,4 @@
 "jikan.common.action.cancel" = "Abbrechen";
-"jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Übernehmen";
 
 "jikan.inline.format.hr" = "%ld Std.";
@@ -115,14 +114,10 @@
 "jikan.stack.target.main" = "Hauptziel: %ld%%";
 "jikan.stack.target.unique" = "Gib ein noch nicht verwendetes Ziel ein. Apple-Schätzungen unterstützen 80, 85, 90, 95 und 100%. Jikan-Schätzungen unterstützen 1–100%.";
 "jikan.stack.target.unsupported" = "%ld%% ist mit Apple-Schätzungen nicht verfügbar";
-"jikan.stack.unit.celsius" = "Celsius";
-"jikan.stack.unit.fahrenheit" = "Fahrenheit";
 
 "jikan.tt100.format.hr" = "%d Stunden";
 "jikan.tt100.format.hr_min" = "%d St. %d Min.";
 "jikan.tt100.format.lt1min" = "<1 Minute";
 "jikan.tt100.format.min" = "%d Minuten";
-
-"jikan.tt100.value.na" = "N/A";
 
 "jikan.prefs.algorithm.checking" = "Die Verfügbarkeit der Apple-Eingaben wurde noch nicht bestätigt. Jikan prüft sie beim Laden. Vorübergehend fehlende Werte ändern eine zuvor bestätigte Empfehlung nicht.";

@@ -1,5 +1,4 @@
 "jikan.common.action.cancel" = "Avbryt";
-"jikan.common.action.ok" = "OK";
 "jikan.common.action.save" = "Spara";
 
 "jikan.inline.format.hr" = "%ld tim";
@@ -81,7 +80,6 @@
 "jikan.prefs.row.reset_to_defaults" = "Återställ standardinställningar";
 "jikan.prefs.row.show_after_full_charge" = "Visa efter att målet har nåtts";
 "jikan.prefs.row.show_preview" = "Visa förhandsgranskning";
-"jikan.prefs.row.stack" = "Stack";
 "jikan.prefs.row.sync_with_chargelimiter" = "Synkronisera med ChargeLimiter";
 
 "jikan.prefs.section.battery_estimate" = "Tidsuppskattning";
@@ -115,13 +113,9 @@
 "jikan.stack.target.main" = "Huvudmål: %ld%%";
 "jikan.stack.target.unique" = "Ange ett mål som inte redan används. Apples uppskattningar stöder 80, 85, 90, 95 och 100%. Jikans uppskattningar stöder 1–100%.";
 "jikan.stack.target.unsupported" = "%ld%% är inte tillgängligt med Apples uppskattningar";
-"jikan.stack.unit.celsius" = "Celsius";
-"jikan.stack.unit.fahrenheit" = "Fahrenheit";
 
 "jikan.tt100.format.hr" = "%d tim";
 "jikan.tt100.format.hr_min" = "%d tim %d min";
-"jikan.tt100.format.lt1min" = "<1 min";
-"jikan.tt100.format.min" = "%d min";
 
 "jikan.tt100.value.na" = "Ej tillämpligt";
 
