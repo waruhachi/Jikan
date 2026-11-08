@@ -62,6 +62,13 @@ Tap Sync again whenever you change your limit. For limits outside Apple's preset
 
 Jikan includes English, German, Swedish, Turkish, and Vietnamese. Translations are managed on [Crowdin](https://crowdin.com/project/jikan), where you can improve an existing translation or request a new language without using Git.
 
+Thanks to the translators:
+
+- German: [Aeneon](https://github.com/Aeneon)
+- Swedish: spy_g.dylib (Discord)
+- Turkish: [Hüseyin Korkmaz](https://github.com/Huseyin-Korkmaz)
+- Vietnamese: winaviation (Discord)
+
 Jikan is open source under the [GNU GPLv3 license](LICENSE). You can explore the code, contribute improvements, or [report an issue](https://github.com/waruhachi/Jikan/issues).
 
 ## Support development
