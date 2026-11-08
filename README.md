@@ -69,6 +69,11 @@ Thanks to the translators:
 - Turkish: [Hüseyin Korkmaz](https://github.com/Huseyin-Korkmaz)
 - Vietnamese: winaviation (Discord)
 
+Translators on Crowdin:
+
+<!-- CROWDIN-CONTRIBUTORS-START -->
+<!-- CROWDIN-CONTRIBUTORS-END -->
+
 Jikan is open source under the [GNU GPLv3 license](LICENSE). You can explore the code, contribute improvements, or [report an issue](https://github.com/waruhachi/Jikan/issues).
 
 ## Support development
