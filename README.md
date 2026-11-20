@@ -10,6 +10,7 @@
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-GPLv3-blue?style=for-the-badge" /></a>
   <img alt="Language" src="https://img.shields.io/badge/language-Objective--C%20%26%20Logos-2b2b2b?style=for-the-badge" />
   <a href="https://havoc.app/package/jikan"><img src="https://img.shields.io/badge/available_on-Havoc-1757FF?style=for-the-badge" alt="Available on Havoc" /></a>
+  <a href="https://crowdin.com/project/jikan"><img src="https://img.shields.io/badge/translate_on-Crowdin-2E3340?style=for-the-badge&amp;logo=crowdin" alt="Translate on Crowdin" /></a>
 </p>
 
 ## About
@@ -62,14 +63,12 @@ Tap Sync again whenever you change your limit. For limits outside Apple's preset
 
 Jikan includes English, German, Swedish, Turkish, and Vietnamese. Translations are managed on [Crowdin](https://crowdin.com/project/jikan), where you can improve an existing translation or request a new language without using Git.
 
-Thanks to the translators:
+Thanks to everyone who translates Jikan:
 
 - German: [Aeneon](https://github.com/Aeneon)
 - Swedish: spy_g.dylib (Discord)
 - Turkish: [Hüseyin Korkmaz](https://github.com/Huseyin-Korkmaz)
 - Vietnamese: winaviation (Discord)
-
-Translators on Crowdin:
 
 <!-- CROWDIN-CONTRIBUTORS-START -->
 <!-- CROWDIN-CONTRIBUTORS-END -->

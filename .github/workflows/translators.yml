@@ -1,0 +1,48 @@
+name: Translators
+
+# Lists the people translating Jikan on Crowdin in the README, between the
+# CROWDIN-CONTRIBUTORS markers. Needs the CROWDIN_PROJECT_ID and
+# CROWDIN_PERSONAL_TOKEN secrets.
+
+permissions:
+    contents: write
+
+on:
+    schedule:
+        - cron: "43 5 * * *"
+    push:
+        branches: [main]
+        paths:
+            - "layout/Library/Tweak Support/Jikan/Localization/**"
+    workflow_dispatch:
+
+concurrency:
+    group: translators
+    cancel-in-progress: true
+
+jobs:
+    translators:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Update the table
+              uses: andrii-bodnar/action-crowdin-contributors@v3
+              with:
+                  contributors_per_line: 7
+                  max_contributors: 49
+                  image_size: 64
+                  min_words_contributed: 50
+                  include_languages: true
+              env:
+                  CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
+                  CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+
+            - name: Commit
+              run: |
+                  git diff --quiet -- README.md && exit 0
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git commit -m "chore: update translators" -- README.md
+                  git push
