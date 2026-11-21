@@ -1,0 +1,128 @@
+"jikan.common.action.cancel" = "Anulează";
+"jikan.common.action.ok" = "OK";
+"jikan.common.action.save" = "Salveazä";
+
+"jikan.inline.format.hr" = "%ldh";
+"jikan.inline.format.hr_min" = "%ldh %ldm";
+"jikan.inline.format.lt1min" = "<1m";
+"jikan.inline.format.min" = "%ldm";
+"jikan.inline.format.to_target" = "%@ la %ld%%";
+
+"jikan.notification.target_reached.message" = "Bateria Ta a ajuns %ld%% pragul de încărcare.";
+
+"jikan.platter.accessibility.next_item" = "Afișează următorul element din Stivă";
+
+"jikan.platter.label.battery_temperature" = "temperatură baterie";
+"jikan.platter.label.battery_voltage" = "voiltaj baterie";
+"jikan.platter.label.charged" = "încărcat";
+"jikan.platter.label.current_wattage" = "putere curentă";
+"jikan.platter.label.target_reached" = "target reached";
+"jikan.platter.label.until_fully_charged" = "până complet încărcat";
+"jikan.platter.label.until_target" = "până %ld%% încărcat";
+
+"jikan.platter.preview.eta" = "1 oră 23 min";
+"jikan.platter.preview.time" = "0 minute";
+
+"jikan.prefs.alert.detect_limit.none.message" = "No ChargeLimiter a fost detectat. Folosind 100%.";
+"jikan.prefs.alert.detect_limit.none.title" = "Nicio limită de bateria găsită";
+"jikan.prefs.alert.detect_limit.single.message" = "Limită de baterie aplicată de:%ld%%";
+"jikan.prefs.alert.detect_limit.single.title" = "ChargeLimiter detectat";
+"jikan.prefs.alert.detect_limit.unchanged.message" = "Limita No ChargeLimiter a fost detectară. Obiectivul tău estimat nu a fost schimbat.";
+"jikan.prefs.alert.detect_limit.unsupported.message" = "ChargeLimiter raportează %@%%. Țintele Apple sunt 80, 85, 90, 95, și 100%%. Ținta ta nu a fost schimbată.";
+"jikan.prefs.alert.detect_limit.unsupported.title" = "Țintă Apple Nesuportată";
+"jikan.prefs.alert.limit_sources.applied.message" = "Ultima aplicare din ChargeLimiter: %ld%%";
+"jikan.prefs.alert.limit_sources.title" = "Sincronizat cu ChargeLimiter";
+"jikan.prefs.alert.reset_pill_position.prompt" = "Resetați poziția indicatorului și a blocării axei în mod portret/peisaj?";
+"jikan.prefs.alert.reset_pill_position.title" = "Resetează Poziție Indicator";
+"jikan.prefs.alert.reset_preferences.prompt" = "Resetează toate setările Jikan la valorile implicite?";
+"jikan.prefs.alert.reset_preferences.title" = "Resetează Preferințele";
+"jikan.prefs.alert.slider_invalid.message" = "Introdu un număr valid de la %.0f la %.0f.";
+"jikan.prefs.alert.slider_range.message" = "Introdu o valoare de la %.0f la %.0f";
+
+"jikan.prefs.algorithm.apple_description" = "Utilizează o copie locală fixă ​​a modelelor de încărcare de la Apple. Alegeți 80%, 85%, 90%, 95% sau 100%.";
+"jikan.prefs.algorithm.apple_unavailable" = "Niște citiri de baterie au fost indisponibile recent. Predicțiile Apple s-ar pitea să rămână indisponibile chiar și cu putere de intrare estimată.";
+"jikan.prefs.algorithm.apple_estimation_enabled" = "Aproximarea bazată pe adaptor este activată. Estimările realizate prin această metodă sunt marcate cu ≈. Selectați Jikan pentru a o dezactiva.";
+"jikan.prefs.algorithm.warning.title" = "Putere de Încărcare Estimată";
+"jikan.prefs.algorithm.warning.message" = "Acest dispozitiv nu poate furniza o sursă de intrare măsurată cu precizie. Comutarea modelelor în acest moment va utiliza surse estimate, ceea ce ar putea genera estimări inexacte.";
+"jikan.prefs.algorithm.warning.allow" = "Continuă";
+"jikan.prefs.algorithm.jikan_description" = "Estimează timpul pe baza istoricului de încărcare și a citirilor curente ale bateriei. Alege orice valoare țintă, de la 1% la 100%.";
+"jikan.prefs.algorithm.recommended" = "Recomandat";
+
+"jikan.prefs.footer.estimate_beside_date_unavailable" = "Doar disponibil pe iOS 14 sau mai nou.";
+"jikan.prefs.footer.quick_actions_unavailable" = "Butoanele de acțiune rapidă nu sunt disponibile pe acest dispozitiv";
+"jikan.prefs.footer.slider_hint" = "Atinge și menține apăsat butonul glisorului pentru a edita";
+
+"jikan.prefs.header.subtitle" = "Afișează timpul rămas până la încărcarea completă pe ecranul de blocare";
+
+"jikan.prefs.legend.slow_charging" = "Arată încărcare";
+
+"jikan.prefs.row.algorithm" = "Algoritmul";
+"jikan.prefs.row.enable" = "Pornește";
+"jikan.prefs.row.estimate_beside_date" = "Folosește În Schimb rândul de Dată";
+"jikan.prefs.row.estimate_source" = "Sursă";
+"jikan.prefs.row.estimate_target" = "Țintă Estimată";
+"jikan.prefs.row.estimate_target_percent" = "Țintă Estimată (%)";
+"jikan.prefs.row.hide_quick_action_buttons" = "Ascunde Butoane de Acțiune Rapidă";
+"jikan.prefs.row.hide_swipe_to_unlock_text" = "Ascunde Textul Glisează Pentru a Debloca";
+"jikan.prefs.row.hide_focus_indicator" = "Ascunde Indicatorul de Focalizare";
+"jikan.prefs.row.landscape" = "Peisaj";
+"jikan.prefs.row.landscape_x" = "Peisaj X";
+"jikan.prefs.row.landscape_y" = "Peisaj Y";
+"jikan.prefs.row.lock_x_axis" = "Blochează Axa X";
+"jikan.prefs.row.lock_y_axis" = "Blochează Axa Y";
+"jikan.prefs.row.notify_when_target_reached" = "Notifică Atunci Când Ținta Este Atinsă";
+"jikan.prefs.row.only_while_charging" = "Doar Când se Încarcă";
+"jikan.prefs.row.opacity" = "Opacitate";
+"jikan.prefs.row.pill_background_opacity" = "Opacitate Fundal Pastilă (%)";
+"jikan.prefs.row.portrait" = "Portret";
+"jikan.prefs.row.portrait_x" = "Portret X";
+"jikan.prefs.row.portrait_y" = "Portret Y";
+"jikan.prefs.row.reset_pill_position" = "Resetează Poziție Indicator";
+"jikan.prefs.row.reset_to_defaults" = "Resetează La Valori Implicite";
+"jikan.prefs.row.show_after_full_charge" = "Arată după ce se atinge ținta";
+"jikan.prefs.row.show_preview" = "Afișează Previzualizarea";
+"jikan.prefs.row.stack" = "Stivă";
+"jikan.prefs.row.sync_with_chargelimiter" = "Sincronizează cu ChargeLimiter";
+
+"jikan.prefs.section.battery_estimate" = "Timp Estimat";
+"jikan.prefs.section.miscellaneous" = "Diverse";
+"jikan.prefs.section.pill_display" = "Ecran Pastilă";
+"jikan.prefs.section.pill_position" = "Poziție Pastilă";
+"jikan.prefs.section.pill_preview" = "Previzualizare Pastsilă";
+"jikan.prefs.section.pill_style" = "Tip Pastilă";
+"jikan.prefs.section.reset" = "Resetare";
+
+"jikan.prefs.slider.estimate_target.title" = "Țintă Estimată";
+"jikan.prefs.slider.landscape_x.title" = "Peisaj X";
+"jikan.prefs.slider.landscape_y.title" = "Peisaj Y";
+"jikan.prefs.slider.opacity.title" = "Opacitatea Fundalului de tip Pastilă";
+"jikan.prefs.slider.portrait_x.title" = "Portret X";
+"jikan.prefs.slider.portrait_y.title" = "Portret Y";
+
+"jikan.stack.action.add_estimate" = "Adaugă Estimare";
+"jikan.stack.item.estimate" = "Timp Estimat";
+"jikan.stack.item.estimate_target" = "Estimare la %ld%%";
+"jikan.stack.item.temperature" = "Temperatura";
+"jikan.stack.item.voltage" = "Voltaj";
+"jikan.stack.item.wattage" = "Putere";
+
+"jikan.stack.section.active" = "Activ";
+"jikan.stack.section.available" = "Disponibil";
+"jikan.stack.section.unit" = "Unitate Temperatură";
+
+"jikan.stack.target.duplicate" = "Această țintă este deja utilizată de estimarea principală sau de o altă estimare de Stivă.";
+"jikan.stack.target.hint" = "Alegeți o altă țintă pentru această estimare. Indicatorul trece la următoarea țintă nefinalizată, imediat superioară, atunci când este atinsă ținta afișată.";
+"jikan.stack.target.main" = "Obiectiv principal: %ld%%";
+"jikan.stack.target.unique" = "Introduceți o țintă neutilizată. Estimările Apple acceptă valorile 80, 85, 90, 95 și 100%. Estimările Jikan acceptă intervalul 1–100%.";
+"jikan.stack.target.unsupported" = "%ld%% este indisponibil cu estimări Apple";
+"jikan.stack.unit.celsius" = "Celsius";
+"jikan.stack.unit.fahrenheit" = "Fahrenheit";
+
+"jikan.tt100.format.hr" = "%d oră";
+"jikan.tt100.format.hr_min" = "%d oră %d min";
+"jikan.tt100.format.lt1min" = "<1 min";
+"jikan.tt100.format.min" = "%d min";
+
+"jikan.tt100.value.na" = "N/A";
+
+"jikan.prefs.algorithm.checking" = "Disponibilitatea datelor de la Apple nu a fost confirmată. Jikan efectuează verificări în timp ce dispozitivul se încarcă; absența temporară a unor citiri nu modifică o recomandare confirmată anterior.";
