@@ -71,6 +71,28 @@ Thanks to everyone who translates Jikan:
 - Vietnamese: winaviation (Discord)
 
 <!-- CROWDIN-CONTRIBUTORS-START -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top">
+        <a href="https://crowdin.com/profile/waru"><img alt="logo" style="width: 64px" src="https://crowdin-static.cf-downloads.crowdin.com/avatar/17968723/medium/8fed5c8aee1f383f8ec3c474d63122e3.png" />
+          <br />
+          <sub><b>waru</b></sub></a>
+        <br />
+        <sub><b>1828 words</b></sub>
+        <br /><sub><b><code title="German">de</code></b>, <b><code title="Swedish">sv-SE</code></b>, <b><code title="Turkish">tr</code></b>, <b><code title="Vietnamese">vi</code></b></sub>
+      </td>
+      <td align="center" valign="top">
+        <a href="https://crowdin.com/profile/TheMightyOfTrains"><img alt="logo" style="width: 64px" src="https://crowdin-static.cf-downloads.crowdin.com/avatar/17969167/medium/cb3366e5d6fc15f8a9930668d4f923e6.jpeg" />
+          <br />
+          <sub><b>TheMightyOfTrains</b></sub></a>
+        <br />
+        <sub><b>462 words</b></sub>
+        <br /><sub><b><code title="Romanian">ro</code></b></sub>
+      </td>
+    </tr>
+  </tbody>
+</table>
 <!-- CROWDIN-CONTRIBUTORS-END -->
 
 Jikan is open source under the [GNU GPLv3 license](LICENSE). You can explore the code, contribute improvements, or [report an issue](https://github.com/waruhachi/Jikan/issues).
